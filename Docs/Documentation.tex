@@ -75,8 +75,8 @@
 \begin{itemize}
     \item \textbf{Utente non registrato:} Accede alle funzionalità base di consultazione, come la visualizzazione della mappa dei centri di raccolta.
     \item \textbf{Cittadino registrato:} Attore principale che effettua la scansione dei prodotti, accumula punti nel sistema di premialità e invia segnalazioni geolocalizzate.
-    \item \textbf{Operatore ecologico:} Utente tecnico che si occupa della segnalazione guasti ai bidoni e dell'aggiornamento in tempo reale dello stato di svuotamento.
-    \item \textbf{Amministratore (Admin):} Gestisce il sistema tramite una dashboard dedicata, analizza le statistiche, gestisce i centri di raccolta e il catalogo premi.
+    \item \textbf{Operatore ecologico:} Utente tecnico che si occupa della segnalazione guasti ai bidoni, dell'aggiornamento in tempo reale dello stato di svuotamento e visualizzazione percorsi ottimizzati.
+    \item \textbf{Amministratore di sistema (Admin):} Gestisce il sistema tramite una dashboard dedicata, analizza le statistiche, gestisce i centri di raccolta e il catalogo premi.
 \end{itemize}
 
 \subsection{Attori Secondari (Sistemi Esterni)}
@@ -87,12 +87,58 @@
 \end{itemize}
 
 \section{Requisiti funzionali per attore}
-% Nota: Almeno 20 totali
-\subsection{Utente anonimo o non autenticato}
-\begin{itemize}
-    \item \textbf{RF1:} L'applicazione deve fornire agli utenti anonimi una breve spiegazione riguardo le funzionalità dell'applicazione e del progetto.
-\end{itemize}
 
+Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle interazioni specifiche di ogni attore coinvolto.
+
+\subsection{Cittadino Non Registrato }
+\begin{enumerate}[label=\textbf{(RF\arabic*)}]
+    \item Il sistema deve visualizzare sulla mappa la posizione dei centri di raccolta e dei bidoni stradali pubblici più vicini.
+    \item Il sistema deve fornire l'accesso alle informazioni su orari, indirizzi e tipologie di rifiuti accettati dai centri di raccolta.
+\end{enumerate}
+
+\subsection{Cittadino Registrato}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve permettere all'utente di registrarsi e gestire un profilo personale tramite email.
+    \item Il sistema deve permettere la scansione del codice a barre di un prodotto per visualizzare le istruzioni di smaltimento.
+    \item Il sistema deve consentire la ricerca testuale nel database dei rifiuti per identificare il corretto conferimento di oggetti privi di barcode.
+    \item Il sistema deve consentire l'invio di segnalazioni geolocalizzate includendo foto e descrizione del problema.
+    \item Il sistema deve calcolare e accreditare punti bonus all'utente per ogni segnalazione validata o scansione effettuata.
+    \item Il sistema deve permettere la visualizzazione di una lista delle segnalazioni inviate e del loro stato attuale (es. ``In attesa'', ``In corso'', ``Risolta'').
+    \item Il sistema deve consentire la generazione di codici sconto o voucher digitali riscattabili nel catalogo premi.
+    \item Il sistema deve permettere la ricezione di notifiche push per avvisi di servizio o conferme di avvenuta risoluzione di una segnalazione.
+\end{enumerate}
+
+\subsection{Operatore Ecologico}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve visualizzare sulla mappa dell'operatore un percorso ottimizzato generato in base ai dati di riempimento dei bidoni.
+    \item L'interfaccia deve consentire all'operatore di cambiare lo stato di una segnalazione cittadina una volta risolto il problema.
+    \item Il sistema deve permettere all'operatore di segnalare danni strutturali ai bidoni o malfunzionamenti dei sensori.
+    \item Il sistema deve consentire la validazione manuale dello svuotamento di un bidone per resettare il contatore di riempimento nel database.
+\end{enumerate}
+
+\subsection{Amministratore di Sistema (Admin)}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item La dashboard deve fornire una vista d'insieme (Heatmap) per monitorare i livelli di riempimento di tutti i sensori sul territorio.
+    \item Il sistema deve permettere l'inserimento, la modifica e la rimozione di prodotti e regole di smaltimento dal database centrale.
+    \item Il sistema deve gestire le anagrafiche dei partner commerciali e la disponibilità dei premi nel catalogo.
+    \item Il sistema deve generare report analitici sulle zone della città con maggiore criticità (abbandoni frequenti o bidoni sempre pieni).
+\end{enumerate}
+
+\subsection{Sensori}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item I sensori IoT devono inviare periodicamente dati relativi alla capacità residua e allo stato di carica della batteria.
+\end{enumerate}
+
+\subsection{Servizi terzi (API)}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve interfacciarsi con API cartografiche esterne per il calcolo in tempo reale dei tempi di percorrenza e del traffico.
+\end{enumerate}
+
+\subsection{Partner Commerciali }
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve permettere all'esercente di validare i coupon presentati dai cittadini tramite la scansione di un QR Code o l'inserimento di un codice univoco.
+    \item Il sistema deve consentire all'attività commerciale di caricare e aggiornare le proprie offerte o sconti all'interno del catalogo premi dell'applicazione.
+\end{enumerate}
 \section{Requisiti non funzionali}
 % Nota: Almeno 10 totali 
 \begin{itemize}
