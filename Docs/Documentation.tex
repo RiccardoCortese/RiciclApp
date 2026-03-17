@@ -70,13 +70,21 @@
 
 \section{Attori del sistema}
 % Nota: Inserire qui una mindmap (consigliata)
-\subsection{Utenti}
+
+\subsection{Attori Diretti (Utenti)}
 \begin{itemize}
-    \item \textbf{Utente non autenticato:} utente base con funzionalità limitate.
+    \item \textbf{Utente non registrato:} Accede alle funzionalità base di consultazione, come la visualizzazione della mappa dei centri di raccolta.
+    \item \textbf{Cittadino registrato:} Attore principale che effettua la scansione dei prodotti, accumula punti nel sistema di premialità e invia segnalazioni geolocalizzate.
+    \item \textbf{Operatore ecologico:} Utente tecnico che si occupa della segnalazione guasti ai bidoni e dell'aggiornamento in tempo reale dello stato di svuotamento.
+    \item \textbf{Amministratore (Admin):} Gestisce il sistema tramite una dashboard dedicata, analizza le statistiche, gestisce i centri di raccolta e il catalogo premi.
 \end{itemize}
 
-\subsection{Sistemi esterni}
-[Indicare eventuali sistemi esterni]
+\subsection{Attori Secondari (Sistemi Esterni)}
+\begin{itemize}
+    \item \textbf{Sensori (Bidoni):} Dispositivi hardware che inviano periodicamente dati sullo stato di riempimento e sul livello della batteria.
+    \item \textbf{Partner commerciali:} Entità esterne che integrano il sistema di premialità accettando i punti accumulati dagli utenti in cambio di sconti o servizi.
+    \item \textbf{Servizi Terzi (API):} Sistemi esterni per la fornitura di mappe cartografiche e database per il riconoscimento dei codici a barre.
+\end{itemize}
 
 \section{Requisiti funzionali per attore}
 % Nota: Almeno 20 totali
