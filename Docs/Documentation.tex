@@ -1,0 +1,93 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{tabularx}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+% --- PAGINA 1: COPERTINA ---
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \textbf{Nome progetto} \par}
+    \vspace{1cm}
+    {\Large Deliverable D1 \par}
+    \vspace{3cm}
+    
+    {\large \textbf{Gruppo n°:} 20 \par}
+    \vspace{1.5cm}
+    
+    {\large \textbf{Componenti:} \par}
+    \vspace{0.5cm}
+    \begin{tabular}{rl}
+        \textbf{Studente:} & Binco Francesco (Matricola: ) \\
+        \textbf{Studente:} & Cortese Riccardo (Matricola: 244656) \\
+        \textbf{Studente:} & Giovagnetti Lorenzo (Matricola: ) \\
+    \end{tabular}
+    
+    \vfill
+    {\large Progetto di Ingegneria del Software - Prof. Sandro Luigi Fiore \par}
+    \vspace{1.5cm}
+    {\large Anno Accademico 2025/2026 \par}
+    \vspace{2cm}
+\end{titlepage}
+
+% --- PAGINA 2: INDICE ---
+\newpage
+\pagenumbering{roman} % Numerazione romana per l'indice
+\tableofcontents
+\newpage
+
+% --- PAGINA 3 E SUCCESSIVE: CONTENUTO ---
+\pagenumbering{arabic} % Torna alla numerazione araba (1, 2, 3...)
+\setcounter{page}{1}   % Ricomincia il conteggio da 1
+
+\section{Obiettivi del progetto}
+L'obiettivo principale del sistema è lo sviluppo di un'applicazione che migliori l'efficienza della raccolta differenziata, facilitare il corretto smaltimento dei rifiuti da parte dei cittadini e ottimizare il lavoro degli operatori ecologici.
+
+\section{Attori del sistema}
+% Nota: Inserire qui una mindmap (consigliata) [cite: 10]
+\subsection{Utenti}
+\begin{itemize}
+    \item \textbf{Utente non autenticato:} utente base con funzionalità limitate[cite: 12].
+\end{itemize}
+
+\subsection{Sistemi esterni}
+[Indicare eventuali sistemi esterni] [cite: 13]
+
+\section{Requisiti funzionali per attore}
+% Nota: Almeno 20 totali [cite: 15]
+\subsection{Utente anonimo o non autenticato}
+\begin{itemize}
+    \item \textbf{RF1:} L'applicazione deve fornire agli utenti anonimi una breve spiegazione riguardo le funzionalità dell'applicazione e del progetto[cite: 18].
+\end{itemize}
+
+\section{Requisiti non funzionali}
+% Nota: Almeno 10 totali [cite: 20]
+\begin{itemize}
+    \item \textbf{RNF1:} La velocità di risposta delle funzioni di ricerca del sistema deve essere inferiore ai 5 secondi[cite: 21].
+\end{itemize}
+
+\section{Use case diagrams e casi d'uso}
+% Nota: Rappresentare diagramma e almeno 5 descrizioni [cite: 23, 24]
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{ID e Nome} & UC1: [Nome Caso d'Uso] \\ \hline
+\textbf{Attori} & \dots \\ \hline
+\textbf{Descrizione} & [Descrizione dettagliata con tabella] [cite: 25] \\ \hline
+\end{tabularx}
+\end{table}
+
+\section{Diagramma BPMN}
+% Nota: Almeno un diagramma BPMN (as-is, to-be o dettaglio) [cite: 27, 28]
+\textit{// Inserire qui il diagramma BPMN.}
+
+\end{document}
