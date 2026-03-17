@@ -139,11 +139,23 @@ Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle intera
     \item Il sistema deve permettere all'esercente di validare i coupon presentati dai cittadini tramite la scansione di un QR Code o l'inserimento di un codice univoco.
     \item Il sistema deve consentire all'attività commerciale di caricare e aggiornare le proprie offerte o sconti all'interno del catalogo premi dell'applicazione.
 \end{enumerate}
-\section{Requisiti non funzionali}
-% Nota: Almeno 10 totali 
-\begin{itemize}
-    \item \textbf{RNF1:} La velocità di risposta delle funzioni di ricerca del sistema deve essere inferiore ai 5 secondi.
-\end{itemize}
+
+\section{Requisiti Non Funzionali}
+
+I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli standard che devono essere garantiti per il corretto funzionamento dell'infrastruttura.
+
+\begin{enumerate}[label=\textbf{(RNF\arabic*)}]
+    \item \textbf{Usabilità (User Experience):} L'interfaccia utente deve essere intuitiva e accessibile, permettendo a un cittadino di completare la scansione di un prodotto in meno di tre interazioni.
+    \item \textbf{Prestazioni (Tempo di risposta):} Il sistema deve processare la scansione del codice a barre e restituire le informazioni sullo smaltimento entro un tempo massimo di 5 secondi.
+    \item \textbf{Disponibilità (Availability):} Il backend del sistema e la dashboard per il Comune devono essere operativi in modo continuo.
+    \item \textbf{Sicurezza (Protezione Dati):} Tutte le comunicazioni tra l'applicazione mobile, i sensori IoT e il server devono essere criptate.
+    \item \textbf{Scalabilità:} L'architettura deve essere in grado di gestire un aumento del carico di utenti senza degradazione delle prestazioni.
+    \item \textbf{Localizzazione:} Il sistema deve supportare la localizzazione geografica dinamica per mostrare solo le regole di smaltimento valide nel comune in cui si trova l'utente.
+    \item \textbf{Gestione della persistenza (Last Known Value):} In caso di perdita temporanea della connettività dei sensori IoT o del dispositivo mobile, il sistema deve garantire la continuità del servizio visualizzando l'ultimo stato di riempimento validamente registrato, segnalando esplicitamente all'utente l'orario dell'ultimo aggiornamento del dato.
+    \item \textbf{Compatibilità:} L'applicazione mobile deve essere compatibile con le versioni più diffuse dei sistemi operativi Android (versione 8.0+) e iOS (versione 13+).
+    \item \textbf{Manutenibilità:} Il codice deve essere documentato seguendo gli standard del linguaggio scelto e organizzato in microservizi per facilitare futuri aggiornamenti dei singoli moduli (es. modulo premi, modulo mappe).
+    \item \textbf{Rispetto della Privacy (GDPR):} Il sistema non deve memorizzare i dati di posizione GPS in modo persistente se non strettamente necessario per la gestione delle segnalazioni, garantendo l'anonimato degli utenti non registrati.
+\end{enumerate}
 
 \section{Use case diagrams e casi d'uso}
 % Nota: Rappresentare diagramma e almeno 5 descrizioni
