@@ -17,7 +17,7 @@
 \begin{titlepage}
     \centering
     \vspace*{2cm}
-    {\Huge \textbf{Nome progetto} \par}
+    {\Huge \textbf{RiciclApp} \par}
     \vspace{1cm}
     {\Large Deliverable D1 \par}
     \vspace{3cm}
@@ -28,9 +28,9 @@
     {\large \textbf{Componenti:} \par}
     \vspace{0.5cm}
     \begin{tabular}{rl}
-        \textbf{Studente:} & Binco Francesco (Matricola: ) \\
+        \textbf{Studente:} & Binco Francesco (Matricola: 243781) \\
         \textbf{Studente:} & Cortese Riccardo (Matricola: 244656) \\
-        \textbf{Studente:} & Giovagnetti Lorenzo (Matricola: ) \\
+        \textbf{Studente:} & Giovagnetti Lorenzo (Matricola: 247579) \\
     \end{tabular}
     
     \vfill
@@ -54,19 +54,19 @@
 \section*{Obiettivi del Progetto}
 
 \begin{enumerate}[label=\textbf{(O\arabic*)}]
-    \item \textbf{Massimizzazione dell'accuratezza nel conferimento dei rifiuti.} 
+    \item \textbf{Miglioramento della Raccolta differenziata dei rifiuti:} 
     L’applicazione agisce come un assistente intelligente per il cittadino, eliminando l'incertezza grazie alla scansione istantanea dei prodotti. L'obiettivo è abbattere la percentuale di errore nella differenziata, riducendo le sanzioni per l'utente e i costi di separazione secondaria presso gli impianti di smaltimento.
 
-    \item \textbf{Efficientamento operativo e logistica ``On-Demand''.} 
+    \item \textbf{Dinamizzazione operativa e logistica ``On-Demand'':} 
     Il sistema mira a trasformare la raccolta da un modello a calendario fisso a un modello dinamico basato su dati reali. Attraverso l'integrazione di sensori, è possibile intervenire solo dove necessario, ottimizzando i percorsi di raccolta, riducendo le emissioni di $CO_2$ dei mezzi e abbattendo i costi di carburante e manutenzione.
 
-    \item \textbf{Promozione dell'Economia Circolare.} 
+    \item \textbf{Promozione dell'Economia Circolare:} 
     Incentivare comportamenti virtuosi attraverso un sistema di \textit{gamification} e premialità. L’obiettivo è trasformare il cittadino da utente passivo a partecipante attivo del decoro urbano, premiando la correttezza dello smaltimento e la proattività nelle segnalazioni.
 
-    \item \textbf{Digitalizzazione e trasparenza della gestione urbana.} 
+    \item \textbf{Digitalizzazione e trasparenza della gestione urbana:} 
     Fornire alla Pubblica Amministrazione una dashboard di analisi dati in tempo reale. Questo permette di monitorare lo stato di riempimento dei bidoni sul territorio, identificare le aree critiche soggette ad abbandono di rifiuti e pianificare interventi infrastrutturali basati su evidenze oggettive.
 
-    \item \textbf{Miglioramento del decoro urbano e della sostenibilità ambientale.} 
+    \item \textbf{Miglioramento del decoro urbano e della sostenibilità ambientale:} 
     Elevare la vivibilità della città attraverso un sistema di segnalazioni rapido e geolocalizzato. Riducendo i tempi di permanenza dei rifiuti in strada e il sovraffollamento dei bidoni, l'app contribuisce direttamente alla pulizia urbana e alla prevenzione di criticità igienico-sanitarie.
 \end{enumerate}
 
@@ -81,34 +81,36 @@
 
 \subsection{Attori Diretti (Utenti)}
 \begin{itemize}
-    \item \textbf{Utente non registrato:} Accede alle funzionalità base di consultazione, come la visualizzazione della mappa dei centri di raccolta.
-    \item \textbf{Cittadino registrato:} Attore principale che effettua la scansione dei prodotti, accumula punti nel sistema di premialità e invia segnalazioni geolocalizzate.
+    \item \textbf{Utente non registrato:} Accede alle funzionalità base di consultazione, come la visualizzazione della mappa dei centri di raccolta e la scansione dei codici a barre.
+    \item \textbf{Utente registrato:} Accede alla funzionalità di base, accumula punti nel sistema di premiazione e invia segnalazioni geolocalizzate.
     \item \textbf{Operatore ecologico:} Utente tecnico che si occupa della segnalazione guasti ai bidoni, dell'aggiornamento in tempo reale dello stato di svuotamento e visualizzazione percorsi ottimizzati.
     \item \textbf{Amministratore di sistema (Admin):} Gestisce il sistema tramite una dashboard dedicata, analizza le statistiche, gestisce i centri di raccolta e il catalogo premi.
 \end{itemize}
 
 \subsection{Attori Secondari (Sistemi Esterni)}
 \begin{itemize}
-    \item \textbf{Sensori (Bidoni):} Dispositivi hardware che inviano periodicamente dati sullo stato di riempimento e sul livello della batteria.
-    \item \textbf{Partner commerciali:} Entità esterne che integrano il sistema di premialità accettando i punti accumulati dagli utenti in cambio di sconti o servizi.
-    \item \textbf{Servizi Terzi (API):} Sistemi esterni per la fornitura di mappe cartografiche e database per il riconoscimento dei codici a barre.
+    \item \textbf{Sensori Bidoni:} Dispositivi hardware IoT che inviano periodicamente dati sullo stato di riempimento e sul livello della batteria.
+    \item \textbf{Partner commerciali:} Entità esterne integrate nel sistema di premiazione accettando i punti accumulati dagli utenti in cambio di sconti o servizi.
+    \item \textbf{Servizi Terzi (API):} Sistemi esterni per la fornitura di mappe cartografiche, database per il riconoscimento dei materiali tramite codici a barre e calcolo per il percorso ottimale della raccolta.
 \end{itemize}
+
+\newpage
 
 \section{Requisiti funzionali per attore}
 
 Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle interazioni specifiche di ogni attore coinvolto.
 
-\subsection{Cittadino Non Registrato }
+\subsection{Utente Non Registrato }
 \begin{enumerate}[label=\textbf{(RF\arabic*)}]
-    \item Il sistema deve visualizzare sulla mappa la posizione dei centri di raccolta e dei bidoni stradali pubblici più vicini.
+    \item Il sistema deve permettere di visualizzare sulla mappa la posizione dei centri di raccolta e dei bidoni stradali pubblici più vicini.
     \item Il sistema deve fornire l'accesso alle informazioni su orari, indirizzi e tipologie di rifiuti accettati dai centri di raccolta.
+    \item Il sistema deve permettere la scansione del codice a barre di un prodotto per visualizzare le istruzioni di smaltimento.
+    \item Il sistema deve consentire la ricerca testuale nel database dei rifiuti per identificare il corretto smaltimento dell'oggetto in alternativa della scansione del codice a barre.
 \end{enumerate}
 
-\subsection{Cittadino Registrato}
+\subsection{Utente Registrato}
 \begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
     \item Il sistema deve permettere all'utente di registrarsi e gestire un profilo personale tramite email.
-    \item Il sistema deve permettere la scansione del codice a barre di un prodotto per visualizzare le istruzioni di smaltimento.
-    \item Il sistema deve consentire la ricerca testuale nel database dei rifiuti per identificare il corretto conferimento di oggetti privi di barcode.
     \item Il sistema deve consentire l'invio di segnalazioni geolocalizzate includendo foto e descrizione del problema.
     \item Il sistema deve calcolare e accreditare punti bonus all'utente per ogni segnalazione validata o scansione effettuata.
     \item Il sistema deve permettere la visualizzazione di una lista delle segnalazioni inviate e del loro stato attuale (es. ``In attesa'', ``In corso'', ``Risolta'').
@@ -139,7 +141,7 @@ Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle intera
 
 \subsection{Servizi terzi (API)}
 \begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
-    \item Il sistema deve interfacciarsi con API cartografiche esterne per il calcolo in tempo reale dei tempi di percorrenza e del traffico.
+    \item Il sistema deve interfacciarsi con API cartografiche esterne per il calcolo in tempo reale dei tempi di percorrenza.
 \end{enumerate}
 
 \subsection{Partner Commerciali }
@@ -153,20 +155,21 @@ Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle intera
 I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli standard che devono essere garantiti per il corretto funzionamento dell'infrastruttura.
 
 \begin{enumerate}[label=\textbf{(RNF\arabic*)}]
-    \item \textbf{Usabilità (User Experience):} L'interfaccia utente deve essere intuitiva e accessibile, permettendo a un cittadino di completare la scansione di un prodotto in meno di tre interazioni.
-    \item \textbf{Prestazioni (Tempo di risposta):} Il sistema deve processare la scansione del codice a barre e restituire le informazioni sullo smaltimento entro un tempo massimo di 5 secondi.
+    \item \textbf{Usabilità (User Experience):} L'interfaccia utente deve essere intuitiva e accessibile, permettendo a un cittadino di completare la scansione di un prodotto in poche interazioni.
+    \item \textbf{Prestazioni (Tempo di risposta):} Il sistema deve processare la scansione del codice a barre e restituire le informazioni sullo smaltimento in tempi brevi.
     \item \textbf{Disponibilità (Availability):} Il backend del sistema e la dashboard per il Comune devono essere operativi in modo continuo.
     \item \textbf{Sicurezza (Protezione Dati):} Tutte le comunicazioni tra l'applicazione mobile, i sensori IoT e il server devono essere criptate.
     \item \textbf{Scalabilità:} L'architettura deve essere in grado di gestire un aumento del carico di utenti senza degradazione delle prestazioni.
-    \item \textbf{Localizzazione:} Il sistema deve supportare la localizzazione geografica dinamica per mostrare solo le regole di smaltimento valide nel comune in cui si trova l'utente.
+    \item \textbf{Localizzazione:} Il sistema deve supportare la localizzazione geografica dinamica per mostrare solo le regole di smaltimento valide nella regione in cui si trova l'utente.
     \item \textbf{Gestione della persistenza (Last Known Value):} In caso di perdita temporanea della connettività dei sensori IoT o del dispositivo mobile, il sistema deve garantire la continuità del servizio visualizzando l'ultimo stato di riempimento validamente registrato, segnalando esplicitamente all'utente l'orario dell'ultimo aggiornamento del dato.
-    \item \textbf{Compatibilità:} L'applicazione mobile deve essere compatibile con le versioni più diffuse dei sistemi operativi Android (versione 8.0+) e iOS (versione 13+).
+    \item \textbf{Compatibilità:} L'applicazione mobile deve essere compatibile con le versioni più recenti dei sistemi operativi Android e iOS.
     \item \textbf{Manutenibilità:} Il codice deve essere documentato seguendo gli standard del linguaggio scelto e organizzato in microservizi per facilitare futuri aggiornamenti dei singoli moduli (es. modulo premi, modulo mappe).
     \item \textbf{Rispetto della Privacy (GDPR):} Il sistema non deve memorizzare i dati di posizione GPS in modo persistente se non strettamente necessario per la gestione delle segnalazioni, garantendo l'anonimato degli utenti non registrati.
 \end{enumerate}
 
 \section{Use case diagrams e casi d'uso}
 % Nota: Rappresentare diagramma e almeno 5 descrizioni
+\textit{Almeno 5 casi/situazioni}
 \begin{table}[h]
 \centering
 \begin{tabularx}{\textwidth}{|l|X|}
@@ -180,5 +183,8 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \section{Diagramma BPMN}
 % Nota: Almeno un diagramma BPMN (as-is, to-be o dettaglio) 
 \textit{// Inserire qui il diagramma BPMN.}
+\textit{Utente: Processo di scansione, Segnalazione pieno, Segnalazione guasto  }
+\textit{Operatore: Aggiornamento svuotamenti, Segnalazione guasto}
+\textit{Admin: Creazione anagrafica commerciale, Aggiornamento dei centri e bidoni, Gestione Segnalazioni}
 
 \end{document}
