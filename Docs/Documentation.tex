@@ -6,7 +6,9 @@
 \usepackage{titlesec}
 \usepackage{tabularx}
 \usepackage{enumitem}
-
+\usepackage{graphicx}
+\graphicspath{ {./pictures/} } % definisce la cartella predefinita per le immagini
+\usepackage{float}
 \geometry{margin=2.5cm}
 
 \begin{document}
@@ -69,7 +71,13 @@
 \end{enumerate}
 
 \section{Attori del sistema}
-% Nota: Inserire qui una mindmap (consigliata)
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actors.png}
+    \caption{Mindnmap attori}
+    \label{fig:placeholder}
+\end{figure}
 
 \subsection{Attori Diretti (Utenti)}
 \begin{itemize}
