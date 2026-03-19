@@ -175,15 +175,122 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \section{Use case diagrams e casi d'uso}
 % Nota: Rappresentare diagramma e almeno 5 descrizioni
 \textit{Almeno 5 casi/situazioni}
-\begin{table}[h]
+
 \centering
-\begin{tabularx}{\textwidth}{|l|X|}
-\hline
-\textbf{ID e Nome} & UC1: [Nome Caso d'Uso] \\ \hline
-\textbf{Attori} & \dots \\ \hline
-\textbf{Descrizione} & [Descrizione dettagliata con tabella] \\ \hline
-\end{tabularx}
-\end{table}
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC1 \\ \hline
+\textbf{Nome} & Scansione codice a barre \\ \hline
+\textbf{Descrizione} & Utente prova la funzione di scansione del codice a barre \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}
+    \item L'utente apre l'app e attiva la modalità scanner.
+    \item L'utente inquadra il codice a barre o riporta il codice numerico corrispondente.
+    \item Il sistema invia all'app i dati relativi allo smaltimento di ogni elemento del prodotto riconosciuto.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}
+    \item L'utente apre l'app e attiva la modalità scanner.
+    \item L'utente inquadra il codice a barre o riporta il codice numerico corrispondente.
+    \item Il prodotto non viene riconosciuto.
+    \item Il sistema invia all'app un segnale di errore.
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC2 \\ \hline
+\textbf{Nome} & Segnalazione bidone pieno \\ \hline
+\textbf{Descrizione} & Utente segnala un bidone pieno \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}
+    \item L'utente apre l'app e trova sulla mappa il punto di raccolta più vicino.
+    \item L'utente raggiunge il luogo di smaltimento e trova il bidone pieno.
+    \item L'utente segnala al sistema lo stato di pienezza del bidone, ricevendo dei punti di ringraziamento per la segnalazione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Il bidone dovrà essere svuotato e i sensori controllati \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}
+    \item L'utente apre l'app e trova sulla mappa il punto di raccolta più vicino.
+    \item L'utente raggiunge il luogo di smaltimento, trova il bidone agibile e prosegue allo smaltimento.
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni \\ \hline
+\textbf{Descrizione} & Operatore segnala lo svuotamento di un bidone \\ \hline
+\textbf{Attori primari} & Operatore \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}
+    \item L'operatore segue il percorso personalizzato fornito.
+    \item L'operatore raggiunge i bidoni e li svuota, confermando al sistema l'avvenuta operazione.
+    \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore.
+    \item Il sistema aggiorna lo stato del bidone.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}
+    \item L'operatore segue il percorso personalizzato fornito.
+    \item L'operatore raggiunge i bidoni e li trova vuoti, segnalando l'anomalia al sistema.
+    \item Il sistema riceve lo stato da parte dei sensori e la segnalazione dell'operatore.
+    \item Il sistema aggiorna lo stato del bidone.
+    \item L'operatore controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
+    \item Il sistema emette un manadto di sostituzione del sensore non funzionante, segnalando lo stato di riparazione del sensore agli utenti fino a ultimata sostituzione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC4 \\ \hline
+\textbf{Nome} & Segnalazione guasto \\ \hline
+\textbf{Descrizione} & Operatore segnala un guasto di un bidone \\ \hline
+\textbf{Attori primari} & Operatore \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}
+    \item L'operatore segue il percorso personalizzato fornito.
+    \item L'operatore raggiunge un bidone e lo trova pieno, confermando al sistema l'avvenuta operazione.
+    \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore.
+    \item Il sistema aggiorna lo stato del bidone.
+    \item \item L'operatore controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
+    \item Il sistema emette un manadto di sostituzione del sensore non funzionante, segnalando lo stato di riparazione del sensore agli utenti fino a ultimata sostituzione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Il sensore malfunzionante dovrà essere sotituito \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}
+    \item L'operatore segue il percorso personalizzato fornito.
+    \item L'operatore raggiunge il bidone e lo svuota, confermando al sistema l'avvenuta operazione.
+    \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore.
+    \item Il sistema aggiorna lo stato del bidone.
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
 
 \section{Diagramma BPMN}
 % Nota: Almeno un diagramma BPMN (as-is, to-be o dettaglio) 
