@@ -255,8 +255,6 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
     \item L'operatore raggiunge i bidoni e li trova vuoti, segnalando l'anomalia al sistema.
     \item Il sistema riceve lo stato da parte dei sensori e la segnalazione dell'operatore.
     \item Il sistema aggiorna lo stato del bidone.
-    \item L'operatore controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
-    \item Il sistema emette un manadto di sostituzione del sensore non funzionante, segnalando lo stato di riparazione del sensore agli utenti fino a ultimata sostituzione.
 \end{enumerate}
 \end{minipage} \\ \hline
 \end{longtable}
@@ -273,10 +271,40 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \begin{minipage}[t]{\linewidth} 
 \begin{enumerate}
     \item L'operatore segue il percorso personalizzato fornito.
-    \item L'operatore raggiunge un bidone e lo trova pieno, confermando al sistema l'avvenuta operazione.
+    \item L'operatore raggiunge un bidone e lo trova pieno.
     \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore.
     \item Il sistema aggiorna lo stato del bidone.
-    \item \item L'operatore controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
+    \item L'operatore controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Il sensore malfunzionante dovrà essere sotituito \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}
+    \item L'operatore segue il percorso personalizzato fornito.
+    \item L'operatore raggiunge il bidone e lo svuota, confermando al sistema l'avvenuta operazione.
+    \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore.
+    \item Il sistema aggiorna lo stato del bidone.
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC5 \\ \hline
+\textbf{Nome} & Gestione segnalazioni\\ \hline
+\textbf{Descrizione} & Sistema gestisce le segnalazioni ricevute \\ \hline
+\textbf{Attori primari} & Sistema \\ \hline
+\textbf{Attori secondari} & Utente, Operatore \\ \hline
+\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}
+    \item L'operatore segue il percorso personalizzato fornito.
+    \item L'operatore raggiunge un bidone e lo trova vuoto.
+    \item Il sistema riceve lo stato da parte dei sensori e la segnalazione dell'operatore.
+    \item Il sistema aggiorna lo stato del bidone.
+    \item L'operatore controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
     \item Il sistema emette un manadto di sostituzione del sensore non funzionante, segnalando lo stato di riparazione del sensore agli utenti fino a ultimata sostituzione.
 \end{enumerate}
 \end{minipage} \\ \hline
