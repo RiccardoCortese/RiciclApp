@@ -41,13 +41,25 @@
     \vspace{2cm}
 \end{titlepage}
 
-% --- PAGINA 2: INDICE ---
+% --- PAGINA 2: SOMMARIO ---
+\begin{abstract}
+Il presente progetto descrive l'ideazione e la progettazione di un sistema per l'ottimizzazione della raccolta differenziata urbana. 
+
+L'obiettivo principale dell'applicazione è duplice: da un lato, semplificare il conferimento dei rifiuti per il cittadino attraverso strumenti di riconoscimento (scansione barcode) e localizzazione dei punti di raccolta con relativo stato di riempimento; dall'altro, fornire agli enti comunali e alle aziende di raccolta una visione d'insieme in tempo reale dello stato del territorio. 
+
+Grazie ai dati trasmessi dai sensori IoT installati nei bidoni, l'amministratore può monitorare i livelli di riempimento, identificare le zone critiche e pianificare interventi di svuotamento mirati. Questo approccio permette di passare da una raccolta a calendario a una gestione dinamica "on-demand", riducendo i costi operativi e l'impatto ambientale dei mezzi di trasporto. 
+
+Il sistema si avvale di una rete di sensori IoT installati nei bidoni stradali per il monitoraggio in tempo reale dei livelli di riempimento, permettendo agli operatori ecologici di usufruire di percorsi di raccolta ottimizzati. 
+\end{abstract}
+
+
+% --- PAGINA 3: INDICE ---
 \newpage
 \pagenumbering{roman} % Numerazione romana per l'indice
 \tableofcontents
 \newpage
 
-% --- PAGINA 3 E SUCCESSIVE: CONTENUTO ---
+% --- PAGINA 4 E SUCCESSIVE: CONTENUTO ---
 \pagenumbering{arabic} % Torna alla numerazione araba (1, 2, 3...)
 \setcounter{page}{1}   % Ricomincia il conteggio da 1
 
@@ -107,7 +119,7 @@ Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle intera
 
 \subsection{Utente Non Registrato }
 \begin{enumerate}[label=\textbf{(RF\arabic*)}]
-    \item Il sistema deve permettere di visualizzare sulla mappa la posizione dei centri di raccolta e dei bidoni stradali pubblici più vicini.
+    \item Il sistema deve permettere di visualizzare sulla mappa la posizione dei centri di raccolta e dei bidoni stradali pubblici più vicini e il  relativo stato di riempimento.
     \item Il sistema deve fornire l'accesso alle informazioni su orari, indirizzi e tipologie di rifiuti accettati dai centri di raccolta.
     \item Il sistema deve permettere la scansione del codice a barre di un prodotto per visualizzare le istruzioni di smaltimento.
     \item Il sistema deve consentire la ricerca testuale nel database dei rifiuti per identificare il corretto smaltimento dell'oggetto in alternativa della scansione del codice a barre.
