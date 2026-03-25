@@ -389,26 +389,95 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Descrizione} & Operatore ecologico segnala lo svuotamento di un bidone \\ \hline
 \textbf{Attori primari} & Operatore ecologico \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
-\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore è autenticato nel sistema
+    \item Il sistema dispone del percorso assegnato
+    \item Il bidone è identificato e presente nel sistema
+\end{enumerate}
+\\ \hline
 \textbf{Main flow} &
 \begin{minipage}[t]{\linewidth} 
-\begin{enumerate}
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema fornisce il percorso personalizzato.
     \item L'operatore ecologico segue il percorso personalizzato fornito.
-    \item L'operatore ecologico raggiunge i bidoni e li svuota, confermando al sistema l'avvenuta operazione.
+    \item L'operatore ecologico raggiunge il punto di raccolta.
+    \item L'operatore svuota il bidone.
+    \item L'operatore conferma al sistema l'avvenuta operazione.
     \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore ecologico.
     \item Il sistema aggiorna lo stato del bidone.
 \end{enumerate}
 \end{minipage} \\ \hline
-\textbf{Condizione postume} & Nessuna \\ \hline
-\textbf{Flow alternativo} &
+\textbf{Condizione postume} & Lo stato del bidone è aggiornato \\ \hline
+\textbf{Flow alternativi} &
 \begin{minipage}[t]{\linewidth}
-\begin{enumerate}
-    \item L'operatore ecologico segue il percorso personalizzato fornito.
-    \item L'operatore ecologico raggiunge i bidoni e li trova vuoti, segnalando l'anomalia al sistema.
-    \item Il sistema riceve lo stato da parte dei sensori e la segnalazione dell'operatore ecologico.
+\begin{enumerate}[label=\arabic*.]
+    \item Bidone già vuoto
+    \item Incoerenza sensori
+    \item Errore invio conferma
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3.1 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni: Bidone già vuoto \\ \hline
+\textbf{Descrizione} & L'operatore trova il bidone già vuoto quando passa per la raccolta \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Il bidone risulta già vuoto\\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore raggiunge il punto di raccolta.
+    \item L'operatore trova il bidone già vuoto.
+    \item L'operatore segnala l'anomalia al sistema.
+    \item Il sistema registra la segnalazione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & La segnalazione viene registrata \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3.2 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni: Incoerenza sensori \\ \hline
+\textbf{Descrizione} & I sensori riportano dati sbagliati \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema, Sensori \\ \hline
+\textbf{Condizioni a priori} & I dati forniti dai sensori non coincidono con l'azione dell'operatore \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore svuota il bidone.
+    \item I sensori indicano che il bidone è ancora pieno.
+    \item Il sistema rileva l'anomalia e la segnala all'operatore.
+    \item L'operatore conferma lo stato.
     \item Il sistema aggiorna lo stato del bidone.
 \end{enumerate}
 \end{minipage} \\ \hline
+\textbf{Condizione postume} & Lo stato del bidone è aggiornato dopo la verifica \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3.3 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni: Errore invio conferma \\ \hline
+\textbf{Descrizione} & Il sistema non riesce a registrare l'avvenuta operazione di svuotamento \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Errore di comunicazione con il server \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore conferma l'avvenuta operazione al sistema.
+    \item Il sistema non riesce a registrare l'operazione.
+    \item Il sistema notifica l'errore.
+    \item Il sistema salva i dati per un invio successivo.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & I dati sono salvati per un invio successivo \\ \hline
 \end{longtable}
 
 \centering
@@ -418,27 +487,59 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Descrizione} & Operatore ecologico segnala un guasto di un bidone \\ \hline
 \textbf{Attori primari} & Operatore ecologico \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
-\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore è autenticato nel sistema
+    \item Il sistema fornisce il percorso personalizzato
+    \item Il bidone è identificato e presente nel sistema
+\end{enumerate} 
+\\ \hline
 \textbf{Main flow} &
 \begin{minipage}[t]{\linewidth} 
-\begin{enumerate}
+\begin{enumerate}[label=\arabic*.]
     \item L'operatore ecologico segue il percorso personalizzato fornito.
-    \item L'operatore ecologico raggiunge un bidone e lo trova pieno.
+    \item L'operatore ecologico raggiunge un bidone e verifica il suo stato.
     \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore ecologico.
-    \item Il sistema aggiorna lo stato del bidone.
-    \item L'operatore ecologico controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
+    \item Se viene rilevato un eventuale malfunzionamento.
+    \begin{enumerate}[label=\arabic*.]
+        \item L'operatore segnala il guasto al sistema.
+        \item Il sistema registra la segnalazione e richiede una manutenzione.
+    \end{enumerate}
+    \item Altrimenti il sistema aggiorna lo stato del bidone.
 \end{enumerate}
 \end{minipage} \\ \hline
-\textbf{Condizione postume} & Il sensore malfunzionante dovrà essere sotituito \\ \hline
-\textbf{Flow alternativo} &
+\textbf{Condizione postume} & 
+\begin{enumerate}[label=\arabic*.]
+    \item La segnalazione viene registrata
+    \item L'eventuale sensore malfunzionante dovrà essere sostituito o controllato
+\end{enumerate} 
+\\ \hline
+\textbf{Flow alternativi} &
 \begin{minipage}[t]{\linewidth}
-\begin{enumerate}
-    \item L'operatore ecologico segue il percorso personalizzato fornito.
-    \item L'operatore ecologico raggiunge il bidone e lo svuota, confermando al sistema l'avvenuta operazione.
-    \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore ecologico.
-    \item Il sistema aggiorna lo stato del bidone.
+\begin{enumerate}[label=\arabic*.]
+    \item Errore di comunicazione
 \end{enumerate}
 \end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC4.1 \\ \hline
+\textbf{Nome} & Segnalazione guasto: Errore di comunicazione \\ \hline
+\textbf{Descrizione} & Il sistema non riesce a registrare l'avvenuta operazione di svuotamento \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Errore di comunicazione con il server \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore conferma l'avvenuta operazione al sistema.
+    \item Il sistema non riesce a registrare l'operazione.
+    \item Il sistema notifica l'errore.
+    \item Il sistema salva i dati per un invio successivo.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & I dati sono salvati per un invio successivo \\ \hline
 \end{longtable}
 
 \centering
@@ -448,28 +549,77 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Descrizione} & Admin gestisce le segnalazioni ricevute \\ \hline
 \textbf{Attori primari} & Admin \\ \hline
 \textbf{Attori secondari} & Utente, Operatore ecologico \\ \hline
-\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema riceve correttamente le segnalazioni
+    \item Il bidone è identificato e presente nel sistema
+\end{enumerate} 
+\\ \hline
 \textbf{Main flow} &
 \begin{minipage}[t]{\linewidth} 
-\begin{enumerate}
+\begin{enumerate}[label=\arabic*.]
+    \item Se l'admin riceve una segnalazione da un operatore:
+    \begin{enumerate}[label=\arabic*.]
+        \item Vedere UC5.1
+    \end{enumerate}
+    \item Altrimenti:
+    \begin{enumerate}[label=\arabic*.]
+        \item Vedere UC5.2
+    \end{enumerate}
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\textbf{Flow alternativi} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}[label=\arabic*.]
+    \item Segnalazione da operatore
+    \item Segnalazione da utente
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC5.1 \\ \hline
+\textbf{Nome} & Gestione segnalazioni: Segnalazione da operatore \\ \hline
+\textbf{Descrizione} & L'admin gestisce una segnalazione inviata da un operatore \\ \hline
+\textbf{Attori primari} & Admin \\ \hline
+\textbf{Attori secondari} & Operatore ecologico, Sistema \\ \hline
+\textbf{Condizioni a priori} & La segnalazione viene inviata da un operatore \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
     \item L'operatore ecologico segue il percorso personalizzato fornito.
     \item L'operatore ecologico raggiunge un bidone e lo trova vuoto.
-    \item L'admin riceve lo stato da parte dei sensori e la segnalazione dell'operatore ecologico.
+    \item L'operatore lo segnala al sistema.
+    \item L'admin riceve lo stato da parte dei sensori e la segnalazione dell'operatore ecologico al sistema.
     \item Il sistema aggiorna lo stato del bidone.
     \item L'operatore ecologico controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
-    \item L'admin emette un mandato di sostituzione del sensore non funzionante, segnalando lo stato di riparazione del sensore agli utenti fino a ultimata sostituzione.
+    \item L'admin emette un mandato di sostituzione o verifica del sensore malfunzionante, segnalando lo stato di riparazione del sensore agli utenti fino a ultimata sostituzione.
 \end{enumerate}
 \end{minipage} \\ \hline
-\textbf{Condizione postume} & Il sensore malfunzionante dovrà essere sotituito \\ \hline
+\textbf{Condizione postume} & Lo stato del bidone e del sensore viene aggiornato nel sistema e notificato agli utenti. \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC5.2 \\ \hline
+\textbf{Nome} & Gestione segnalazioni: Segnalazione da utente \\ \hline
+\textbf{Descrizione} & L'admin gestisce una segnalazione inviata da un utente \\ \hline
+\textbf{Attori primari} & Admin \\ \hline
+\textbf{Attori secondari} & Utente, Sistema \\ \hline
+\textbf{Condizioni a priori} & La segnalazione viene inviata da un utente \\ \hline
 \textbf{Flow alternativo} &
-\begin{minipage}[t]{\linewidth}
-\begin{enumerate}
-    \item L'operatore ecologico segue il percorso personalizzato fornito.
-    \item L'operatore ecologico raggiunge il bidone e lo svuota, confermando al sistema l'avvenuta operazione ecologico.
-    \item L'admin riceve lo stato da parte dei sensori e la conferma dell'operatore ecologico.
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'utente segnala una discrepanza tra lo stato indicato e lo stato reale del bidone.
+    \item L'admin riceve lo stato da parte dei sensori e la segnalazione dell'utente al sistema.
     \item Il sistema aggiorna lo stato del bidone.
+    \item L'admin richiede ad un operatore di verificare lo stato del bidone.
+    \item L'utente riceve dei punti di ringraziamento per la segnalazione.
 \end{enumerate}
 \end{minipage} \\ \hline
+\textbf{Condizione postume} & La segnalazione viene registrata e i sensori controllati \\ \hline
 \end{longtable}
 
 \newpage
