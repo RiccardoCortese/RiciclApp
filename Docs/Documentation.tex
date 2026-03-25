@@ -191,55 +191,187 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \centering
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC1 \\ \hline
-\textbf{Nome} & Scansione codice a barre \\ \hline
-\textbf{Descrizione} & Utente prova la funzione di scansione del codice a barre \\ \hline
+\textbf{Nome} & Acquisizione info di smaltimento \\ \hline
+\textbf{Descrizione} & L'utente prova la funzione di identificazione delle informazioni di smaltimento \\ \hline
 \textbf{Attori primari} & Utente \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
-\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Condizioni a priori} &  
+\begin{enumerate}[label=\arabic*.]
+    \item Fotocamera disponibile 
+    \item Permesso concesso
+    \item Connessione internet attiva
+\end{enumerate}
+\\ \hline
 \textbf{Main flow} &
 \begin{minipage}[t]{\linewidth} 
-\begin{enumerate}
+\begin{enumerate}[label=\arabic*.]
     \item L'utente apre l'app e attiva la modalità scanner.
-    \item L'utente inquadra il codice a barre o riporta il codice numerico corrispondente.
-    \item Il sistema invia all'app i dati relativi allo smaltimento di ogni elemento del prodotto riconosciuto.
+    \item L'utente seleziona la modalità di riconoscimento del prodotto.
+    \begin{enumerate}[label=\arabic*.]
+        \item Scansione del codice a barre.
+        \item Inserimento manuale del codice del prodotto.
+    \end{enumerate}
+    \item Il sistema acquisisce e convalida il codice.
+    \item Il sistema rintraccia il prodotto nel database.
+    \item Il sistema restituisce le informazioni relative all'utente.
 \end{enumerate}
 \end{minipage} \\ \hline
 \textbf{Condizione postume} & Nessuna \\ \hline
-\textbf{Flow alternativo} &
+\textbf{Flow alternativi} &
 \begin{minipage}[t]{\linewidth}
 \begin{enumerate}
-    \item L'utente apre l'app e attiva la modalità scanner.
-    \item L'utente inquadra il codice a barre o riporta il codice numerico corrispondente.
-    \item Il prodotto non viene riconosciuto.
-    \item Il sistema invia all'app un segnale di errore.
+    \item Codice a barre non leggibile.
+    \item Codice inserito non valido.
+    \item Prodotto non trovato nel database.
 \end{enumerate}
 \end{minipage} \\ \hline
 \end{longtable}
 
 \centering
 \begin{longtable}{|l|p{10cm}|} \hline
-\textbf{ID} & UC2 \\ \hline
-\textbf{Nome} & Segnalazione bidone pieno \\ \hline
-\textbf{Descrizione} & Utente segnala un bidone pieno \\ \hline
+\textbf{ID} & UC1.1 \\ \hline
+\textbf{Nome} & Acquisizione info di smaltimento: Codice a barre non leggibile \\ \hline
+\textbf{Descrizione} & Il codice a barre risulta illeggibile \\ \hline
 \textbf{Attori primari} & Utente \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
-\textbf{Condizioni a priori} & Nessuna \\ \hline
+\textbf{Condizioni a priori} & Codice a barre non riconosciuto \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Durante la scansione il codice non risulta leggibile.
+    \item Il sistema segnala l'errore e chiede all'utente di ripetere la scansione.
+    \item L'utente riprova.
+    \item Il flusso riprende dal punto 3 del Main Flow.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Le informazioni di smaltimento sono presentate all'utente \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC1.2 \\ \hline
+\textbf{Nome} & Acquisizione info di smaltimento: Codice inserito non valido \\ \hline
+\textbf{Descrizione} & Il codice inserito manualmente non risulta corretto \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Codice inserito non valido \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'utente inserisce un codice invalido.
+    \item Il sistema segnala l'errore e chiede all'utente di reinserire il codice.
+    \item L'utente fornisce nuovamente il codice.
+    \item Il flusso riprende dal punto 3 del Main Flow.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Le informazioni di smaltimento sono presentate all'utente \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC1.3 \\ \hline
+\textbf{Nome} & Acquisizione info di smaltimento: Prodotto non trovato nel database \\ \hline
+\textbf{Descrizione} & Il sistema non trova una corrispondenza nel database per il prodotto scansionato \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Prodotto non trovato nel database \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema non trova una corrispondenza nel database del prodotto richiesto.
+    \item Il sistema notifica l'utente.
+    \item Il sistema propone all'utente di riprovare o inserire un altro codice.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC2 \\ \hline
+\textbf{Nome} & Segnalazione bidone pieno \\ \hline
+\textbf{Descrizione} & L'utente segnala al sistema che un bidone è pieno \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item Connessione a internet attiva
+    \item Geolocalizzazione attiva
+    \item Mappa dei punti di raccolta disponibile
+\end{enumerate}
+\\ \hline
 \textbf{Main flow} &
 \begin{minipage}[t]{\linewidth} 
-\begin{enumerate}
-    \item L'utente apre l'app e trova sulla mappa il punto di raccolta più vicino.
+\begin{enumerate}[label=\arabic*.]
+    \item L'utente apre l'app.
+    \item Il sistema mostra la mappa dei punti di raccolta.
+    \item Il sistema localizza la posizione dell'utente.
+    \item L'utente cerca e seleziona il punto più vicino.
     \item L'utente raggiunge il luogo di smaltimento e trova il bidone pieno.
     \item L'utente segnala al sistema lo stato di pienezza del bidone, ricevendo dei punti di ringraziamento per la segnalazione.
 \end{enumerate}
 \end{minipage} \\ \hline
-\textbf{Condizione postume} & Il bidone dovrà essere svuotato e i sensori controllati \\ \hline
-\textbf{Flow alternativo} &
+\textbf{Condizione postume} & 
+\begin{enumerate}[label=\arabic*.]
+    \item Lo stato del bidone è aggiornato
+    \item La segnalazione viene registrata
+\end{enumerate}
+\\ \hline
+\textbf{Flow alternativi} &
 \begin{minipage}[t]{\linewidth}
-\begin{enumerate}
-    \item L'utente apre l'app e trova sulla mappa il punto di raccolta più vicino.
-    \item L'utente raggiunge il luogo di smaltimento, trova il bidone agibile e prosegue allo smaltimento.
+\begin{enumerate}[label=\arabic*.]
+    \item Sistema di geolocalizzazione non disponibile
+    \item Errore nell'invio della segnalazione
 \end{enumerate}
 \end{minipage} \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC2.1 \\ \hline
+\textbf{Nome} & Segnalazione bidone pieno: Sistema di geolocalizzazione non disponibile \\ \hline
+\textbf{Descrizione} & Il sistema non riesce ad individuare la posizione dell'utente \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Sistema di geolocalizzazione non disponibile \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema non riesce a determinare la posizione dell'utente.
+    \item Il sistema notifica l'utente.
+    \item L'utente sceglie se
+    \begin{enumerate}[label=\arabic*.]
+        \item Attivare la geolocalizzazione.
+        \item Selezionare manualmente il punto di smaltimento.
+    \end{enumerate} 
+    \item Il flusso riprende dal punto 4 del Main flow.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\end{longtable}
+
+\centering
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC2.2 \\ \hline
+\textbf{Nome} & Segnalazione bidone pieno: Errore nell'invio della segnalazione \\ \hline
+\textbf{Descrizione} & Il sistema non riesce ad inviare la segnalazione dell'utente \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} &  
+\begin{enumerate}[label=\arabic*.]
+    \item Connessione assente o instabile
+    \item Errore di comunicazione nel sistema
+\end{enumerate}
+\\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema tenta di inviare la segnalazione e non va a buon fine.
+    \item Il sistema notifica l'utente.
+    \item Il sistema salva temporaneamente la segnalazione per un invio successivo.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & La segnalazione viene salvata per un invio successivo \\ \hline
 \end{longtable}
 
 \centering
