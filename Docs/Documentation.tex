@@ -9,6 +9,7 @@
 \usepackage{enumitem}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage[table]{xcolor}
 \graphicspath{ {./pictures/} } % definisce la cartella predefinita per le immagini
 \usepackage{float}
 \geometry{margin=2.5cm}
@@ -185,12 +186,57 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
     \item \textbf{Rispetto della Privacy (GDPR):} Il sistema non deve memorizzare i dati di posizione GPS in modo persistente se non strettamente necessario per la gestione delle segnalazioni, garantendo l'anonimato degli utenti non registrati.
 \end{enumerate}
 
+\section{Analisi SWOT}
 
-\section{Use case diagrams e casi d'uso}
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{7cm}|p{7cm}|}
+\hline
+\cellcolor[HTML]{33a139} \textcolor{white}{\textbf{Punti di Forza (Strengths)}} & \cellcolor[HTML]{5196d6}\textcolor{white}{\textbf{Punti di Debolezza (Weaknesses)}} \\ \hline
+\begin{itemize}
+    \item Monitoraggio IoT in tempo reale
+    \item Miglioramento del decoro urbano
+    \item Promozione dell'economia circolare
+    \item Ottimizzazione del processo di raccolta dei rifiuti
+\end{itemize}
+
+ & 
+
+\begin{itemize}
+    \item Costo iniziale dell'hardware
+    \item Dipendenza dalla manutenzione fisica dei sensori
+    \item Dipendenza da database esterni per l'identificazione dei prodotti
+
+\end{itemize}  \\ \hline
+
+\cellcolor[HTML]{7948ab}\textcolor{white}{\textbf{Opportunità (Opportunities)}} 
+
+& 
+
+\cellcolor[HTML]{d68258}\textcolor{white}{\textbf{Minacce (Threats)}} \\ \hline
+
+\begin{itemize}
+    \item Riduzione impatto ambientale
+    \item Monioraggio dei bisogni cittadini
+\end{itemize}
+& 
+
+\begin{itemize}
+    \item Vandalismo sui sensori
+    \item Errori nei dati provenienti da API di terze parti 
+    \item Applicazioni già esistenti 
+\end{itemize}
+\\ \hline
+\end{tabular}
+\caption{Matrice SWOT del sistema di gestione rifiuti.}
+\end{table}
+
+
+\section{Use case diagram e casi d'uso}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{Use_Case_Diagram.jpg}
+    \includegraphics[width=0.95\linewidth]{Use_Case_Diagram.jpg}
     \caption{Use case Diagram}
     \label{fig:UCD placeholder}
 \end{figure}
@@ -230,6 +276,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
     \item Codice a barre non leggibile.
     \item Codice inserito non valido.
     \item Prodotto non trovato nel database.
+    
 \end{enumerate}
 \end{minipage} \\ \hline
 \end{longtable}
@@ -640,7 +687,6 @@ Di seguito vengono riportati i diagrammi BPMN relativi al processo di acquisizio
     \caption{Grafico BPMN: Gestione delle segnalazioni}
     \label{fig:Segnalazione placeholder}
 \end{figure}
-
 
 
 \end{document}
