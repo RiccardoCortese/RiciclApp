@@ -8,6 +8,7 @@
 \usepackage{tabularx}
 \usepackage{enumitem}
 \usepackage{graphicx}
+\usepackage{hyperref}
 \graphicspath{ {./pictures/} } % definisce la cartella predefinita per le immagini
 \usepackage{float}
 \geometry{margin=2.5cm}
@@ -148,7 +149,7 @@ Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle intera
     \item La dashboard deve fornire una vista d'insieme (Heatmap) per monitorare i livelli di riempimento di tutti i sensori sul territorio.
     \item Il sistema deve permettere l'inserimento, la modifica e la rimozione di prodotti e regole di smaltimento dal database centrale.
     \item Il sistema deve gestire le anagrafiche dei partner commerciali e la disponibilità dei premi nel catalogo.
-    \item Il sistema deve generare report analitici sulle zone della città con maggiore criticità (abbandoni frequenti o bidoni sempre pieni).
+    \item Il sistema deve generare report analitici sulle zone della città con maggiore criticità (abbandoni frequenti o bidoni sempre pieni) [opzionale].
 \end{enumerate}
 
 \subsection{Sensori}
@@ -184,26 +185,24 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
     \item \textbf{Rispetto della Privacy (GDPR):} Il sistema non deve memorizzare i dati di posizione GPS in modo persistente se non strettamente necessario per la gestione delle segnalazioni, garantendo l'anonimato degli utenti non registrati.
 \end{enumerate}
 
-\newpage
+
 \section{Use case diagrams e casi d'uso}
-% Nota: Rappresentare diagramma e almeno 5 descrizioni
+
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{Use Case Diagram.png}
+    \includegraphics[width=1\linewidth]{Use_Case_Diagram.jpg}
     \caption{Use case Diagram}
     \label{fig:UCD placeholder}
 \end{figure}
 
 
-
-\centering
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC1 \\ \hline
-\textbf{Nome} & Acquisizione info di smaltimento \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento \\ \hline
 \textbf{Descrizione} & L'utente prova la funzione di identificazione delle informazioni di smaltimento \\ \hline
 \textbf{Attori primari} & Utente \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
-\textbf{Condizioni a priori} &  
+\textbf{Condizioni a priori} &
 \begin{enumerate}[label=\arabic*.]
     \item Fotocamera disponibile 
     \item Permesso concesso
@@ -235,10 +234,10 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \end{minipage} \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC1.1 \\ \hline
-\textbf{Nome} & Acquisizione info di smaltimento: Codice a barre non leggibile \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento: Codice a barre non leggibile \\ \hline
 \textbf{Descrizione} & Il codice a barre risulta illeggibile \\ \hline
 \textbf{Attori primari} & Utente \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
@@ -255,10 +254,10 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & Le informazioni di smaltimento sono presentate all'utente \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC1.2 \\ \hline
-\textbf{Nome} & Acquisizione info di smaltimento: Codice inserito non valido \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento: Codice inserito non valido \\ \hline
 \textbf{Descrizione} & Il codice inserito manualmente non risulta corretto \\ \hline
 \textbf{Attori primari} & Utente \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
@@ -275,10 +274,10 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & Le informazioni di smaltimento sono presentate all'utente \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC1.3 \\ \hline
-\textbf{Nome} & Acquisizione info di smaltimento: Prodotto non trovato nel database \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento: Prodotto non trovato nel database \\ \hline
 \textbf{Descrizione} & Il sistema non trova una corrispondenza nel database per il prodotto scansionato \\ \hline
 \textbf{Attori primari} & Utente \\ \hline
 \textbf{Attori secondari} & Sistema \\ \hline
@@ -294,7 +293,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & Nessuna \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC2 \\ \hline
 \textbf{Nome} & Segnalazione bidone pieno \\ \hline
@@ -316,7 +315,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
     \item Il sistema localizza la posizione dell'utente.
     \item L'utente cerca e seleziona il punto più vicino.
     \item L'utente raggiunge il luogo di smaltimento e trova il bidone pieno.
-    \item L'utente segnala al sistema lo stato di pienezza del bidone, ricevendo dei punti di ringraziamento per la segnalazione.
+    \item L'utente segnala al sistema lo stato di pienezza del bidone, ricevendo dei punti di ringraziamento una volta risolta la segnalazione.
 \end{enumerate}
 \end{minipage} \\ \hline
 \textbf{Condizione postume} & 
@@ -334,7 +333,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \end{minipage} \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC2.1 \\ \hline
 \textbf{Nome} & Segnalazione bidone pieno: Sistema di geolocalizzazione non disponibile \\ \hline
@@ -358,7 +357,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & Nessuna \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC2.2 \\ \hline
 \textbf{Nome} & Segnalazione bidone pieno: Errore nell'invio della segnalazione \\ \hline
@@ -382,7 +381,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & La segnalazione viene salvata per un invio successivo \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC3 \\ \hline
 \textbf{Nome} & Aggiornamento svuotamento bidoni \\ \hline
@@ -419,7 +418,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \end{minipage} \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC3.1 \\ \hline
 \textbf{Nome} & Aggiornamento svuotamento bidoni: Bidone già vuoto \\ \hline
@@ -439,7 +438,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & La segnalazione viene registrata \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC3.2 \\ \hline
 \textbf{Nome} & Aggiornamento svuotamento bidoni: Incoerenza sensori \\ \hline
@@ -460,7 +459,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & Lo stato del bidone è aggiornato dopo la verifica \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC3.3 \\ \hline
 \textbf{Nome} & Aggiornamento svuotamento bidoni: Errore invio conferma \\ \hline
@@ -480,7 +479,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & I dati sono salvati per un invio successivo \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC4 \\ \hline
 \textbf{Nome} & Segnalazione guasto \\ \hline
@@ -522,7 +521,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \end{minipage} \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC4.1 \\ \hline
 \textbf{Nome} & Segnalazione guasto: Errore di comunicazione \\ \hline
@@ -542,7 +541,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & I dati sono salvati per un invio successivo \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC5 \\ \hline
 \textbf{Nome} & Gestione segnalazioni\\ \hline
@@ -578,7 +577,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \end{minipage} \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC5.1 \\ \hline
 \textbf{Nome} & Gestione segnalazioni: Segnalazione da operatore \\ \hline
@@ -601,7 +600,7 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
 \textbf{Condizione postume} & Lo stato del bidone e del sensore viene aggiornato nel sistema e notificato agli utenti. \\ \hline
 \end{longtable}
 
-\centering
+
 \begin{longtable}{|l|p{10cm}|} \hline
 \textbf{ID} & UC5.2 \\ \hline
 \textbf{Nome} & Gestione segnalazioni: Segnalazione da utente \\ \hline
@@ -616,27 +615,32 @@ I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli st
     \item L'admin riceve lo stato da parte dei sensori e la segnalazione dell'utente al sistema.
     \item Il sistema aggiorna lo stato del bidone.
     \item L'admin richiede ad un operatore di verificare lo stato del bidone.
-    \item L'utente riceve dei punti di ringraziamento per la segnalazione.
+    \item L'utente riceve dei punti di ringraziamento una volta risolta la segnalazione.
 \end{enumerate}
 \end{minipage} \\ \hline
 \textbf{Condizione postume} & La segnalazione viene registrata e i sensori controllati \\ \hline
 \end{longtable}
 
 \newpage
+
 \section{Diagramma BPMN}
-% Nota: Almeno un diagramma BPMN (as-is, to-be o dettaglio) 
+
+Di seguito vengono riportati i diagrammi BPMN relativi al processo di acquisizione delle informazioni di smaltimento di un prodotto tramite scansione di codice a barre [\textbf{UC1}] e il processo della gestione delle segnalazioni da parte dell'utente registrato [\textbf{UC5.2}]
+
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{Scansione prodotto BPMN.png}
-    \caption{Grafico BPMN di UC1 Acquisizione info di Smaltimeto}
+    \includegraphics[width=1\linewidth]{Scansione prodotto BPMN}
+    \caption{Grafico BPMN: Acquisizione informazioni di smaltimeto}
     \label{fig:Scansione placeholder}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1\linewidth]{Segnalazione BPMN.png}
-    \caption{Grafico BPMN per le Segnalazioni}
+    \includegraphics[width=1\linewidth]{Segnalazione BPMN}
+    \caption{Grafico BPMN: Gestione delle segnalazioni}
     \label{fig:Segnalazione placeholder}
 \end{figure}
+
+
 
 \end{document}
