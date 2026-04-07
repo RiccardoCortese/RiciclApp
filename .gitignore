@@ -1,0 +1,56 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# dotenv environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# React Native / Expo
+.expo/
+.expo-shared/
+*.expo.js
+*.expo.json
+
+# Build directories
+dist/
+build/
+ios/build/
+android/build/
+android/app/build/
+
+# SQLite database files (if local)
+*.sqlite
+*.sqlite3
+
+# Temporary / editor files
+*.swp
+*.swo
+*.sublime-workspace
+*.vscode/
+.idea/
+
+# Metro bundler cache (React Native)
+.expo/cache/
+metro-cache/
