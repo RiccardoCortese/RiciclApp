@@ -1,0 +1,131 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage[table]{xcolor}
+\graphicspath{ {./pictures/} } % definisce la cartella predefinita per le immagini
+\usepackage{float}
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+% --- PAGINA 1: COPERTINA ---
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \textbf{RiciclApp} \par}
+    \vspace{1cm}
+    {\Large Deliverable D2 \par}
+    \vspace{3cm}
+    
+    {\large \textbf{Gruppo n°:} 20 \par}
+    \vspace{1.5cm}
+    
+    {\large \textbf{Componenti:} \par}
+    \vspace{0.5cm}
+    \begin{tabular}{rl}
+        \textbf{Studente:} & Binco Francesco (Matricola: 243781) \\
+        \textbf{Studente:} & Cortese Riccardo (Matricola: 244656) \\
+        \textbf{Studente:} & Giovagnetti Lorenzo (Matricola: 247579) \\
+    \end{tabular}
+    
+    \vfill
+    {\large Progetto di Ingegneria del Software - Prof. Sandro Luigi Fiore \par}
+    \vspace{1.5cm}
+    {\large Anno Accademico 2025/2026 \par}
+    \vspace{2cm}
+\end{titlepage}
+
+% --- PAGINA 2: SOMMARIO ---
+\begin{abstract}
+Il presente progetto descrive l'ideazione e la progettazione di un sistema per l'ottimizzazione della raccolta differenziata urbana. 
+
+L'obiettivo principale dell'applicazione è duplice: da un lato, semplificare il conferimento dei rifiuti per il cittadino attraverso strumenti di riconoscimento (scansione barcode) e localizzazione dei punti di raccolta con relativo stato di riempimento; dall'altro, fornire agli enti comunali e alle aziende di raccolta una visione d'insieme in tempo reale dello stato del territorio. 
+
+Grazie ai dati trasmessi dai sensori IoT installati nei bidoni, l'amministratore può monitorare i livelli di riempimento, identificare le zone critiche e pianificare interventi di svuotamento mirati. Questo approccio permette di passare da una raccolta a calendario a una gestione dinamica "on-demand", riducendo i costi operativi e l'impatto ambientale dei mezzi di trasporto. 
+
+Il sistema si avvale di una rete di sensori IoT installati nei bidoni stradali per il monitoraggio in tempo reale dei livelli di riempimento, permettendo agli operatori ecologici di usufruire di percorsi di raccolta ottimizzati. 
+\end{abstract}
+
+
+% --- PAGINA 3: INDICE ---
+\newpage
+\pagenumbering{roman} % Numerazione romana per l'indice
+\tableofcontents
+\newpage
+
+
+
+\section{Diagramma componenti} 
+% Documentare almeno 3-4 componenti
+In questa sezione viene riportata una prima progettazione architetturale basata sul diagramma dei componenti del sistema da realizzare, cercando di minimizzare l'accoppiamento (connessioni tra componenti diverse) e massimizzare la coesione (connessioni interne al componente).
+
+Riportiamo di seguito il diagramma delle componenti e, per ogni componente, una breve descrizione del suo scopo e delle sue interfacce (classificandole in fornite e richieste).
+
+\subsection{Diagramma dei componenti} 
+% Inserire qui l'immagine del diagramma
+
+\subsection{Descrizione dei componenti} 
+% Per ciascun componente, breve descrizione e tabella delle interfacce
+Questo componente permette agli altri componenti di accedere ai dati del database.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\ \midrule
+Fornita  & Dati  & Il componente fornisce un'interfaccia per accedere ai dati  \\
+ & & salvati sul database. \\
+Richiesta  & Accesso dati  & Il componente utilizza un'interfaccia fornita dal database  \\
+ & & per accedere ai dati salvati sul database. \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{Diagramma delle classi e descrizione delle classi} 
+% Documentare almeno 10 classi
+In questa sezione viene riportata un'analisi delle classi richieste per implementare il sistema mediante l'utilizzo del diagramma delle classi. Per una maggiore leggibilità viene prima riportato un diagramma complessivo e poi un'analisi su alcuni gruppi di classi. Per ogni classe/le classi principali vengono specificati attributi e operazioni (descrizione, parametri e valori di ritorno).
+
+% Documentare:
+%- diagramma delle classi completo o in parti
+%- Per ogni classe/gruppo di classi che si decide di analizzare, viene riportata una breve descrizione di ciascuna classe (inclusi i suoi metodi).
+
+\subsection{Diagramma delle classi} 
+% Inserire qui il diagramma completo o in parti
+
+\subsection{Gruppo classi autenticazione e profilo} 
+Vengono analizzate qui le classi che si occupano della gestione dell'autenticazione e del profilo utente.
+
+\subsubsection{Gestione Autenticazione} 
+Questa classe si occupa principalmente della gestione del login e della registrazione dell'utente. I suoi attributi sono quindi i dati relativi all'utente che vengono utilizzati per verificare la corrispondenza con i dati nel database.
+
+\begin{table}[h]
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Operazione}  & \textbf{Descrizione}  \\ \midrule
+impostaValori()  & legge i valori immessi in input dall'utente e li salva nei  \\
+ & corrispettivi attributi. \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{Constraint OCL} 
+% Riportare almeno 10 - 12 constraint OCL (incluse invarianti, precondizioni, postcondizioni): una breve descrizione e il constraint
+In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagramma delle classi. Questi vincoli rappresentano invarianti, precondizioni e postcondizioni sulle operazioni delle classi.
+
+\subsection{Classe Gestione Autenticazione} 
+\textbf{Descrizione:} l'operazione login (String username, String password) setta l'attributo autenticato a true.
+
+\begin{quote}
+\texttt{context GestionAutenticazione::login (username, password): boolean}  \\
+\texttt{post: autenticato = true} 
+\end{quote}
+
+\end{document}
