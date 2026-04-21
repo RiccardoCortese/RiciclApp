@@ -21,6 +21,7 @@
 
 % --- PAGINA 1: COPERTINA ---
 \begin{titlepage}
+
     \centering
     \vspace*{2cm}
     {\Huge \textbf{RiciclApp} \par}
@@ -47,7 +48,9 @@
 \end{titlepage}
 
 % --- PAGINA 2: SOMMARIO ---
+
 \begin{abstract}
+
 Il presente progetto descrive l'ideazione e la progettazione di un sistema per l'ottimizzazione della raccolta differenziata urbana. 
 
 L'obiettivo principale dell'applicazione è duplice: da un lato, semplificare il conferimento dei rifiuti per il cittadino attraverso strumenti di riconoscimento (scansione barcode) e localizzazione dei punti di raccolta con relativo stato di riempimento; dall'altro, fornire agli enti comunali e alle aziende di raccolta una visione d'insieme in tempo reale dello stato del territorio. 
@@ -63,7 +66,7 @@ Il sistema si avvale di una rete di sensori IoT installati nei bidoni stradali p
 \pagenumbering{roman} % Numerazione romana per l'indice
 \tableofcontents
 \newpage
-
+\pagenumbering{arabic}
 
 
 \section{Diagramma componenti} 
@@ -135,8 +138,37 @@ Richiesta & Invio mail & Il componente necessita di un servizio che inivii mail 
 
 
 \subsubsection{Gestione bidoni}
+Questo componente permette di gestire le funzionalità per la gestione dei sensori che controllano lo stato di riempimento del bidone.
+
+\keepXColumns
+
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\caption{Tabelle descrizione componente per gestione bidoni}
+\label{tab:placeholder} \\
+
+\toprule
+\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+Fornita & Stato batteria & Il componente permette di visualizzare lo stato della batteria del sistema di controllo del bidone (\textit{RF19}) \\ \hline
+
+Fornita & Stato riempimento bidone & Il componente permette di visualizzare lo stato di riempimento del bidone (\textit{RF19})\\ \hline
+
+Richiesta & Dati & Il componente necessita di dati presenti nel database per la gestione dei vari bidoni disposti nel territorio, come ad esempio posizione o tipologia \\
+
+\end{tabularx}
 
 \subsubsection{Gestione segnalazioni}
+
 
 \subsubsection{Gestione evento raccolta}
 
