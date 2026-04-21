@@ -11,6 +11,7 @@
 \usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{booktabs}
+\usepackage{ltablex}
 \usepackage[table]{xcolor}
 \graphicspath{ {./pictures/} } % definisce la cartella predefinita per le immagini
 \usepackage{float}
@@ -78,19 +79,60 @@ Il sistema si avvale di una rete di sensori IoT installati nei bidoni stradali p
 
 \subsection{Descrizione dei componenti} 
 \subsubsection{Gestione utente}
-Questo componente permette agli altri componenti di accedere ai dati del database.
+Questo componente permette di gestire tutte le funzionalità richeiste da un utente generico.
 
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}lll@{}}
+
+\keepXColumns
+
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\caption{Tabelle descrizione componente per gestione utente}
+\label{tab:placeholder} \\
+
 \toprule
-\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\ \midrule
-Fornita  & Dati  & Il componente fornisce un'interfaccia per accedere ai dati  \\
- & & salvati sul database. \\
-Richiesta  & Accesso dati  & Il componente utilizza un'interfaccia fornita dal database  \\
- & & per accedere ai dati salvati sul database. \\ \bottomrule
-\end{tabular}
-\end{table}
+\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+Fornita & Login & Il componente permette ad un utente che in precedenza abbia effettuato una registrazione, quindi in possesso di un account, di effettuare l'accesso tramite username e password \\ \hline
+
+Fornita & Logout & Il componente permette ad un utente che in precedenza abbia effettuato il login, quindi in possesso di un account, di effettuare la disconnessione al proprio account per la sessione in corso \\ \hline
+
+Fornita & Registrazione & Il componente deve permettere ad un utente senza un account associato alla propria mail di creare un account (\textit{RF5}) \\ \hline
+
+Fornita & Recupero password & Il componente deve permettere ad un utente di recuperare la password in caso l'avesse smarrita \\ \hline
+
+Fornita & Conferma mail & Il componente deve permettere ad un utente di confermare la propria mail nel momento in cui esso crea un nuovo account (Registrazione) \\ \hline
+
+Fornita & Portafoglio punti & Il componente tiene traccia di tutti i punti che un utente in possesso di account accumula. Tali punti vengono accreditati in caso di segnalazioni corrette, partecipazioni ad eventi raccolta e per smaltimenti di prodotti (\textit{RF7}). L'utente inoltre può convertire tali punti in buoni sconto offerti dalle attività commerciali (\textit{RF9}) \\ \hline
+
+Fornita & Gestione dati account & Il componente deve permettere all'utente in possesso di account di modificare i dati del proprio account, come ad esempio foto profilo e dati anagrafici (\textit{RF5}) \\ \hline
+
+Richiesta & Dati & Il componente necessita di dati presenti nel database per la gestione dell'utente registrato \\ \hline
+
+Richiesta & Mappa & Il componente necessita di un servizio che permetta di visualizzare la mappa. In questo modo l'utente può visualizzare i centri di raccolta del territorio (\textit{RF1}) \\ \hline
+
+Richiesta & Invio notifica & Il componente necessita di un servizio che permetta di ricevere notifiche nel momento in cui vi siano errori, come ad esempio errori di inserimento di dati \\ \hline
+
+Richiesta & Informazioni riciclaggio & Il componente necessita di un servizio che dia informazioni sul corretto smaltimento di rifiuti tramite il riconoscimento del codice a barre. Il riconoscimento può avvenire tramite scansione dell'immagine oppure tramite inserimento testuale (\textit{RF3, RF4}) \\ \hline
+
+Richiesta & Stato riempimento bidone & Il componente necessita di un servizio che permetta all'utente di viusalizzare lo stato di riempimento dei bidoni nei  vari centri (\textit{RF1, RF2})\\ \hline
+
+Richiesta & Creazione segnalazione & Il componente necessita di un servizio che permetta all'utente di effettuare segnalazioni come ad esempio problemi con bidoni (\textit{RF6}) \\ \hline
+
+Richiesta & Evento raccolta & Il componente necessita di un servizio che permetta all'utente la partecipazione di un evento di raccolta \textit{[nuova aggiunta rispetto a D1}]\\ \hline
+
+Richiesta & Invio mail & Il componente necessita di un servizio che inivii mail in modo che l'utente possa ricevere delle mail come ad esempio per la conferma della mail\\
+
+\end{tabularx}
+
 
 \subsubsection{Gestione bidoni}
 
