@@ -201,7 +201,10 @@ Richiesta & Mappa & Il componente necessita di un servizio che permetta di visua
 
 \section{Diagramma delle classi e descrizione delle classi} 
 % Documentare almeno 10 classi
-In questa sezione viene riportata un'analisi delle classi richieste per implementare il sistema mediante l'utilizzo del diagramma delle classi. Per una maggiore leggibilità viene prima riportato un diagramma complessivo e poi un'analisi su alcuni gruppi di classi. Per ogni classe/le classi principali vengono specificati attributi e operazioni (descrizione, parametri e valori di ritorno).
+In questa sezione viene riportata un'analisi delle classi richieste per implementare il sistema mediante l'utilizzo del diagramma delle classi. 
+Per una maggiore leggibilità viene prima riportato un diagramma complessivo e poi un'analisi su alcuni gruppi di classi. 
+Per ogni classe/le classi principali vengono specificati attributi e operazioni con relative descrizioni
+(parametri e valori di ritorno vengono omessi per questione di maggiore chiarezza della leggibilità).
 
 % Documentare:
 %- diagramma delle classi completo o in parti
@@ -221,16 +224,269 @@ La Figura~\ref{fig:diagramma-classi} mostra il diagramma delle classi del sistem
 \subsection{Gruppo classi autenticazione e profilo} 
 Vengono analizzate qui le classi che si occupano della gestione dell'autenticazione e del profilo utente.
 
-\subsubsection{Gestione Autenticazione} 
-Questa classe si occupa principalmente della gestione del login e della registrazione dell'utente. I suoi attributi sono quindi i dati relativi all'utente che vengono utilizzati per verificare la corrispondenza con i dati nel database.
+\subsubsection{Classe Utente}
+La classe \texttt{Utente} rappresenta un utente generico che sfrutta le funzionalità dell'app. 
+Detiene i dati di base necessari a differenziare i vari utenti, fornendo funzionalità di base come 
+visualizzazione della mappa e ricerca delle regole di smaltimento del prodotto.
 
-\begin{table}[h]
-\begin{tabular}{@{}ll@{}}
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{id: int} -- numero identificativo univoco per ogni utente;
+    \item \texttt{nome: String} -- nome dell'utente;
+    \item \texttt{email: String} -- email personale;
+    \item \texttt{password: String} -- password personale.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
 \toprule
-\textbf{Operazione}  & \textbf{Descrizione}  \\ \midrule
-impostaValori()  & legge i valori immessi in input dall'utente e li salva nei  \\
- & corrispettivi attributi. \\ \bottomrule
-\end{tabular}
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{visualizzaMappa()} & Consente all'utente di visualizzare la mappa che mostra i centri di raccolta vicini. \\
+\texttt{cercaProdotto()} & Consente all'utente di ricercare le regole di smistamento di un prodotto. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Classe UtenteRegistrato}
+La classe \texttt{UtenteRegistrato} rappresenta un utente che ricopre nel sistema il ruolo di cittadino che svolge la raccolta differenziata. 
+Estende la classe \texttt{Utente} e introduce funzionalità aggiuntive come l'invio di segnalazioni, l'accumulo di punti e il riscatto di premi.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{punti: int} -- numero totale di punti accumulati dall'utente;
+    \item \texttt{segnalazioniInviate: List<\texttt{Segnalazione}>} -- elenco delle segnalazioni effettuate;
+    \item \texttt{voucherPosseduti: List<\texttt{Voucher}>} -- insieme dei voucher riscattati.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{inviaSegnalazione()} & Consente all'utente di creare una nuova segnalazione geolocalizzata. \\
+\texttt{visualizzaSegnalazioni()} & Restituisce l'elenco delle segnalazioni effettuate. \\
+\texttt{accumulaPunti()} & Aggiorna il punteggio dell'utente in base alle azioni svolte. \\
+\texttt{riscattaPremio()} & Permette di convertire i punti accumulati in un voucher. \\
+\texttt{visualizzaVoucher()} & Elenca la lista di voucher posseduti. \\
+\texttt{contaVoucherDisponibili()} & Permette di calcolare il numero di voucher disponibili. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Classe OperatoreEcologico}
+La classe \texttt{OperatoreEcologico} rappresenta un utente che ricopre il ruolo di operatore ecologico, che svolge la raccolta dei rifiuti, nel sistema . 
+Estende la classe \texttt{Utente} e introduce funzionalità aggiuntive come la visualizzazione di un percorso di raccolta personalizzato, 
+la conferma di avvenuto svuotamento dei bidoni e segnalazioni riguardo il loro stato.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{matricola: String} -- numero di matricola dell'operatore;
+    \item \texttt{percorsoAssegnato: \texttt{PercorsoRaccolta}} -- percorso personalizzato da seguire.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{visualizzaPercorso()} & Mostra il percorso personalizzato da seguire. \\
+\texttt{confermaSvuotamento()} & Consente all'operatore di segnalare l'avvenuto svuotamento. \\
+\texttt{segnalaGuasto()} & Permette di segnalare un guasto del bidone. \\
+\texttt{aggiornaStatoSegnalazione()} & Consente di confermare l'aggiornamento dello stato di un bidone a seguito di una segnalazione. \\
+\end{tabularx}
+\end{table}
+
+\subsubsection{Classe Admin}
+La classe \texttt{Admin} rappresenta un utente che ricopre il ruolo di amministratore, che gestisce le segnalazioni, i centri e i premi, nel sistema. 
+Estende la classe \texttt{Utente} e introduce funzionalità aggiuntive come l'aggiunta di centri di raccolta e la gestione delle segnalazioni.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{livelloAccesso: int} -- livello al quale opera.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{aggiungiCentro()} & Aggiunge un nuovo centro di raccolta sulla mappa. \\
+\texttt{rimuoviCentro()} & Rimuove un centro di raccolta dalla mappa. \\
+\texttt{gestisciPremi()} & Permette la gestione dell'assegnazione di premi. \\
+\texttt{generaReport()} & Consente di generare report sullo stato dei bidoni e delle segnalazioni. \\
+\texttt{visualizzaSegnalazioni()} & Permette di visualizzare le varie segnalazioni. \\   
+\texttt{aggiornaStatoSegnalazione()} & Consente di aggiornare lo stato di un bidone a seguito di una segnalazione. \\
+\texttt{assegnaOperatore()} & Permette di assegnare un operatore per svolgere una certa mansione. \\
+\end{tabularx}
+\end{table}
+
+\subsubsection{Classe Autenticazione}
+La classe \texttt{Autenticazione} verifica e conferma l'autenticazione di un utente nel sistema. 
+Dipende dalla classe \texttt{Utente} e introduce le funzionalità di registrazione, login, verifica e logout.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{utenteAutenticato: boolean} -- indica se un utente è autenticato o meno.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{registrazione()} & Permette di registrarsi nel sistema. \\
+\texttt{login()} & Consente all'utente di connettersi all'applicazione. \\
+\texttt{logout()} & Consente all'utente di disconnettersi dall'applicazione. \\
+\texttt{verificaCredenziali()} & Verifica le credenziali inserite dall'utente. \\
+\end{tabularx}
+\end{table}
+
+\subsection{Gruppo classi centri raccolta e sensori IoT} 
+Vengono analizzate qui le classi che si occupano della gestione dei bidoni e dei sensori IoT.
+
+\subsubsection{Classe Bidone}
+La classe \texttt{Bidone} rappresenta un contenitore per la raccolta differenziata e le sue caratteristiche.
+Le sue funzionalità servono ad aggiornare lo stato di riempimento del bidone.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{idBidone: int} -- identificativo numerico univoco.
+    \item \texttt{tipoRifiuto: String} -- per specificare quale tipo di rifiuto viene raccolto all'interno del bidone.
+    \item \texttt{livelloRiempimento: float} -- indica il livello di riempimento del bidone.
+    \item \texttt{stato: StatoBidone} -- indica lo stato di pienezza del bidone.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{aggiornaRiempimento()} & Aggiorna il livello di riempimento del bidone. \\
+\texttt{cambiaStato()} & Modifica lo stato del bidone. \\
+\texttt{svuota()} & Rappresenta l'operazione di svuotamento del bidone. \\
+\end{tabularx}
+\end{table}
+
+\subsubsection{Classe Sensore}
+La classe \texttt{Sensore} rappresenta un sensore e le sue funzionalità,
+che servono a determinare lo stato di riempimento del bidone e inviare tali dati al sistema 
+per contribuire allo sviluppo di un percorso di raccolta dinamico.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{idSensore: int} -- identificativo numerico univoco.
+    \item \texttt{capacitaResidua: float} -- per specificare la capacità del bidone rimanente.
+    \item \texttt{livelloBatteria: float} -- indica il livello di carica della batteria.
+    \item \texttt{ultimoAggiornamento: DateTime} -- indica quando è avvenuto l'ultimo aggiornamento.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{rilevaRiempimento()} & Rileva il livello di riempimento del bidone. \\
+\texttt{inviaDati()} & Invia al sistema i dati sullo stato di pienezza del bidone. \\
+\end{tabularx}
+\end{table}
+
+\subsection{Gruppo classi segnalazione} 
+Viene analizzate la classe riguardante le segnalazioni.
+
+\subsubsection{Classe Segnalazione}
+La classe \texttt{Segnalazione} descrive le segnalazioni che vengono inviate 
+dagli utenti registrati e dagli operatori ecologici al sistema.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{idSegnalazione: int} -- identificativo numerico univoco.
+    \item \texttt{descrizione: String} -- descrizione dell'evento segnalato.
+    \item \texttt{foto: String} -- riferimento all'eventuale immagine associata alla segnalazione.
+    \item \texttt{posizione: String} -- luogo in cui si è verificato l'evento.
+    \item \texttt{dataInvio: DateTime} -- data e ora di invio della segnalazione.
+    \item \texttt{stato: StatoSegnalazione} -- stato di elaborazione della segnalazione.
+    \item \texttt{tipo: TipoSegnalazione} -- tipologia della segnalazione.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{invia()} & Invia al sistema la segnalazione compilata. \\
+\texttt{associaBidone()} & Associa la segnalazione al bidone di riferimento. \\
+\end{tabularx}
+\end{table}
+
+\subsection{Gruppo classi premi} 
+Vengono qui analizzate le classi relative ai premi.
+
+\subsubsection{Classe Premio}
+La classe \texttt{Premio} rappresenta un premio ottenibile dagli utenti 
+tramite i punti accumulati e consente la generazione dei relativi voucher.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{idPremio: int} -- identificativo numerico univoco.
+    \item \texttt{nome: String} -- nome del premio.
+    \item \texttt{descrizione: String} -- descrizione del premio.
+    \item \texttt{costoPunti: int} -- punti necessari per ottenere il premio.
+    \item \texttt{disponibilita: int} -- numero di premi disponibili.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{verificaDisponibilita()} & Verifica se il premio è disponibile per il riscatto. \\
+\texttt{generaVoucher()} & Genera un voucher associato al premio selezionato. \\
+\end{tabularx}
+\end{table}
+
+\subsubsection{Classe Voucher}
+La classe \texttt{Voucher} rappresenta un buono utilizzabile presso un partner commerciale che lo accetta.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{codice: String} -- codice del voucher.
+    \item \texttt{dataScadenza: Date} -- data di scadenza del voucher.
+    \item \texttt{stato: StatoVoucher} -- stato di utilizzo del vouher.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{usa()} & Permette di usare il voucher, aggiornando il suo stato. \\
+\texttt{verificaValidita()} & Verifica la validità del voucher. \\
+\end{tabularx}
+\end{table}
+
+\subsection{Gruppo classi prodotto} 
+Vengono qui analizzate le classi relative ai prodotti (viene solo riportata la classe prodotto per semplicità).
+
+\subsubsection{Classe Prodotto}
+La classe \texttt{Prodotto} rappresenta un prodotto presente nel sistema, 
+identificato tramite codice a barre e associato a specifiche regole di smaltimento.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{idProdotto: int} -- identificativo numerico univoco.
+    \item \texttt{nome: String} -- nome del prodotto.
+    \item \texttt{codiceBarcode: String} -- codice a barre del prodotto.
+    \item \texttt{categoria: String} -- categoria del prodotto.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{ottieniRegolaSmaltimento()} & Restituisce le regole di smaltimento associate al prodotto scansionato. \\
+\end{tabularx}
 \end{table}
 
 \section{Constraint OCL} 
