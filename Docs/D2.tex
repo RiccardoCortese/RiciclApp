@@ -198,6 +198,38 @@ Richiesta & Mappa & Il componente necessita di un servizio che permetta di visua
 \end{tabularx}
 
 \subsubsection{Gestione evento raccolta}
+Questo componente permette di gestire le funzionalità per la gestione di eventi di raccolta.
+
+Questo componente è aggiuntivo rispetto al precedente documento (\textit{D1}) a seguito della creazione di un'ulteriore funzionalità.
+
+La funzionalità "\textit{Evento raccolta}" permette all'admin di creare un evento di raccolta di rifiuti abbandonati, circoscritti in un'area prescelta. Ogni utente può decidere se partecipare o meno e, a seconda della quantità di rifiuti raccolti nell'area, accumulerà punti aggiuntivi.
+
+\keepXColumns
+
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\caption{Tabelle descrizione componente per evento raccolta}
+\label{tab:placeholder} \\
+
+\toprule
+\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Tipologia} & \textbf{Nome} & \textbf{Descrizione} \\
+\midrule
+\endhead
+
+\bottomrule
+\endfoot
+
+Fornita & Creazione evento & Il componente permette ad un utente admin di creare l'evento di raccolta. L'admin definisce la zona in cui l'evento avviene \\ \hline
+Fornita & Evento raccolta & Il componente permette ad un utente in possesso di account di partecipare ad un evento di raccolta creato\\ \hline
+Richiesta & Mappa & Il componente necessita di un servizio che permetta di visualizzare la mappa. In questo modo l'utente potrà visualizzare l'area in cui l'evento è in corso e i bidoni presenti \\ \hline
+Richiesta & Invio mail & Il componente necessita di un servizio che inivii mail in modo che gli utenti partecipanti all'evento siano notificati\\ \hline
+Richiesta & Informazioni riciclaggio & Il componente necessita di un servizio che dia informazioni sul corretto smaltimento di rifiuti tramite il riconoscimento del codice a barre. Il riconoscimento può avvenire tramite scansione dell'immagine oppure tramite inserimento testuale (\textit{RF3, RF4})\\
+
+\end{tabularx}
 
 \section{Diagramma delle classi e descrizione delle classi} 
 % Documentare almeno 10 classi
