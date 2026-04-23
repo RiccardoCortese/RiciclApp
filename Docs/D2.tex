@@ -240,13 +240,24 @@ Per ogni classe/le classi principali vengono specificati attributi e operazioni 
 %- diagramma delle classi completo o in parti
 %- Per ogni classe/gruppo di classi che si decide di analizzare, viene riportata una breve descrizione di ciascuna classe (inclusi i suoi metodi).
 
+\section{Diagramma delle classi e descrizione delle classi} 
+% Documentare almeno 10 classi
+In questa sezione viene riportata un'analisi delle classi richieste per implementare il sistema mediante l'utilizzo del diagramma delle classi. 
+Per una maggiore leggibilità viene prima riportato un diagramma complessivo e poi un'analisi su alcuni gruppi di classi. 
+Per ogni classe/le classi principali vengono specificati attributi e operazioni con relative descrizioni
+(parametri e valori di ritorno vengono omessi per questione di maggiore chiarezza della leggibilità).
+
+% Documentare:
+%- diagramma delle classi completo o in parti
+%- Per ogni classe/gruppo di classi che si decide di analizzare, viene riportata una breve descrizione di ciascuna classe (inclusi i suoi metodi).
+
 \subsection{Diagramma delle classi} 
 % Inserire qui il diagramma completo o in parti
 La Figura~\ref{fig:diagramma-classi} mostra il diagramma delle classi del sistema RiciclApp.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{diagramma_uml_classi.png}
+    %\includegraphics[width=\textwidth]{diagramma_uml_classi.png}
     \caption{Diagramma delle classi di RiciclApp}
     \label{fig:diagramma-classi}
 \end{figure}
@@ -294,7 +305,7 @@ Estende la classe \texttt{Utente} e introduce funzionalità aggiuntive come l'in
 \begin{tabularx}{\textwidth}{@{}lX@{}}
 \toprule
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
-\texttt{inviaSegnalazione()} & Consente all'utente di creare una nuova segnalazione geolocalizzata. \\
+\texttt{inviaSegnalazione()} & Consente all'utente di creare ed inviare una nuova segnalazione geolocalizzata. \\
 \texttt{visualizzaSegnalazioni()} & Restituisce l'elenco delle segnalazioni effettuate. \\
 \texttt{accumulaPunti()} & Aggiorna il punteggio dell'utente in base alle azioni svolte. \\
 \texttt{riscattaPremio()} & Permette di convertire i punti accumulati in un voucher. \\
@@ -307,7 +318,7 @@ Estende la classe \texttt{Utente} e introduce funzionalità aggiuntive come l'in
 \subsubsection{Classe OperatoreEcologico}
 La classe \texttt{OperatoreEcologico} rappresenta un utente che ricopre il ruolo di operatore ecologico, che svolge la raccolta dei rifiuti, nel sistema . 
 Estende la classe \texttt{Utente} e introduce funzionalità aggiuntive come la visualizzazione di un percorso di raccolta personalizzato, 
-la conferma di avvenuto svuotamento dei bidoni e segnalazioni riguardo il loro stato.
+la conferma di avvenuto svuotamento dei bidoni e l'invio di segnalazioni riguardo il loro stato.
 
 \textbf{Attributi}
 \begin{itemize}
@@ -322,9 +333,8 @@ la conferma di avvenuto svuotamento dei bidoni e segnalazioni riguardo il loro s
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
 \texttt{visualizzaPercorso()} & Mostra il percorso personalizzato da seguire. \\
 \texttt{confermaSvuotamento()} & Consente all'operatore di segnalare l'avvenuto svuotamento. \\
-\texttt{segnalaGuasto()} & Permette di segnalare un guasto del bidone. \\
-\texttt{aggiornaStatoSegnalazione()} & Consente di modificare lo stato di una segnalazione una volta risolto il problema. \\
-\bottomrule
+\texttt{segnalaGuasto()} & Permette di creare ed inviare una segnalazione di un guasto del bidone. \\
+\texttt{aggiornaStatoSegnalazione()} & Consente di confermare l'aggiornamento dello stato di un bidone a seguito di una segnalazione. \\
 \end{tabularx}
 \end{table}
 
@@ -347,9 +357,9 @@ Estende la classe \texttt{Utente} e introduce funzionalità aggiuntive come l'ag
 \texttt{gestisciPremi()} & Permette la gestione dell'assegnazione di premi. \\
 \texttt{generaReport()} & Consente di generare report sullo stato dei bidoni e delle segnalazioni. \\
 \texttt{visualizzaSegnalazioni()} & Permette di visualizzare le varie segnalazioni. \\   
-\texttt{aggiornaStatoSegnalazione()} & Consente di aggiornare lo stato di una segnalazione nel momento in cui  viene presa in carico oppure venga risolta. \\
+\texttt{aggiornaStatoSegnalazione()} & Consente di aggiornare lo stato di un bidone a seguito di una segnalazione. \\
 \texttt{assegnaOperatore()} & Permette di assegnare un operatore per svolgere una certa mansione. \\
-\bottomrule
+\texttt{creaEvento()} & Permette di creare un evento a tempo limitato. \\
 \end{tabularx}
 \end{table}
 
@@ -368,10 +378,9 @@ Dipende dalla classe \texttt{Utente} e introduce le funzionalità di registrazio
 \toprule
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
 \texttt{registrazione()} & Permette di registrarsi nel sistema. \\
-\texttt{login()} & Consente all'utente di effettuare l'accesso all'applicazione. \\
+\texttt{login()} & Consente all'utente di connettersi all'applicazione. \\
 \texttt{logout()} & Consente all'utente di disconnettersi dall'applicazione. \\
 \texttt{verificaCredenziali()} & Verifica le credenziali inserite dall'utente. \\
-\bottomrule
 \end{tabularx}
 \end{table}
 
@@ -387,7 +396,7 @@ Le sue funzionalità servono ad aggiornare lo stato di riempimento del bidone.
     \item \texttt{idBidone: int} -- identificativo numerico univoco.
     \item \texttt{tipoRifiuto: String} -- per specificare quale tipo di rifiuto viene raccolto all'interno del bidone.
     \item \texttt{livelloRiempimento: float} -- indica il livello di riempimento del bidone.
-    \item \texttt{stato: StatoBidone} -- indica lo stato di riempimento del bidone.
+    \item \texttt{stato: StatoBidone} -- indica lo stato di pienezza del bidone.
 \end{itemize}
 
 \begin{table}[H]
@@ -398,7 +407,6 @@ Le sue funzionalità servono ad aggiornare lo stato di riempimento del bidone.
 \texttt{aggiornaRiempimento()} & Aggiorna il livello di riempimento del bidone. \\
 \texttt{cambiaStato()} & Modifica lo stato del bidone. \\
 \texttt{svuota()} & Rappresenta l'operazione di svuotamento del bidone. \\
-\bottomrule
 \end{tabularx}
 \end{table}
 
@@ -422,7 +430,6 @@ per contribuire allo sviluppo di un percorso di raccolta dinamico.
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
 \texttt{rilevaRiempimento()} & Rileva il livello di riempimento del bidone. \\
 \texttt{inviaDati()} & Invia al sistema i dati sullo stato di pienezza del bidone. \\
-\bottomrule
 \end{tabularx}
 \end{table}
 
@@ -450,8 +457,35 @@ dagli utenti registrati e dagli operatori ecologici al sistema.
 \toprule
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
 \texttt{invia()} & Invia al sistema la segnalazione compilata. \\
-\texttt{associaBidone()} & Associa la segnalazione al bidone di riferimento. \\
-\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Gruppo classi eventi} 
+Vengono qui analizzate le classi relative ai premi.
+
+\subsubsection{Classe EventoRaccolta}
+La classe \texttt{EventoRaccolta} rappresenta un evento inizializzato dall'Admin al quale diversi utenti 
+possono partecipare per ottenere punti extra svolgendo azioni.
+
+\textbf{Attributi}
+\begin{itemize}
+    \item \texttt{idEvento: int} -- identificativo numerico univoco.
+    \item \texttt{nome: String} -- nome dell'evento.
+    \item \texttt{descrizione: String} -- descrizione dell'evento.
+    \item \texttt{dataInizio: DateTime} -- data e ora di inizio dell'evento.
+    \item \texttt{dataFine: DateTime} -- data e ora di fine dell'evento.
+    \item \texttt{area: String} -- zona dove avviene l'evento.
+    \item \texttt{puntiTotali: int} -- punti totali racimolati alla fine dell'evento.
+    \item \texttt{partecipanti: List<\texttt{UtenteRegistrato}>} -- lista dei partecipanti all'evento.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Operazione} & \textbf{Descrizione} \\ \midrule
+\texttt{partecipa()} & Registra la partecipazione di un utente registrato all'evento. \\
+\texttt{terminaEvento()} & Segna la conclusione dell'evento. \\
 \end{tabularx}
 \end{table}
 
@@ -478,7 +512,6 @@ tramite i punti accumulati e consente la generazione dei relativi voucher.
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
 \texttt{verificaDisponibilita()} & Verifica se il premio è disponibile per il riscatto. \\
 \texttt{generaVoucher()} & Genera un voucher associato al premio selezionato. \\
-\bottomrule
 \end{tabularx}
 \end{table}
 
@@ -489,7 +522,7 @@ La classe \texttt{Voucher} rappresenta un buono utilizzabile presso un partner c
 \begin{itemize}
     \item \texttt{codice: String} -- codice del voucher.
     \item \texttt{dataScadenza: Date} -- data di scadenza del voucher.
-    \item \texttt{stato: StatoVoucher} -- stato di utilizzo del vouher.
+    \item \texttt{stato: StatoVoucher} -- stato di utilizzo del voucher.
 \end{itemize}
 
 \begin{table}[H]
@@ -499,7 +532,6 @@ La classe \texttt{Voucher} rappresenta un buono utilizzabile presso un partner c
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
 \texttt{usa()} & Permette di usare il voucher, aggiornando il suo stato. \\
 \texttt{verificaValidita()} & Verifica la validità del voucher. \\
-\bottomrule
 \end{tabularx}
 \end{table}
 
@@ -524,7 +556,6 @@ identificato tramite codice a barre e associato a specifiche regole di smaltimen
 \toprule
 \textbf{Operazione} & \textbf{Descrizione} \\ \midrule
 \texttt{ottieniRegolaSmaltimento()} & Restituisce le regole di smaltimento associate al prodotto scansionato. \\
-\bottomrule
 \end{tabularx}
 \end{table}
 
