@@ -1,4 +1,3 @@
-
 \documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[italian]{babel}
@@ -559,16 +558,155 @@ identificato tramite codice a barre e associato a specifiche regole di smaltimen
 \end{tabularx}
 \end{table}
 
+\newpage
 \section{Constraint OCL} 
 % Riportare almeno 10 - 12 constraint OCL (incluse invarianti, precondizioni, postcondizioni): una breve descrizione e il constraint
 In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagramma delle classi. Questi vincoli rappresentano invarianti, precondizioni e postcondizioni sulle operazioni delle classi.
 
-\subsection{Classe Gestione Autenticazione} 
-\textbf{Descrizione:} l'operazione login (String username, String password) setta l'attributo autenticato a true.
+\subsection{Classe Autenticazione} 
 
+\subsubsection{Login} 
+\textbf{Descrizione:} l'operazione di Login(String username, String Password) setta l'attributo autenticato a true.
 \begin{quote}
-\texttt{context GestionAutenticazione::login (username, password): boolean}  \\
-\texttt{post: autenticato = true} 
+\texttt{context Autenticazione::login(string username, string password): boolean}  \\
+\texttt{post: utenteAutenticato = true} 
+\end{quote}
+
+\subsubsection{Logout} 
+\textbf{Descrizione:} l'operazione di Logout setta l'attributo autenticato a false.
+\begin{quote}
+\texttt{context Autenticazione::logout()}  \\
+\texttt{post: utenteAutenticato = false} 
+\end{quote}
+
+\subsubsection{Controllo Username e Password} 
+\textbf{Descrizione:} lo Username e la Password non devono mai essere vuoti
+\begin{quote}
+\texttt{context Autenticazione::loging(string username, string password): boolean}  \\
+\texttt{pre: username <> "" and password <> ""} 
+\end{quote}
+
+\subsection{Classe Utente}
+
+\subsubsection{ID con valore positivo} 
+\textbf{Descrizione:} L'ID dell'utente deve essere sempre un valore positivo.
+\begin{quote}
+\texttt{context Utente}  \\
+\texttt{inv: id > 0} 
+\end{quote}
+
+\subsubsection{Password sicura} 
+\textbf{Descrizione:} La Password dell'Utente deve essere di almeno 6 caratteri.
+\begin{quote}
+\texttt{context Utente}  \\
+\texttt{inv passwordSicura: password -> size() >= 6} 
+\end{quote}
+
+\subsection{Classe Utente Registrato}
+
+\subsubsection{Punti sempre positivi} 
+\textbf{Descrizione:} Il numero di punti di un utente registrato deve essere sempre un valore positivo.
+\begin{quote}
+\texttt{context UtenteRegistrato}  \\
+\texttt{inv: punti >= 0} 
+\end{quote}
+
+\subsubsection{Riscattare premi } 
+\textbf{Descrizione:} Per riscattare un premio il numero di punti di un utente deve avere un numero di punti >= a quello richiesto.
+\begin{quote}
+\texttt{context UtenteRegistrato::riscattaPremio(p:Premio) : Voucher}  \\
+\texttt{pre: self.punti >= p.costoPunti} 
+\end{quote}
+
+\subsection{Classe Operatore Ecologico}
+
+\subsubsection{Controllo Matricola} 
+\textbf{Descrizione:} L'operazione di controllo fa un check per assicurarsi che la matricola non sia vuota.
+\begin{quote}
+\texttt{context OperatoreEcologico}  \\
+\texttt{inv: matricola <> ""} 
+\end{quote}
+
+\subsection{Classe Bidone}
+
+\subsubsection{Livello di Riempimento} 
+\textbf{Descrizione:} Il Livello di riempimento deve essere sempre compreso tra 0 e 100.
+\begin{quote}
+\texttt{context Bidone}  \\
+\texttt{inv: livelloRiempimento >= 0 and livelloRiempimento <= 100} 
+\end{quote}
+
+\subsection{Classe Sensore}
+
+\subsubsection{Livello Batteria} 
+\textbf{Descrizione:} Il Livello di carica della Batteria deve essere sempre compreso tra 0 e 100.
+\begin{quote}
+\texttt{context Sensore}  \\
+\texttt{inv: livelloBatteria >= 0 and livelloBatteria <= 100} 
+\end{quote}
+
+\subsubsection{Capacità Residua} 
+\textbf{Descrizione:} La Capacità residua di contenimento non può essere mai negativa.
+\begin{quote}
+\texttt{context Sensore}  \\
+\texttt{inv: capacitàResidua >= 0} 
+\end{quote}
+
+\subsubsection{Ultimo Aggiornamento} 
+\textbf{Descrizione:} L'ultimo aggiornamento deve avere una data passata o uguale a quella presente.
+\begin{quote}
+\texttt{context Sensore}  \\
+\texttt{inv: self.ultimoAggiornamento <= DateTime::now()} 
+\end{quote}
+
+\subsection{Classe Segnalazione}
+
+\subsubsection{Descrizione non vuota} 
+\textbf{Descrizione:} Il campo Descrizione della Segnalazione non può essere vuoto.
+\begin{quote}
+\texttt{context Segnalazione}  \\
+\texttt{inv: descrizione <> ""} 
+\end{quote}
+
+\subsubsection{Data Corretta} 
+\textbf{Descrizione:} La segnalazione deve avere una data passata o ugual a quella presente.
+\begin{quote}
+\texttt{context Segnalazione}  \\
+\texttt{inv: dataInvio <= DateTime::now()} 
+\end{quote}
+
+\subsection{Classe Premio}
+
+\subsubsection{Costo sempre positivo} 
+\textbf{Descrizione:} Il costo di un Premio deve essere sempre positivo.
+\begin{quote}
+\texttt{context Premio}  \\
+\texttt{inv: costoPunti > 0} 
+\end{quote}
+
+\subsection{Classe Voucher}
+
+\subsubsection{Data di scadenza sempre futura} 
+\textbf{Descrizione:} La Data di scadenza del Voucher deve essere sempre futura rispetto al momento in cui lo si è ricevuto.
+\begin{quote}
+\texttt{context Voucher}  \\
+\texttt{inv: dataScadenza > Date::now()} 
+\end{quote}
+
+\subsubsection{Il codice non deve essere vuoto} 
+\textbf{Descrizione:} Il codice associato al Voucher non deve essere mai vuoto.
+\begin{quote}
+\texttt{context Voucher}  \\
+\texttt{inv: codice <> ""} 
+\end{quote}
+
+\subsection{Classe Prodotto}
+
+\subsubsection{Data di scadenza sempre futura} 
+\textbf{Descrizione:} La Data di scadenza del Voucher deve essere sempre futura rispetto al momento in cui lo si è ricevuto.
+\begin{quote}
+\texttt{context Prodotto}  \\
+\texttt{inv: coidceBarcode -> size() >= 6} 
 \end{quote}
 
 \end{document}
