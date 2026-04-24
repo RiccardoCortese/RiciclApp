@@ -565,7 +565,7 @@ In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagr
 
 \subsection{Classe Autenticazione} 
 
-\subsubsection{Login} 
+\subsubsection{Loging} 
 \textbf{Descrizione:} l'operazione di Login(String username, String Password) setta l'attributo autenticato a true.
 \begin{quote}
 \texttt{context Autenticazione::login(string username, string password): boolean}  \\
@@ -612,7 +612,7 @@ In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagr
 \end{quote}
 
 \subsubsection{Riscattare premi } 
-\textbf{Descrizione:} Per riscattare un premio il numero di punti di un utente deve avere un numero di punti >= a quello richiesto.
+\textbf{Descrizione:} Per riscattare un premio il numero di punti di un utente deve avere un numero di punti maggiore o uguale a quello richiesto.
 \begin{quote}
 \texttt{context UtenteRegistrato::riscattaPremio(p:Premio) : Voucher}  \\
 \texttt{pre: self.punti >= p.costoPunti} 
@@ -669,7 +669,7 @@ In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagr
 \end{quote}
 
 \subsubsection{Data Corretta} 
-\textbf{Descrizione:} La segnalazione deve avere una data passata o ugual a quella presente.
+\textbf{Descrizione:} La segnalazione deve avere una data passata o uguale a quella presente.
 \begin{quote}
 \texttt{context Segnalazione}  \\
 \texttt{inv: dataInvio <= DateTime::now()} 
