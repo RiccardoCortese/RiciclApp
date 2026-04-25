@@ -125,7 +125,7 @@ Questo componente permette di gestire tutte le funzionalità richeiste da un ute
 
 \texttt{Richiesta} & \texttt{Informazioni riciclaggio} & Il componente necessita di un servizio che dia informazioni sul corretto smaltimento di rifiuti tramite il riconoscimento del codice a barre. Il riconoscimento può avvenire tramite scansione dell'immagine oppure tramite inserimento testuale (\textit{RF3, RF4}) \\ \hline
 
-\texttt{Richiesta} & \texttt{Stato riempimento bidone} & Il componente necessita di un servizio che permetta all'utente di viusalizzare lo stato di riempimento dei bidoni nei  vari centri (\textit{RF1, RF2})\\ \hline
+\texttt{Richiesta} & \texttt{Stato riempimento bidone} & Il componente necessita di un servizio che permetta all'utente di visualizzare lo stato di riempimento dei bidoni nei  vari centri (\textit{RF1, RF2})\\ \hline
 
 \texttt{Richiesta} & \texttt{Creazione segnalazione} & Il componente necessita di un servizio che permetta all'utente di effettuare segnalazioni come ad esempio problemi con bidoni (\textit{RF6}) \\ \hline
 
@@ -188,7 +188,7 @@ Questo componente permette di gestire le funzionalità per la gestione delle seg
 \endfoot
 
 \texttt{Fornita} & \texttt{Stato segnalazione} & Il componente permette di visualizzare lo stato della segnalazione, ad esempio "Presa in carico", "In corso", "Risolta"\\ \hline
-\texttt{Fornita} & \texttt{Creazione segnalazione} & Il componente permette di creare una nuova segnalazione. Essa deve essere accompagna da una descrizione, da una foto (opzionalmente) e deve esere geolocalizzata\\ \hline
+\texttt{Fornita} & \texttt{Creazione segnalazione} & Il componente permette di creare una nuova segnalazione. Essa deve essere accompagna da una descrizione, da una foto (opzionalmente) e deve essere geolocalizzata\\ \hline
 \texttt{Richiesta} & \texttt{Dati} & Il componente necessita di dati presenti nel database per la gestione delle varie informazioni come, ad esempio, la localizzazione dei vari bidoni\\ \hline 
 \texttt{Richiesta} & \texttt{Mappa} & Il componente necessita di un servizio che permetta di visualizzare la mappa. In questo modo si potrà effettuare una segnalazione per uno specifico bidone localizzato tramite la mappa\\ 
 
@@ -228,17 +228,10 @@ La funzionalità "\textit{Evento raccolta}" permette all'admin di creare un even
 
 \end{tabularx}
 
-\section{Diagramma delle classi e descrizione delle classi} 
-% Documentare almeno 10 classi
-In questa sezione viene riportata un'analisi delle classi richieste per implementare il sistema mediante l'utilizzo del diagramma delle classi. 
-Per una maggiore leggibilità viene prima riportato un diagramma complessivo e poi un'analisi su alcuni gruppi di classi. 
-Per ogni classe/le classi principali vengono specificati attributi e operazioni con relative descrizioni
-(parametri e valori di ritorno vengono omessi per questione di maggiore chiarezza della leggibilità).
-
 % Documentare:
 %- diagramma delle classi completo o in parti
 %- Per ogni classe/gruppo di classi che si decide di analizzare, viene riportata una breve descrizione di ciascuna classe (inclusi i suoi metodi).
-
+\newpage
 \section{Diagramma delle classi e descrizione delle classi} 
 % Documentare almeno 10 classi
 In questa sezione viene riportata un'analisi delle classi richieste per implementare il sistema mediante l'utilizzo del diagramma delle classi. 
@@ -256,7 +249,7 @@ La Figura~\ref{fig:diagramma-classi} mostra il diagramma delle classi del sistem
 
 \begin{figure}[H]
     \centering
-    %\includegraphics[width=\textwidth]{diagramma_uml_classi.png}
+    \includegraphics[width=1\linewidth]{diagramma_uml_classi.png}
     \caption{Diagramma delle classi di RiciclApp}
     \label{fig:diagramma-classi}
 \end{figure}
@@ -565,7 +558,7 @@ In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagr
 
 \subsection{Classe Autenticazione} 
 
-\subsubsection{Loging} 
+\subsubsection{Login} 
 \textbf{Descrizione:} l'operazione di Login(String username, String Password) setta l'attributo autenticato a true.
 \begin{quote}
 \texttt{context Autenticazione::login(string username, string password): boolean}  \\
@@ -580,9 +573,9 @@ In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagr
 \end{quote}
 
 \subsubsection{Controllo Username e Password} 
-\textbf{Descrizione:} lo Username e la Password non devono mai essere vuoti
+\textbf{Descrizione:} lo Username e la Password non devono mai essere vuoti.
 \begin{quote}
-\texttt{context Autenticazione::loging(string username, string password): boolean}  \\
+\texttt{context Autenticazione::login(string username, string password): boolean}  \\
 \texttt{pre: username <> "" and password <> ""} 
 \end{quote}
 
@@ -599,7 +592,7 @@ In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagr
 \textbf{Descrizione:} La Password dell'Utente deve essere di almeno 6 caratteri.
 \begin{quote}
 \texttt{context Utente}  \\
-\texttt{inv passwordSicura: password -> size() >= 6} 
+\texttt{inv: password -> size() >= 6} 
 \end{quote}
 
 \subsection{Classe Utente Registrato}
@@ -700,13 +693,5 @@ In questa sezione vengono analizzati in linguaggio OCL i vincoli legati al diagr
 \texttt{inv: codice <> ""} 
 \end{quote}
 
-\subsection{Classe Prodotto}
-
-\subsubsection{Data di scadenza sempre futura} 
-\textbf{Descrizione:} La Data di scadenza del Voucher deve essere sempre futura rispetto al momento in cui lo si è ricevuto.
-\begin{quote}
-\texttt{context Prodotto}  \\
-\texttt{inv: coidceBarcode -> size() >= 6} 
-\end{quote}
 
 \end{document}
