@@ -54,3 +54,13 @@ android/app/build/
 # Metro bundler cache (React Native)
 .expo/cache/
 metro-cache/
+
+# LaTeX auxiliary files
+*.aux
+*.log
+*.gz
+*.toc
+*.fls
+*.fdb_latexmk
+*.out
+*.pdf
