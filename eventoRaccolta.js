@@ -11,8 +11,8 @@ export default class EventoRaccolta{
         this.partecipanti = partecipanti;
     }
     //Metodi dell'Applicazione
-    partecipa(){}
-    terminaEvento(){}
+    partecipa(){} //Da implementare
+    terminaEvento(){} //Da implementare
 
     //Metodi JSON
     toJSON(){
