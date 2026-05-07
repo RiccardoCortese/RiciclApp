@@ -3,32 +3,27 @@
   "version": "1.0.0",
   "description": "Applicazione migliorare l'efficienza della raccolta differnziata",
   "homepage": "https://github.com/RiccardoCortese/progetto_trento#readme",
-
   "bugs": {
     "url": "https://github.com/RiccardoCortese/progetto_trento/issues"
   },
-
   "repository": {
     "type": "git",
     "url": "git+https://github.com/RiccardoCortese/progetto_trento.git"
   },
-
   "license": "ISC",
-
   "author": "Binco Francesco, Cortese Riccardo, Giovagnetti Lorenzo",
-
   "type": "commonjs",
-
   "main": "index.js",
-
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "node database/seed.js"
   },
-
   "dependencies": {
     "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "mongodb": "^7.2.0",
+    "mongoose": "^9.6.1",
     "mqtt": "^5.0.0"
   }
 }
