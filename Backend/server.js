@@ -1,3 +1,6 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // serve per forzare l'uso di DNS pubblici (Google) e risolvere problemi di connessione a MongoDB Atlas perchè alcuni ISP bloccano i DNS di default
+
 const express = require('express');
 const connectDB = require('./config/db');
 require('dotenv').config();
