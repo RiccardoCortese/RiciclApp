@@ -2,7 +2,7 @@ const mqtt = require("mqtt");
 const { MongoClient } = require("mongodb");
 require("dotenv").config();
 
-const MQTT_BROKER = "mqtt://localhost:1883";
+const MQTT_BROKER = process.env.MQTT_BROKER || "mqtt://localhost:1883";
 const MONGO_URI = process.env.MONGO_URI;
 const DB_NAME = process.env.DB_NAME || "riciclapp";
 
