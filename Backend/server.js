@@ -4,6 +4,8 @@ dns.setServers(['8.8.8.8', '8.8.4.4']); // serve per forzare l'uso di DNS pubbli
 const express = require('express');
 const connectDB = require('./config/db');
 require('dotenv').config();
+const cors = require('cors'); // Middleware per abilitare CORS (Cross-Origin Resource Sharing) e permettere al frontend di comunicare con il backend senza problemi di CORS
+app.use(cors());
 
 const app = express();
 
