@@ -10,16 +10,9 @@ Un listener MQTT riceve i messaggi pubblicati dal simulatore e aggiorna automati
 
 # Architettura del sistema
 
-text
-simulator.js
-    ↓ pubblicazione MQTT
-MQTT Broker
-    ↓ sottoscrizione
-listener.js
-    ↓
-MongoDB (collection bins)
-Componenti
-simulator.js
+simulator.js->MQTT Broker->listener.js->MongoDB (collection bins)
+
+## Componenti
 
 Il file simulator.js simula i sensori IoT dei bidoni. Il simulatore genera livelli di riempimento casuali, 
 determina automaticamente lo stato del bidone e pubblica periodicamente messaggi MQTT contenenti le informazioni aggiornate.
