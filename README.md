@@ -1,4 +1,4 @@
-# Simulazione Sensori IoT - RiciclApp
+# Simulatore Sensori IoT - RiciclApp
 
 ## Descrizione
 
