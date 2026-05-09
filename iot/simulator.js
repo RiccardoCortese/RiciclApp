@@ -1,7 +1,10 @@
-const mqtt = require('mqtt');
+require("dotenv").config();
+const mqtt = require("mqtt");
+
+const MQTT_BROKER = process.env.MQTT_BROKER || "mqtt://localhost:1883";
 
 // Connessione al broker
-const client = mqtt.connect('mqtt://localhost:1883');
+const client = mqtt.connect(MQTT_BROKER);
 
 // Lista bidoni
 const bins = [1, 2, 3];
