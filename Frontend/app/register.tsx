@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import { API_URL } from '../Backend/config/config';
+import { API_URL } from '../src/config';
 
 export default function Register() {
   const router = useRouter();
@@ -11,20 +11,21 @@ export default function Register() {
   const [password, setPassword] = useState('');
 
   const handleRegister = async () => {
-    // 1. Controllo base
+    // Controllo se tutti i campi sono compilati
     if (!username || !email || !password) {
       Alert.alert("Errore", "Compila tutti i campi!");
       return;
     }
 
     try {
-      // 2. Chiamata al tuo Backend (rotta: /api/auth/register)
+      // Chiamata al Backend (rotta: /api/auth/register)
       const response = await axios.post(`${API_URL}/auth/register`, {
         username,
         email,
         password
       });
-
+      
+      // Se la registrazione è andata a buon fine, mostro un messaggio di successo e torno alla pagina di login
       if (response.status === 201 || response.status === 200) {
         Alert.alert("Successo!", "Account creato. Ora puoi fare il login.");
         router.replace('/'); // Torna alla pagina index (Login)

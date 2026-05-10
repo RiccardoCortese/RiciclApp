@@ -5,10 +5,10 @@ const User = require('../models/user'); // Importa il modello User
 
 //Rotta per la registrazione: Uso POST per inviare i dati del nuovo utente
 router.post('/register', async (req, res) => {
-    const { name, email, password } = req.body; // Estaggo i dati dal corpo della richiesta
+    const { username, email, password } = req.body; // Estaggo i dati dal corpo della richiesta
 
     try {
-        console.log("Dati ricevuti:", name, email, password); // Log dei dati ricevuti (escludo la password per sicurezza)
+        console.log("Dati ricevuti:", username, email, password); // Log dei dati ricevuti (escludo la password per sicurezza)
         // Controllo se l'utente esiste già
         const existingUser = await User.findOne({ email }); //controllo se esiste già un utente con la stessa email
         if (existingUser) {
@@ -22,7 +22,7 @@ router.post('/register', async (req, res) => {
 
         // Creo un nuovo utente con i dati forniti
         const newUser = new User({
-            name,
+            name: username, // Salvo il nome utente
             email,
             passwordHash: hashedPassword // Salvo la password hashata
         });

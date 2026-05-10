@@ -21,13 +21,6 @@ export default function RootLayout() {
       <StatusBar />
     </ThemeProvider>
 
-
-    //altro per vedere se funziona 
-
-    
-    
-    
-
   );
 }
 
