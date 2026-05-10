@@ -1,0 +1,42 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp
+  description: Documentazione delle API per il progetto RiciclApp.
+  version: 1.0.0
+
+servers:
+  - url: http://192.168.1.XX:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+    description: Server Locale (Sviluppo)
+
+paths:
+  /auth/register:
+    post:
+      summary: Registrazione nuovo utente
+      tags:
+        - Autenticazione
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username:
+                  type: string
+                  example: "user"
+                email:
+                  type: string
+                  example: "user@example.com"
+                password:
+                  type: string
+                  example: "password123"
+      responses:
+        '201':
+          description: Utente creato con successo
+        '400':
+          description: Errore di validazione o email esistente
+        '500':
+          description: Internal Server Error
+
+  
