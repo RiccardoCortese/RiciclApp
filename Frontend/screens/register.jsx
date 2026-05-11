@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import { API_URL } from '../../src/config';
+import { API_URL } from '../src/config';
 
 export default function Register() {
   const router = useRouter();
