@@ -12,7 +12,9 @@ import Info from './src/assets/Info_rifiuti.png';
 import User from './src/assets/User_icon.png';
 import Opz from './src/assets/Opzioni.png';
 import Register from './screens/register';
+import Informations from './screens/informations';
 import { TextInput } from 'react-native-web';
+import { navigate } from 'expo-router/build/global-state/routing';
 
 
 function WebMap() {
@@ -62,8 +64,10 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
 
    if (currentScreen === 'register') {
-    return <Register
-      goHome={() => setCurrentScreen('home')}/>
+    return <Register goHome={() => setCurrentScreen('home')}/>
+  }
+  if (currentScreen === 'informations'){
+    return <Informations goHome={() => setCurrentScreen('home')}/>
   }
   return (
     <View style={styles.container}>
@@ -88,7 +92,7 @@ export default function App() {
       </View>
       {/* -- Barra Bottoni -- */}
       <View style={styles.buttonBar}> 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => setCurrentScreen('register')}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => navigate('register')}>
           <Image source={User} style={styles.buttonIcon}/>
         </TouchableOpacity>
 

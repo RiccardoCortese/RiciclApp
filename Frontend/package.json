@@ -4,7 +4,6 @@
   "description": "App per migliorare l'efficienza della raccolta differnziata",
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
   "main": "expo/AppEntry",
   "scripts": {
     "start": "expo start",
