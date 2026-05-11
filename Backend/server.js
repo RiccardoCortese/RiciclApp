@@ -13,7 +13,16 @@ connectDB();
 // 2. Middleware per leggere i JSON (utile per la registrazione)
 app.use(express.json());
 
-// 3. Rotte di prova
+
+// ---- ROTTE ----
+
+//rotta per l'autenticazione (registrazione e login)
+app.use('/api/auth', require('./routes/auth')); // Tutte le rotte di autenticazione (registrazione e login) saranno accessibili tramite /api/auth/<register o login>
+
+// rotta per il profilo utente
+app.use('/api/user', require('./routes/user'));
+
+// Rotte di prova
 app.get('/', (req, res) => {
   res.send('Server RiciclApp attivo e connesso ad Atlas!');
 });
