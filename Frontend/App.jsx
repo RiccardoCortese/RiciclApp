@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import HomeScreen from './src/files/App';
-import InformationsScreen from './src/files/Informations';
+import HomeScreen from './screens/App';
+import InformationsScreen from './screens/informations';
+//import RegisterScreen from './screens/register';
 
 export default function App() {
   const [screen, setScreen] = useState('Home');

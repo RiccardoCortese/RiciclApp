@@ -7,14 +7,14 @@ const DEFAULT_CENTER = [46.0667, 11.1333];
 const DEFAULT_ZOOM = 14;
 
 //Importing images
-import Logo from './src/assets/Riciclapp_Logo.png';
-import Info from './src/assets/Info_rifiuti.png';
-import User from './src/assets/User_icon.png';
-import Opz from './src/assets/Opzioni.png';
-import Register from './screens/register';
-import Informations from './screens/informations';
+import Logo from '../src/assets/Riciclapp_Logo.png';
+import Info from '../src/assets/Info_rifiuti.png';
+import User from '../src/assets/User_icon.png';
+import Opz from '../src/assets/Opzioni.png';
+import Register from './register';
+import Informations from './informations';
 import { TextInput } from 'react-native-web';
-import { navigate } from 'expo-router/build/global-state/routing';
+
 
 
 function WebMap() {
@@ -67,7 +67,7 @@ export default function App() {
     return <Register goHome={() => setCurrentScreen('home')}/>
   }
   if (currentScreen === 'informations'){
-    return <Informations goHome={() => setCurrentScreen('home')}/>
+    return <Informations navigate={(screen) => setCurrentScreen(screen)}/>
   }
   return (
     <View style={styles.container}>
@@ -92,7 +92,7 @@ export default function App() {
       </View>
       {/* -- Barra Bottoni -- */}
       <View style={styles.buttonBar}> 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => navigate('register')}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => setCurrentScreen('register')}>
           <Image source={User} style={styles.buttonIcon}/>
         </TouchableOpacity>
 
@@ -100,7 +100,7 @@ export default function App() {
           <Image source={Logo} style={styles.buttonIcon}/>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => navigate('informations')}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => setCurrentScreen('informations')}>
           <Image source={Info} style={styles.buttonIcon}/>
         </TouchableOpacity>
       </View>
