@@ -74,7 +74,7 @@ export default function App() {
           <Text style={styles.placeholderText}>Mappa non disponibile su questa piattaforma</Text>
         </View>
       )}
-      {/* ── Search Bar ── */}
+      {/* -- Search Bar -- */}
       <View style={styles.searchBarWrapper}>
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
@@ -96,7 +96,7 @@ export default function App() {
           <Image source={Logo} style={styles.buttonIcon}/>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => navigate('informations')}>
           <Image source={Info} style={styles.buttonIcon}/>
         </TouchableOpacity>
       </View>
