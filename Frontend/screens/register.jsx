@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
 import axios from 'axios';
-import { useRouter } from 'expo-router';
 import { API_URL } from '../src/config';
 
 export default function Register() {
-  const router = useRouter();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +26,7 @@ export default function Register() {
       // Se la registrazione è andata a buon fine, mostro un messaggio di successo e torno alla pagina di login
       if (response.status === 201 || response.status === 200) {
         Alert.alert("Successo!", "Account creato. Ora puoi fare il login.");
-        router.replace('/'); // Torna alla pagina index (Login)
+        // router.replace('/'); // Torna alla pagina index (Login)
       }
     } catch (error) {
       const errorMsg = error.response?.data?.message || "Errore di connessione al server";
@@ -67,9 +65,7 @@ export default function Register() {
         <Text style={styles.buttonText}>Registrati</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push('/')}>
-        <Text style={styles.linkText}>Hai già un account? Accedi</Text>
-      </TouchableOpacity>
+     
     </View>
   );
 }
