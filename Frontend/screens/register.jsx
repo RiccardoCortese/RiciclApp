@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'reac
 import axios from 'axios';
 import { API_URL } from '../src/config';
 
-export default function Register() {
+export default function Register({ goHome }) {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,8 +25,9 @@ export default function Register() {
       
       // Se la registrazione è andata a buon fine, mostro un messaggio di successo e torno alla pagina di login
       if (response.status === 201 || response.status === 200) {
-        Alert.alert("Successo!", "Account creato. Ora puoi fare il login.");
-        // router.replace('/'); // Torna alla pagina index (Login)
+        //richiama la funzione passata da App.jsx per tornare alla home (login)
+        Alert.alert("Successo!", "Registrazione avvenuta con successo!"); 
+        goHome();
       }
     } catch (error) {
       const errorMsg = error.response?.data?.message || "Errore di connessione al server";
@@ -37,7 +38,7 @@ export default function Register() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Crea Account ♻️</Text>
+      <Text style={styles.title}>Crea Account</Text>
       
       <TextInput 
         style={styles.input} 
@@ -63,6 +64,10 @@ export default function Register() {
 
       <TouchableOpacity style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Registrati</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.button} onPress={goHome}>
+        <Text style={styles.buttonText}>Torna alla home</Text>
       </TouchableOpacity>
 
      

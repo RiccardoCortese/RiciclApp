@@ -11,6 +11,7 @@ import Logo from './src/assets/Riciclapp_Logo.png';
 import Info from './src/assets/Info_rifiuti.png';
 import User from './src/assets/User_icon.png';
 import Opz from './src/assets/Opzioni.png';
+import Register from './screens/register';
 import { TextInput } from 'react-native-web';
 
 
@@ -18,7 +19,6 @@ function WebMap() {
   const [MapComponents, setMapComponents] = useState(null);
 
   useEffect(() => {
-    // Inject Leaflet CSS from CDN — Metro bundler cannot process .css imports directly
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
@@ -26,7 +26,6 @@ function WebMap() {
     link.crossOrigin = '';
     document.head.appendChild(link);
 
-    // Dynamically import react-leaflet to avoid SSR/native issues
     import('react-leaflet').then((rl) => {
       setMapComponents({
         MapContainer: rl.MapContainer,
@@ -60,12 +59,17 @@ function WebMap() {
 }
 
 export default function App() {
+  const [currentScreen, setCurrentScreen] = useState('home');
+
+   if (currentScreen === 'register') {
+    return <Register
+      goHome={() => setCurrentScreen('home')}/>
+  }
   return (
     <View style={styles.container}>
       {Platform.OS === 'web' ? (
         <WebMap />
       ) : (
-        // Placeholder for native platforms
         <View style={[styles.map, styles.mapPlaceholder]}>
           <Text style={styles.placeholderText}>Mappa non disponibile su questa piattaforma</Text>
         </View>
@@ -84,7 +88,7 @@ export default function App() {
       </View>
       {/* -- Barra Bottoni -- */}
       <View style={styles.buttonBar}> 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => setCurrentScreen('register')}>
           <Image source={User} style={styles.buttonIcon}/>
         </TouchableOpacity>
 
