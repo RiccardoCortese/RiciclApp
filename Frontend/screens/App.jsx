@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 
 // Rome city center as default map position
 const DEFAULT_CENTER = [46.0667, 11.1333];
 const DEFAULT_ZOOM = 14;
+
+//router per navigare tra le schermate 
+const router = useRouter();
 
 //Importing images
 import Logo from '../src/assets/Riciclapp_Logo.png';
@@ -92,7 +96,7 @@ export default function App() {
       </View>
       {/* -- Barra Bottoni -- */}
       <View style={styles.buttonBar}> 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => setCurrentScreen('register')}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() =>router.push('/auth/register')}>
           <Image source={User} style={styles.buttonIcon}/>
         </TouchableOpacity>
 
@@ -100,7 +104,7 @@ export default function App() {
           <Image source={Logo} style={styles.buttonIcon}/>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => setCurrentScreen('informations')}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() =>router.push('/informations')}>
           <Image source={Info} style={styles.buttonIcon}/>
         </TouchableOpacity>
       </View>

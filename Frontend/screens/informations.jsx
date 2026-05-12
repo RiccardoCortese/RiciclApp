@@ -4,6 +4,7 @@ import {
   StyleSheet, ScrollView, ActivityIndicator, Image, Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 
 // Maps Open Food Facts packaging tags to Italian disposal categories
 const PACKAGING_DISPOSAL = {
@@ -49,7 +50,10 @@ function resolveDisposal(product) {
   return unique.length > 0 ? unique : [FALLBACK_DISPOSAL];
 }
 
-export default function Informations({ navigate }) {
+export default function Informations() {
+
+  const router = useRouter();
+
   const [barcode, setBarcode] = useState('');
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -91,7 +95,7 @@ export default function Informations({ navigate }) {
       {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Info Prodotto</Text>
-        <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => navigate('Home')}>
+        <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
           <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
       </View>

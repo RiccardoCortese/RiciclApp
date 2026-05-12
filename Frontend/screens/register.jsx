@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../src/config';
+import { useRouter } from 'expo-router';
 
-export default function Register({ goHome }) {
+export default function Register() {
+  const router = useRouter();
+
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,9 +29,10 @@ export default function Register({ goHome }) {
       
       // Se la registrazione è andata a buon fine, mostro un messaggio di successo e torno alla pagina di login
       if (response.status === 201 || response.status === 200) {
-        //richiama la funzione passata da App.jsx per tornare alla home (login)
+        //richiama la funzione passata da App.jsx per tornare alla home 
         Alert.alert("Successo!", "Registrazione avvenuta con successo!"); 
-        goHome();
+        router.push('/'); // Torna alla home (o alla pagina di login)
+
       }
     } catch (error) {
       const errorMsg = error.response?.data?.message || "Errore di connessione al server";
@@ -41,7 +46,7 @@ export default function Register({ goHome }) {
       {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Crea Account</Text>
-        <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={goHome}>
+        <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
           <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
       </View>
