@@ -8,10 +8,11 @@ router.post('/register', async (req, res) => {
     const { username, email, password } = req.body; // Estaggo i dati dal corpo della richiesta
 
     try {
-        console.log("Dati ricevuti:", username, email, password); // Log dei dati ricevuti (escludo la password per sicurezza)
+        console.log("Dati ricevuti:", username, email); // Log dei dati ricevuti 
         // Controllo se l'utente esiste già
         const existingUser = await User.findOne({ email }); //controllo se esiste già un utente con la stessa email
         if (existingUser) {
+            console.log("Utente già esistente con email:", email); // Log se l'utente esiste già
             return res.status(400).json({ message: 'Utente già registrato' }); // Se esiste, ritorno un errore
         }
 
@@ -29,10 +30,12 @@ router.post('/register', async (req, res) => {
         
         await newUser.save(); // Salvo l'utente nel database
         res.status(201).json({ message: 'Utente registrato con successo' }); // Ritorno un messaggio di successo
+        log("Nuovo utente registrato:", email); // Log del nuovo utente registrato
 
     } catch (error) {
         console.error('Errore durante la registrazione:', error);
         res.status(500).json({ message: 'Errore del server' }); // Ritorno un errore del server
+        log(error); // Log dell'errore per il debug
     }
 });
 
