@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../src/config';
 
@@ -38,48 +38,119 @@ export default function Register({ goHome }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Crea Account</Text>
-      
-      <TextInput 
-        style={styles.input} 
-        placeholder="Username" 
-        value={username}
-        onChangeText={setUsername} 
-      />
-      <TextInput 
-        style={styles.input} 
-        placeholder="Email" 
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail} 
-      />
-      <TextInput 
-        style={styles.input} 
-        placeholder="Password" 
-        secureTextEntry 
-        value={password}
-        onChangeText={setPassword} 
-      />
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Crea Account</Text>
+        <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={goHome}>
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+      {/* ── Form ── */}
+      <View style={styles.content}>
+        <TextInput 
+          style={styles.input} 
+          placeholder="Username" 
+          value={username}
+          onChangeText={setUsername} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Email" 
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Password" 
+          secureTextEntry 
+          value={password}
+          onChangeText={setPassword} 
+        />
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Registrati</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={handleRegister}>
+          <Text style={styles.buttonText}>Registrati</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={goHome}>
-        <Text style={styles.buttonText}>Torna alla home</Text>
-      </TouchableOpacity>
-
+      </View>
      
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#f5f5f5' },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#2e7d32' },
-  input: { backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 15, borderWidth: 1, borderColor: '#ddd' },
-  button: { backgroundColor: '#2e7d32', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  linkText: { color: '#2e7d32', textAlign: 'center', marginTop: 20 }
+
+  // Outer shell — no centering, no padding (header sits flush at the top)
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+
+  // ── Header (identical pattern to Informations) ──
+  header: {
+    backgroundColor: '#009933',
+    paddingTop: Platform.OS === 'web' ? 20 : 50,
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 16,
+    top: Platform.OS === 'web' ? 14 : 44,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  // ── Form area — fills remaining space and centers its children ──
+  content: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    padding: 20,
+  },
+
+  // These three are unchanged
+  input: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  button: {
+    backgroundColor: '#2e7d32',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });
