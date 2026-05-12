@@ -1,28 +1,25 @@
-import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator, Image, Platform, StyleSheet,
+  Text, TextInput, TouchableOpacity, View,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { API_URL } from '../src/config';
 
-// Rome city center as default map position
-const DEFAULT_CENTER = [46.0667, 11.1333];
-const DEFAULT_ZOOM = 14;
-
-//router per navigare tra le schermate 
-const router = useRouter();
-
-//Importing images
 import Logo from '../src/assets/Riciclapp_Logo.png';
 import Info from '../src/assets/Info_rifiuti.png';
 import User from '../src/assets/User_icon.png';
 import Opz from '../src/assets/Opzioni.png';
 import Register from './register';
 import Informations from './informations';
-import { TextInput } from 'react-native-web';
 
+const DEFAULT_CENTER = [46.0667, 11.1333];
+const DEFAULT_ZOOM = 14;
 
-
-function WebMap() {
+function WebMap({ targetCenter }) {
   const [MapComponents, setMapComponents] = useState(null);
+  const mapRef = useRef(null);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -33,16 +30,18 @@ function WebMap() {
     document.head.appendChild(link);
 
     import('react-leaflet').then((rl) => {
-      setMapComponents({
-        MapContainer: rl.MapContainer,
-        TileLayer: rl.TileLayer,
-      });
+      setMapComponents({ MapContainer: rl.MapContainer, TileLayer: rl.TileLayer });
     });
 
-    return () => {
-      document.head.removeChild(link);
-    };
+    return () => { document.head.removeChild(link); };
   }, []);
+
+  // Fly to the selected location whenever targetCenter changes
+  useEffect(() => {
+    if (targetCenter && mapRef.current) {
+      mapRef.current.flyTo(targetCenter, 15);
+    }
+  }, [targetCenter]);
 
   if (!MapComponents) return null;
 
@@ -50,6 +49,7 @@ function WebMap() {
 
   return (
     <MapContainer
+      ref={mapRef}
       center={DEFAULT_CENTER}
       zoom={DEFAULT_ZOOM}
       style={StyleSheet.flatten(styles.map)}
@@ -65,53 +65,105 @@ function WebMap() {
 }
 
 export default function App() {
+  const router = useRouter();
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [mapCenter, setMapCenter] = useState(null);
+  const [searching, setSearching] = useState(false);
 
-   if (currentScreen === 'register') {
-    return <Register goHome={() => setCurrentScreen('home')}/>
+  const handleSearch = async () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    setSearching(true);
+    setSearchResults([]);
+    try {
+      const res = await fetch(`${API_URL}/osm/search?q=${encodeURIComponent(q)}&limit=5`);
+      const data = await res.json();
+      setSearchResults(Array.isArray(data) ? data : []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const selectResult = (result) => {
+    setMapCenter([parseFloat(result.lat), parseFloat(result.lon)]);
+    setSearchQuery(result.display_name);
+    setSearchResults([]);
+  };
+
+  if (currentScreen === 'register') {
+    return <Register goHome={() => setCurrentScreen('home')} />;
   }
-  if (currentScreen === 'informations'){
-    return <Informations navigate={(screen) => setCurrentScreen(screen)}/>
+  if (currentScreen === 'informations') {
+    return <Informations navigate={(screen) => setCurrentScreen(screen)} />;
   }
+
   return (
     <View style={styles.container}>
       {Platform.OS === 'web' ? (
-        <WebMap />
+        <WebMap targetCenter={mapCenter} />
       ) : (
         <View style={[styles.map, styles.mapPlaceholder]}>
           <Text style={styles.placeholderText}>Mappa non disponibile su questa piattaforma</Text>
         </View>
       )}
-      {/* -- Search Bar -- */}
+
+      {/* ── Search Bar ── */}
       <View style={styles.searchBarWrapper}>
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder='Cerca una location...'
-            placeholderTextColor={'#9999'}            
+            placeholder="Cerca una location..."
+            placeholderTextColor="#9999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
           />
-          
+          {searching && <ActivityIndicator size="small" color="#009933" style={{ marginLeft: 8 }} />}
         </View>
+
+        {/* Results Dropdown */}
+        {searchResults.length > 0 && (
+          <View style={styles.resultsDropdown}>
+            {searchResults.map((result, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
+                activeOpacity={0.7}
+                onPress={() => selectResult(result)}
+              >
+                <Text style={styles.resultIcon}>📍</Text>
+                <Text style={styles.resultText} numberOfLines={2}>{result.display_name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
-      {/* -- Barra Bottoni -- */}
-      <View style={styles.buttonBar}> 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() =>router.push('/auth/register')}>
-          <Image source={User} style={styles.buttonIcon}/>
+
+      {/* ── Button Bar ── */}
+      <View style={styles.buttonBar}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => router.push('/auth/register')}>
+          <Image source={User} style={styles.buttonIcon} />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.button} activeOpacity={0.85}>
-          <Image source={Logo} style={styles.buttonIcon}/>
+          <Image source={Logo} style={styles.buttonIcon} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() =>router.push('/informations')}>
-          <Image source={Info} style={styles.buttonIcon}/>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => router.push('/informations')}>
+          <Image source={Info} style={styles.buttonIcon} />
         </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity style={styles.smallButton} activeOpacity={0.85} >
-        <Image source={Opz} style={{width: 60, height: 60}}/>
+
+      <TouchableOpacity style={styles.smallButton} activeOpacity={0.85}>
+        <Image source={Opz} style={{ width: 60, height: 60 }} />
       </TouchableOpacity>
+
       <StatusBar style="auto" />
     </View>
   );
@@ -122,7 +174,6 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  //Mappa
   map: {
     position: 'absolute',
     top: 0,
@@ -142,59 +193,46 @@ const styles = StyleSheet.create({
     color: '#555',
     fontSize: 16,
   },
-  //Bottoni
-  buttonBar:{
+  buttonBar: {
     flex: 1,
     position: 'absolute',
-    bottom: 40, //Li mette verso il fondo a 40
+    bottom: 40,
     flexDirection: 'row',
-    alignSelf: 'center', //Allienamento orizzontale
-
+    alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  button:{
+  button: {
     position: 'relative',
     alignSelf: 'center',
-
     width: 110,
     height: 110,
     borderRadius: 55,
     overflow: 'hidden',
-
     backgroundColor: '#fff',
     borderWidth: 5,
     borderColor: '#009933',
-
     justifyContent: 'center',
     alignItems: 'center',
-
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
     zIndex: 1,
-
     marginHorizontal: 20,
   },
-  smallButton:{
+  smallButton: {
     position: 'relative',
     alignSelf: 'flex-end',
-
     width: 60,
     height: 60,
     borderRadius: 30,
     overflow: 'hidden',
-
     backgroundColor: '#fff',
     margin: 20,
-    //borderWidth: 5,
-    //borderColor: '#444444',
-
     justifyContent: 'center',
     alignItems: 'center',
-
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -202,7 +240,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 1,
   },
-  buttonIcon:{
+  buttonIcon: {
     width: 100,
     height: 100,
     resizeMode: 'contain',
@@ -242,11 +280,40 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: '#222',
-    outlineStyle: 'none', // removes browser focus ring on web
+    outlineStyle: 'none',
   },
-  searchClear: {
+  // ── Dropdown ──
+  resultsDropdown: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginTop: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 10,
+    overflow: 'hidden',
+  },
+  resultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  resultItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  resultIcon: {
+    fontSize: 16,
+  },
+  resultText: {
+    flex: 1,
     fontSize: 14,
-    color: '#999',
-    marginLeft: 8,
+    color: '#333',
+    lineHeight: 20,
   },
 });

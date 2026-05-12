@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { API_URL } from '../src/config';
 
 // Maps Open Food Facts packaging tags to Italian disposal categories
 const PACKAGING_DISPOSAL = {
@@ -70,7 +71,7 @@ export default function Informations() {
     setSearched(true);
 
     try {
-      const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
+      const res = await fetch(`${API_URL}/off/product/${code}`);
       const data = await res.json();
       if (data.status === 1) {
         setProduct(data.product);
