@@ -30,12 +30,12 @@ router.post('/register', async (req, res) => {
         
         await newUser.save(); // Salvo l'utente nel database
         res.status(201).json({ message: 'Utente registrato con successo' }); // Ritorno un messaggio di successo
-        log("Nuovo utente registrato:", email); // Log del nuovo utente registrato
+        console.log("Nuovo utente registrato:", email); // Log del nuovo utente registrato
 
     } catch (error) {
         console.error('Errore durante la registrazione:', error);
         res.status(500).json({ message: 'Errore del server' }); // Ritorno un errore del server
-        log(error); // Log dell'errore per il debug
+        console.log(error); // Log dell'errore per il debug
     }
 });
 
