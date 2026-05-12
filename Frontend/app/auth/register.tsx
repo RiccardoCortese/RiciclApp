@@ -1,4 +1,4 @@
-import RegisterScreen from '../../screens/register'; // Due livelli sopra
+import RegisterScreen from '../../screens/register';
 export default function Page() {
   return <RegisterScreen />;
 }

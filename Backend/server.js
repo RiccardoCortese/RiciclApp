@@ -20,11 +20,10 @@ app.use(express.json());
 //rotta per l'autenticazione (registrazione e login)
 app.use('/api/auth', require('./routes/auth')); // Tutte le rotte di autenticazione (registrazione e login) saranno accessibili tramite /api/auth/<register o login>
 
-
-// Rotte OpenStreetMap (geocoding via Nominatim)
+// Rotte OpenStreetMap 
 app.use('/api/osm', require('./routes/OSM_API'));
 
-// Rotte Open Food Facts (proxy prodotti per barcode)
+// Rotte Open Food Facts 
 app.use('/api/off', require('./routes/OFF_APP'));
 
 // rotta per il profilo utente

@@ -1,4 +1,4 @@
-import HomeScreen from '../screens/App'; // Punta alla mappa
+import HomeScreen from '../screens/App';
 export default function Page() {
   return <HomeScreen />;
 }

@@ -7,7 +7,6 @@ import { useRouter } from 'expo-router';
 export default function Register() {
   const router = useRouter();
 
-
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,10 +27,9 @@ export default function Register() {
       });
       
       // Se la registrazione è andata a buon fine, mostro un messaggio di successo e torno alla pagina di login
-      if (response.status === 201 || response.status === 200) {
-        //richiama la funzione passata da App.jsx per tornare alla home 
+      if (response.status === 201 || response.status === 200) { 
         Alert.alert("Successo!", "Registrazione avvenuta con successo!"); 
-        router.push('/'); // Torna alla home (o alla pagina di login)
+        router.push('/auth/login'); // Torna alla pagina di login
 
       }
     } catch (error) {
@@ -45,10 +43,10 @@ export default function Register() {
     <View style={styles.container}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Crea Account</Text>
-        <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
-          <Text style={styles.closeButtonText}>✕</Text>
-        </TouchableOpacity>
+      <Text style={styles.headerTitle}>Crea Account</Text>
+      <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
+        <Text style={styles.closeButtonText}>✕</Text>
+      </TouchableOpacity>
       </View>
       {/* ── Form ── */}
       <View style={styles.content}>
@@ -79,7 +77,7 @@ export default function Register() {
         </TouchableOpacity>
 
 
-        <TouchableOpacity onPress={() => router.push('/login')}>
+        <TouchableOpacity onPress={() => router.push('/auth/login')}>
           <Text style={styles.linkText}> Hai già un account? Accedi</Text>
         </TouchableOpacity>
       </View>

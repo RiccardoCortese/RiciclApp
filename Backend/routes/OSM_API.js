@@ -3,7 +3,7 @@ const router = express.Router();
 
 const NOMINATIM_HEADERS = { 'User-Agent': 'RiciclApp/1.0 (riciclapp@example.com)' };
 
-// Geocoding search — returns up to `limit` locations matching the query
+
 router.get('/search', async (req, res) => {
   const { q, limit = 5 } = req.query;
   if (!q) return res.status(400).json({ error: 'Parametro q obbligatorio' });
@@ -20,7 +20,6 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// Reverse geocoding — returns address for a given lat/lon
 router.get('/reverse', async (req, res) => {
   const { lat, lon } = req.query;
   if (!lat || !lon) return res.status(400).json({ error: 'Parametri lat e lon obbligatori' });
