@@ -33,6 +33,8 @@ export default function Login() {
     Alert.alert("Successo", "Login effettuato!");
     console.log("TOKEN:", token);
     console.log("USER:", user);
+    // Torno alla home
+    router.push('/'); // Torna alla home page
 
   } catch (error) {
     let errorMsg = "Errore di connessione al server";
