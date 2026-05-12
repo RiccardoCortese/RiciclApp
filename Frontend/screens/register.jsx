@@ -78,6 +78,10 @@ export default function Register() {
           <Text style={styles.buttonText}>Registrati</Text>
         </TouchableOpacity>
 
+
+        <TouchableOpacity onPress={() => router.push('/login')}>
+          <Text style={styles.linkText}> Hai già un account? Accedi</Text>
+        </TouchableOpacity>
       </View>
      
     </View>
@@ -86,13 +90,11 @@ export default function Register() {
 
 const styles = StyleSheet.create({
 
-  // Outer shell — no centering, no padding (header sits flush at the top)
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
 
-  // ── Header (identical pattern to Informations) ──
   header: {
     backgroundColor: '#009933',
     paddingTop: Platform.OS === 'web' ? 20 : 50,
@@ -130,14 +132,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ── Form area — fills remaining space and centers its children ──
   content: {
     flex: 1,
     justifyContent: 'flex-start',
     padding: 20,
   },
 
-  // These three are unchanged
   input: {
     backgroundColor: '#fff',
     padding: 15,
@@ -157,5 +157,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  linkText: {
+    color: "#2e7d32",
+    textAlign: "center",
+    marginTop: 20,
   },
 });
