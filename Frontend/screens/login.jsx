@@ -34,7 +34,7 @@ export default function Login() {
     console.log("TOKEN:", token);
     console.log("USER:", user);
     
-    router.push('/'); // Torna alla home page
+    router.push('/profile'); // Torna alla home page
 
   } catch (error) {
     let errorMsg = "Errore di connessione al server";
