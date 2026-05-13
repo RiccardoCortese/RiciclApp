@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs'); // Per l'hash delle password
 const jwt = require('jsonwebtoken');
 const User = require('../models/user'); // Importa il modello User
 const { sendVerificationEmail } = require('../services/email_verification'); // Importa la funzione per inviare email di verifica
+const user = require('../models/user');
 
 //Rotta per la registrazione: Uso POST per inviare i dati del nuovo utente
 router.post('/register', async (req, res) => {
@@ -32,6 +33,7 @@ router.post('/register', async (req, res) => {
         // --- INVIO MAIL CON CODICE DI VERIFICA ---
         // Invio l'email di verifica
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Genera un codice di verifica a 6 cifre
+        const hashedVerificationCode = await bcrypt.hash(verificationCode, 10); // Hash del codice di verifica prima di salvarlo nel database
         const emailSent = await sendVerificationEmail({ username, email }, verificationCode); // Invio l'email di verifica all'utente
 
         if (!emailSent) { // Se l'email non è stata inviata correttamente, ritorno un errore
@@ -50,7 +52,7 @@ router.post('/register', async (req, res) => {
             email,
             passwordHash: hashedPassword, // Salvo la password hashata
             isVerified: false, // L'utente non è verificato finché non conferma l'email
-            verificationToken: verificationCode // Salvo il codice di verifica nel database
+            verificationToken: hashedVerificationCode // Salvo il codice di verifica hashato nel database
         });
         await newUser.save(); // Salvo l'utente nel database
         res.status(201).json({ message: 'Utente registrato con successo' }); // Ritorno un messaggio di successo
@@ -73,6 +75,9 @@ router.post('/login', async (req, res) => {
 
     if (!/\S+@\S+\.\S+/.test(email)) { // Controllo se l'email è in un formato valido
         return res.status(400).json({ message: 'Email non valida' }); // Se l'email non è valida, ritorno un errore
+    }
+    if (user.isVerified === false) { // Controllo se l'utente ha verificato l'email
+        return res.status(400).json({ message: 'Email non verificata. Controlla la tua casella di posta.' }); // Se l'email non è verificata, ritorno un errore
     }
 
     try {
@@ -101,7 +106,6 @@ router.post('/login', async (req, res) => {
             }
         );
         
-        console.log(`Generazione token per utente ${email}: ${token}`); // Log del token generato
 
         // Se email e password sono corrette, il login va a buon fine
         res.status(200).json({
@@ -128,22 +132,21 @@ router.post('/verify-email', async (req, res) => {
     try {
         const { email, code } = req.body;
 
-        // 1. Cerca l'utente nel database
+        //Cerca l'utente nel database
         const user = await User.findOne({ email });
 
         if (!user) {
             return res.status(404).json({ message: "Utente non trovato" });
         }
 
-        // 2. Controlla se il codice corrisponde
-        if (user.verificationToken !== code) {
+        // Controlla se il codice corrisponde
+        if (!await bcrypt.compare(code, user.verificationToken)) {
             return res.status(400).json({ message: "Codice errato" });
         }
 
-        // 3. Attiva l'utente e svuota il token
         user.isVerified = true;
         user.verificationToken = undefined; 
-        await user.save();
+        await user.save(); // Salva le modifiche all'utente nel database
 
         res.status(200).json({ message: "Email verificata con successo! Ora puoi effettuare il login." });
     } catch (error) {

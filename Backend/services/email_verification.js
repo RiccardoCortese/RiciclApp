@@ -22,7 +22,10 @@ async function sendVerificationEmail({ username, email }, verificationCode) {
             from: process.env.EMAIL,
             to: email,
             subject: 'Verifica la tua email per RiciclApp',
-            text: `Ciao ${username},\n\nGrazie per esserti registrato a RiciclApp! Per favore, verifica la tua email inserendo il seguente codice nell'app:\n\n${verificationCode}\n\nSe non hai richiesto questa registrazione, ignora questa email.\n\nSaluti,\nIl team di RiciclApp`
+            text: `Ciao ${username},\n\nGrazie per esserti registrato a RiciclApp! Per favore, verifica la tua email inserendo il seguente codice nell'app:\n\n${verificationCode}\n\n
+            Se non hai richiesto questa registrazione, ignora questa email.\n\n
+            Saluti,\n
+            Il team di RiciclApp`
         };
 
         await transporter.sendMail(mailOptions);

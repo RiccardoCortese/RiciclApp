@@ -18,18 +18,16 @@ export default function VerifyScreen() {
         try {
             const response = await axios.post(`${API_URL}/auth/verify-email`, {
                 email: email,
-                verificationCode: code
+                code: code
             });
 
             alert(response.data.message);
             router.replace("/auth/login"); // Vai al login
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 400) {
-                const error_msg = error.response?.data?.message || "Codice di verifica errato. Riprova.";
+                const error_msg = error.response?.data?.message;
                 alert(error_msg);
-            } else {
-                alert("Errore durante la verifica. Riprova.");
-            }
+            } 
         }
     };
 
