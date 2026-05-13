@@ -11,32 +11,87 @@ servers:
 paths:
   /auth/register:
     post:
-      summary: Registrazione nuovo utente
       tags:
-        - Autenticazione
+        - Auth
+      summary: Registrazione nuovo utente
+      description: >
+        Registra un nuovo utente nel sistema, genera un codice di verifica
+        e invia una email per la conferma dell'account.
+
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [username, email, password]
+
+              required:
+                - username
+                - email
+                - password
+
               properties:
                 username:
                   type: string
-                  example: "user"
+                  example: Mario Rossi
+
                 email:
                   type: string
-                  example: "user@example.com"
+                  format: email
+                  example: mario.rossi@gmail.com
+
                 password:
                   type: string
-                  example: "password123"
+                  format: password
+                  minLength: 6
+                  example: password123
+
       responses:
         '201':
-          description: Utente creato con successo
-        '400':
-          description: Errore di validazione o email esistente
-        '500':
-          description: Internal Server Error
+          description: Utente registrato con successo
 
+        '400':
+          description: Dati non validi o utente già registrato
+ 
+        '500':
+          description: Errore interno del server
+         
   
+  /auth/verify-email:
+    post:
+      tags:
+        - Auth
+      summary: Verifica email utente
+      description: Verifica il codice inviato via email e attiva l'account utente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: mario.rossi@gmail.com
+                code:
+                  type: string
+                  example: "123456"
+
+      responses:
+        '200':
+          description: Email verificata con successo
+
+        '400':
+          description: Codice errato
+
+        '404':
+          description: Utente non trovato
+
+        '500':
+          description: Errore interno del server
+
+    
