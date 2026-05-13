@@ -38,6 +38,10 @@ router.post('/register', async (req, res) => {
             passwordHash: hashedPassword // Salvo la password hashata
         });
         
+        //invio mail per confermare la registrazione
+        
+        
+        
         await newUser.save(); // Salvo l'utente nel database
         res.status(201).json({ message: 'Utente registrato con successo' }); // Ritorno un messaggio di successo
         console.log("Nuovo utente registrato:", email); // Log del nuovo utente registrato

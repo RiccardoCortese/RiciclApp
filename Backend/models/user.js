@@ -40,6 +40,14 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
