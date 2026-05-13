@@ -125,34 +125,29 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/verify-email', async (req, res) => {
-    const { email, verificationCode } = req.body; // Estraggo email e codice di verifica dal corpo della richiesta
-
-    if (!email || !verificationCode) { // Controllo se email e codice di verifica sono presenti
-        return res.status(400).json({ message: 'Compila tutti i campi' }); // Se manca qualcosa, ritorno un errore
-    }
-
     try {
-        const user = await User.findOne({ email }); // Cerco l'utente tramite email
+        const { email, code } = req.body;
+
+        // 1. Cerca l'utente nel database
+        const user = await User.findOne({ email });
+
         if (!user) {
-            return res.status(400).json({ message: 'Utente non trovato' }); // Se l'utente non esiste, ritorno un errore
+            return res.status(404).json({ message: "Utente non trovato" });
         }
 
-        if (user.isVerified) {
-            return res.status(400).json({ message: 'Email già verificata' }); // Se l'email è già verificata, ritorno un errore
-        }
-    
-        if (user.verificationToken !== verificationCode) {
-            return res.status(400).json({ message: 'Codice di verifica non valido' }); // Se il codice di verifica non è corretto, ritorno un errore
+        // 2. Controlla se il codice corrisponde
+        if (user.verificationToken !== code) {
+            return res.status(400).json({ message: "Codice errato" });
         }
 
+        // 3. Attiva l'utente e svuota il token
         user.isVerified = true;
-        user.verificationToken = undefined; // Rimuovo il token di verifica una volta che l'email è stata verificata per ragioni di sicurezza
+        user.verificationToken = undefined; 
         await user.save();
 
-        res.status(200).json({ message: 'Email verificata con successo' });
+        res.status(200).json({ message: "Email verificata con successo! Ora puoi effettuare il login." });
     } catch (error) {
-        console.error('Errore durante la verifica dell\'email:', error);
-        res.status(500).json({ message: 'Errore del server' });
+        res.status(500).json({ message: "Errore durante la verifica" });
     }
 });
 
