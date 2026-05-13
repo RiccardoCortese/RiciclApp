@@ -12,5 +12,5 @@
     "**/*.ts",
     "**/*.tsx",
     "screens/register.jsx"
-  ]
+, "screens/verify_email.jsx", "app/auth/login.jsx", "app/auth/register.jsx", "app/auth/verify_email.jsx"  ]
 }

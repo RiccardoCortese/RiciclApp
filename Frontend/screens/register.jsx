@@ -22,8 +22,12 @@ export default function Register() {
       
       // Se la registrazione è andata a buon fine, mostro un messaggio di successo e torno alla pagina di login
       if (response.status === 201 || response.status === 200) { 
-        alert("Successo!", "Registrazione avvenuta con successo!"); 
-        router.push('/auth/login'); // Torna alla pagina di login
+        alert("Codice Inviato", "Controlla la tua email per il codice di verifica.");
+        router.push({
+          pathname: "/auth/verify_email",
+          params: { email: email } // Passiamo l'email per sapere chi stiamo verificando
+        });
+        
 
       }
     } catch (error) {
