@@ -11,11 +11,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const handleLogin = async () => {
 
-  // Controllo campi vuoti
-  if (!email || !password) {
-    Alert.alert("Errore", "Compila tutti i campi");
-    return;
-  }
 
   try {
     // Chiamata al backend
@@ -30,19 +25,26 @@ export default function Login() {
     // Salvo token e utente nel dispositivo
     await AsyncStorage.setItem("token", token);
     await AsyncStorage.setItem("user", JSON.stringify(user));
-    Alert.alert("Successo", "Login effettuato!");
+    alert("Successo", "Login effettuato!");
     console.log("TOKEN:", token);
     console.log("USER:", user);
     
     router.push('/'); // Torna alla home page
 
   } catch (error) {
-    let errorMsg = "Errore di connessione al server";
     if (axios.isAxiosError(error)) {
-      errorMsg = error.response?.data?.message || errorMsg;
-    }
-    Alert.alert("Errore", errorMsg);
-    console.log(error);
+
+        const errorMsg = error.response?.data?.message || error.message || "Errore di connessione al server";
+
+        alert(errorMsg);
+
+      } else {
+
+        console.log("ERRORE GENERICO:");
+        console.log(error);
+
+        alert("Errore sconosciuto");
+      }
   }
 };
 
