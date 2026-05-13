@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs'); // Per l'hash delle password
 const jwt = require('jsonwebtoken');
 const User = require('../models/user'); // Importa il modello User
+const { sendVerificationEmail } = require('../services/email_verification'); // Importa la funzione per inviare email di verifica
 
 //Rotta per la registrazione: Uso POST per inviare i dati del nuovo utente
 router.post('/register', async (req, res) => {
@@ -27,6 +28,15 @@ router.post('/register', async (req, res) => {
         }
 
         //ALTRIMENTI
+        
+        // Invio l'email di verifica
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Genera un codice di verifica a 6 cifre
+        const emailSent = await sendVerificationEmail({ username, email }, verificationCode); // Invio l'email di verifica all'utente
+
+        if (!emailSent) { // Se l'email non è stata inviata correttamente, ritorno un errore
+            return res.status(500).json({ message: 'Errore durante l\'invio dell\'email di verifica' });
+        }
+        
         // Hash della password prima di salvarla
         const salt = await bcrypt.genSalt(10); // Genero un salt per l'hash
         const hashedPassword = await bcrypt.hash(password, salt); // Hash della password
@@ -35,13 +45,10 @@ router.post('/register', async (req, res) => {
         const newUser = new User({
             name: username, // Salvo il nome utente
             email,
-            passwordHash: hashedPassword // Salvo la password hashata
+            passwordHash: hashedPassword, // Salvo la password hashata
+            isVerified: false, // L'utente non è verificato finché non conferma l'email
+            verificationToken: verificationCode // Salvo il codice di verifica nel database
         });
-        
-        //invio mail per confermare la registrazione
-        
-        
-        
         await newUser.save(); // Salvo l'utente nel database
         res.status(201).json({ message: 'Utente registrato con successo' }); // Ritorno un messaggio di successo
         console.log("Nuovo utente registrato:", email); // Log del nuovo utente registrato
