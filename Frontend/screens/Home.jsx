@@ -13,71 +13,154 @@ import Info from '../src/assets/Info_rifiuti.png';
 import User from '../src/assets/User_icon.png';
 import Opz from '../src/assets/Opzioni.png';
 
-const DEFAULT_CENTER = [46.0667, 11.1333];
+const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 }; // Trento, Italy
 const DEFAULT_ZOOM = 14;
+const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
-function WebMap({ targetCenter }) {
-  const [MapComponents, setMapComponents] = useState(null);
+// ─── Web map: MapLibre GL JS rendered directly in the browser ────────────────
+function WebMap({ targetCenter, styleUrl }) {
   const mapRef = useRef(null);
+  const containerRef = useRef(null);
+  const style = styleUrl || OFM_STYLE_FALLBACK;
 
   useEffect(() => {
+    // Load MapLibre CSS from CDN (Metro bundler doesn't handle CSS imports)
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
-    link.crossOrigin = '';
+    link.href = 'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css';
     document.head.appendChild(link);
 
-    import('react-leaflet').then((rl) => {
-      setMapComponents({ MapContainer: rl.MapContainer, TileLayer: rl.TileLayer });
+    let map;
+    // Dynamic import keeps maplibre-gl out of the native bundle
+    import('maplibre-gl').then((mod) => {
+      if (!containerRef.current) return;
+      const maplibregl = mod.default ?? mod;
+      map = new maplibregl.Map({
+        container: containerRef.current,
+        style,
+        center: [DEFAULT_CENTER.lon, DEFAULT_CENTER.lat],
+        zoom: DEFAULT_ZOOM,
+        attributionControl: true,
+      });
+      mapRef.current = map;
     });
 
-    return () => { document.head.removeChild(link); };
-  }, []);
+    return () => {
+      mapRef.current?.remove();
+      mapRef.current = null;
+      if (document.head.contains(link)) document.head.removeChild(link);
+    };
+  }, [style]);
 
-  // Fly to the selected location whenever targetCenter changes
   useEffect(() => {
-    if (targetCenter && mapRef.current) {
-      mapRef.current.flyTo(targetCenter, 15);
-    }
+    if (!targetCenter || !mapRef.current) return;
+    // targetCenter is [lat, lon]; MapLibre expects [lon, lat]
+    mapRef.current.flyTo({ center: [targetCenter[1], targetCenter[0]], zoom: 15 });
   }, [targetCenter]);
 
-  if (!MapComponents) return null;
-
-  const { MapContainer, TileLayer } = MapComponents;
-
   return (
-    <MapContainer
-      ref={mapRef}
-      center={DEFAULT_CENTER}
-      zoom={DEFAULT_ZOOM}
-      style={StyleSheet.flatten(styles.map)}
-      zoomControl={true}
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        maxZoom={19}
-      />
-    </MapContainer>
+    <div
+      ref={containerRef}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
+    />
   );
 }
 
-export default function App() {
+// ─── Native map: MapLibre GL JS in a WebView (requires development build) ───
+function NativeMap({ targetCenter, styleUrl }) {
+  const webViewRef = useRef(null);
+  const [WebView, setWebView] = useState(null);
+  const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
+
+  useEffect(() => {
+    // Lazy-require so Metro doesn't bundle WebView on web platform
+    try {
+      const mod = require('react-native-webview');
+      setWebView(() => mod.WebView ?? mod.default?.WebView ?? mod.default);
+    } catch {
+      setWebView(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!targetCenter || !webViewRef.current) return;
+    webViewRef.current.postMessage(
+      JSON.stringify({ type: 'flyTo', lat: targetCenter[0], lon: targetCenter[1] })
+    );
+  }, [targetCenter]);
+
+  if (!WebView) {
+    return (
+      <View style={styles.mapPlaceholder}>
+        <Text style={styles.placeholderText}>
+          Mappa Android: installa react-native-webview{'\n'}e usa un development build
+        </Text>
+      </View>
+    );
+  }
+
+  const mapHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
+  <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: '${mapStyle}',
+      center: [${DEFAULT_CENTER.lon}, ${DEFAULT_CENTER.lat}],
+      zoom: ${DEFAULT_ZOOM},
+    });
+    function handleMsg(e) {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'flyTo') map.flyTo({ center: [msg.lon, msg.lat], zoom: 15 });
+      } catch (_) {}
+    }
+    // Both events needed: Android uses document, iOS uses window
+    document.addEventListener('message', handleMsg);
+    window.addEventListener('message', handleMsg);
+  </script>
+</body>
+</html>`;
+
+  return (
+    <WebView
+      ref={webViewRef}
+      source={{ html: mapHtml }}
+      style={{ flex: 1 }}
+      javaScriptEnabled
+      originWhitelist={['*']}
+    />
+  );
+}
+
+// ─── Main screen ─────────────────────────────────────────────────────────────
+export default function HomeScreen() {
   const router = useRouter();
-  const [currentScreen, setCurrentScreen] = useState('home');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [mapCenter, setMapCenter] = useState(null);
   const [searching, setSearching] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
 
   useEffect(() => {
-    const checkToken = async () => {
-      const token = await AsyncStorage.getItem('token'); // Controllo se esiste un token di autenticazione
-      setLoggedIn(!!token); // Se esiste, l'utente è considerato loggato, altrimenti no
-    };
-    checkToken();
+    // Check auth token
+    AsyncStorage.getItem('token').then((token) => setLoggedIn(!!token));
+    // Fetch map config from backend (/api/ofm/config)
+    fetch(`${API_URL}/ofm/config`)
+      .then((r) => r.json())
+      .then((data) => { if (data?.styleUrl) setMapStyleUrl(data.styleUrl); })
+      .catch(() => {}); // silently fall back to OFM_STYLE_FALLBACK
   }, []);
 
   const handleSearch = async () => {
@@ -102,16 +185,12 @@ export default function App() {
     setSearchResults([]);
   };
 
-
-
   return (
     <View style={styles.container}>
       {Platform.OS === 'web' ? (
-        <WebMap targetCenter={mapCenter} />
+        <WebMap targetCenter={mapCenter} styleUrl={mapStyleUrl} />
       ) : (
-        <View style={[styles.map, styles.mapPlaceholder]}>
-          <Text style={styles.placeholderText}>Mappa non disponibile su questa piattaforma</Text>
-        </View>
+        <NativeMap targetCenter={mapCenter} styleUrl={mapStyleUrl} />
       )}
 
       {/* ── Search Bar ── */}
@@ -130,7 +209,6 @@ export default function App() {
           {searching && <ActivityIndicator size="small" color="#009933" style={{ marginLeft: 8 }} />}
         </View>
 
-        {/* Results Dropdown */}
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
             {searchResults.map((result, i) => (
@@ -150,14 +228,11 @@ export default function App() {
 
       {/* ── Button Bar ── */}
       <View style={styles.buttonBar}>
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={ () => {
-            if (loggedIn) {
-              router.push('/profile');
-            } else {
-              router.push('/auth/register');
-            }
-          }
-        }>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.85}
+          onPress={() => router.push(loggedIn ? '/profile' : '/auth/register')}
+        >
           <Image source={User} style={styles.buttonIcon} />
         </TouchableOpacity>
 
@@ -184,27 +259,21 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  map: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 0,
-    width: '100%',
-    height: '100%',
-  },
   mapPlaceholder: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#d0e8c0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderText: {
     color: '#555',
-    fontSize: 16,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    lineHeight: 22,
   },
   buttonBar: {
-    flex: 1,
     position: 'absolute',
     bottom: 40,
     flexDirection: 'row',
@@ -213,8 +282,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   button: {
-    position: 'relative',
-    alignSelf: 'center',
     width: 110,
     height: 110,
     borderRadius: 55,
@@ -233,14 +300,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   smallButton: {
-    position: 'relative',
-    alignSelf: 'flex-end',
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
     width: 60,
     height: 60,
     borderRadius: 30,
     overflow: 'hidden',
     backgroundColor: '#fff',
-    margin: 20,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -255,7 +322,6 @@ const styles = StyleSheet.create({
     height: 100,
     resizeMode: 'contain',
   },
-  // ── Search Bar ──
   searchBarWrapper: {
     position: 'absolute',
     top: 50,
@@ -292,7 +358,6 @@ const styles = StyleSheet.create({
     color: '#222',
     outlineStyle: 'none',
   },
-  // ── Dropdown ──
   resultsDropdown: {
     width: '100%',
     maxWidth: 480,

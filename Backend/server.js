@@ -20,11 +20,14 @@ app.use(express.json());
 //rotta per l'autenticazione (registrazione e login)
 app.use('/api/auth', require('./routes/auth')); // Tutte le rotte di autenticazione (registrazione e login) saranno accessibili tramite /api/auth/<register o login>
 
-// Rotte OpenStreetMap 
+// Rotte OpenStreetMap
 app.use('/api/osm', require('./routes/OSM_API'));
 
-// Rotte Open Food Facts 
-app.use('/api/off', require('./routes/OFF_APP'));
+// Rotte Open Food Facts
+app.use('/api/off', require('./routes/OFF_API'));
+
+// Rotte OpenFreeMap (configurazione mappa)
+app.use('/api/ofm', require('./routes/OFM_API'));
 
 // rotta per il profilo utente
 app.use('/api/user', require('./routes/user'));
