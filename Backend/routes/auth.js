@@ -29,6 +29,7 @@ router.post('/register', async (req, res) => {
 
         //ALTRIMENTI
         
+        // --- INVIO MAIL CON CODICE DI VERIFICA ---
         // Invio l'email di verifica
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Genera un codice di verifica a 6 cifre
         const emailSent = await sendVerificationEmail({ username, email }, verificationCode); // Invio l'email di verifica all'utente
@@ -37,6 +38,8 @@ router.post('/register', async (req, res) => {
             return res.status(500).json({ message: 'Errore durante l\'invio dell\'email di verifica' });
         }
         
+
+        // --- CREAZIONE UTENTE NEL DATABASE ---
         // Hash della password prima di salvarla
         const salt = await bcrypt.genSalt(10); // Genero un salt per l'hash
         const hashedPassword = await bcrypt.hash(password, salt); // Hash della password
@@ -117,6 +120,38 @@ router.post('/login', async (req, res) => {
 
     } catch (error) {
         console.error('Errore durante il login:', error);
+        res.status(500).json({ message: 'Errore del server' });
+    }
+});
+
+router.post('/verify-email', async (req, res) => {
+    const { email, verificationCode } = req.body; // Estraggo email e codice di verifica dal corpo della richiesta
+
+    if (!email || !verificationCode) { // Controllo se email e codice di verifica sono presenti
+        return res.status(400).json({ message: 'Compila tutti i campi' }); // Se manca qualcosa, ritorno un errore
+    }
+
+    try {
+        const user = await User.findOne({ email }); // Cerco l'utente tramite email
+        if (!user) {
+            return res.status(400).json({ message: 'Utente non trovato' }); // Se l'utente non esiste, ritorno un errore
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ message: 'Email già verificata' }); // Se l'email è già verificata, ritorno un errore
+        }
+    
+        if (user.verificationToken !== verificationCode) {
+            return res.status(400).json({ message: 'Codice di verifica non valido' }); // Se il codice di verifica non è corretto, ritorno un errore
+        }
+
+        user.isVerified = true;
+        user.verificationToken = undefined; // Rimuovo il token di verifica una volta che l'email è stata verificata per ragioni di sicurezza
+        await user.save();
+
+        res.status(200).json({ message: 'Email verificata con successo' });
+    } catch (error) {
+        console.error('Errore durante la verifica dell\'email:', error);
         res.status(500).json({ message: 'Errore del server' });
     }
 });
