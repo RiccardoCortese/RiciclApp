@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert } from "react-native";
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform} from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../src/config";
+import { useRouter } from "expo-router";
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -13,7 +15,7 @@ export default function ProfileScreen() {
       const token = await AsyncStorage.getItem("token");
 
       if (!token) {
-        Alert.alert("Errore", "Token non trovato. Effettua di nuovo il login.");
+        alert("Token non trovato. Effettua di nuovo il login.");
         setLoading(false);
         return;
       }
@@ -29,7 +31,7 @@ export default function ProfileScreen() {
       const errorMsg =
         error.response?.data?.message || "Errore nel recupero del profilo";
 
-      Alert.alert("Errore", errorMsg);
+      alert(errorMsg);
       console.log(error);
     } finally {
       setLoading(false);
@@ -49,8 +51,15 @@ export default function ProfileScreen() {
   }
 
   return (
+
     <View style={styles.container}>
-      <Text style={styles.title}>Profilo Utente</Text>
+      <View style={styles.header}>
+      <Text style={styles.headerTitle}>Profilo Utente</Text>
+      
+      <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
+            <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
+      </View>
 
       {user ? (
         <View style={styles.card}>
@@ -80,12 +89,42 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#f5f5f5",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 30,
-    textAlign: "center",
-    color: "#2e7d32",
+
+  header: {
+    backgroundColor: '#009933',
+    paddingTop: Platform.OS === 'web' ? 20 : 50,
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 16,
+    top: Platform.OS === 'web' ? 14 : 44,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   card: {
     backgroundColor: "#fff",

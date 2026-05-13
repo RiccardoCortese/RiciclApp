@@ -5,14 +5,13 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../src/config';
 
 import Logo from '../src/assets/Riciclapp_Logo.png';
 import Info from '../src/assets/Info_rifiuti.png';
 import User from '../src/assets/User_icon.png';
 import Opz from '../src/assets/Opzioni.png';
-import Register from './register';
-import Informations from './informations';
 
 const DEFAULT_CENTER = [46.0667, 11.1333];
 const DEFAULT_ZOOM = 14;
@@ -71,6 +70,15 @@ export default function App() {
   const [searchResults, setSearchResults] = useState([]);
   const [mapCenter, setMapCenter] = useState(null);
   const [searching, setSearching] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkToken = async () => {
+      const token = await AsyncStorage.getItem('token'); // Controllo se esiste un token di autenticazione
+      setLoggedIn(!!token); // Se esiste, l'utente è considerato loggato, altrimenti no
+    };
+    checkToken();
+  }, []);
 
   const handleSearch = async () => {
     const q = searchQuery.trim();
@@ -94,12 +102,7 @@ export default function App() {
     setSearchResults([]);
   };
 
-  if (currentScreen === 'register') {
-    return <Register goHome={() => setCurrentScreen('home')} />;
-  }
-  if (currentScreen === 'informations') {
-    return <Informations navigate={(screen) => setCurrentScreen(screen)} />;
-  }
+
 
   return (
     <View style={styles.container}>
@@ -147,7 +150,14 @@ export default function App() {
 
       {/* ── Button Bar ── */}
       <View style={styles.buttonBar}>
-        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => router.push('/auth/register')}>
+        <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={ () => {
+            if (loggedIn) {
+              router.push('/profile');
+            } else {
+              router.push('/authregister');
+            }
+          }
+        }>
           <Image source={User} style={styles.buttonIcon} />
         </TouchableOpacity>
 
