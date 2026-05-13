@@ -67,6 +67,8 @@ router.post('/login', async (req, res) => {
                 expiresIn: '1d'
             }
         );
+        
+        console.log(`Generazione token per utente ${email}: ${token}`); // Log del token generato
 
         // Se email e password sono corrette, il login va a buon fine
         res.status(200).json({
@@ -80,6 +82,8 @@ router.post('/login', async (req, res) => {
                 points: user.points
             }
         });
+
+        console.log(`Utente ${email} ha effettuato il login`); // Log del login effettuato
 
     } catch (error) {
         console.error('Errore durante il login:', error);
