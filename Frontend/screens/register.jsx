@@ -12,12 +12,6 @@ export default function Register() {
   const [password, setPassword] = useState('');
 
   const handleRegister = async () => {
-    // Controllo se tutti i campi sono compilati
-    if (!username || !email || !password) {
-      Alert.alert("Errore", "Compila tutti i campi!");
-      return;
-    }
-
     try {
       // Chiamata al Backend (rotta: /api/auth/register)
       const response = await axios.post(`${API_URL}/auth/register`, {
@@ -28,14 +22,25 @@ export default function Register() {
       
       // Se la registrazione è andata a buon fine, mostro un messaggio di successo e torno alla pagina di login
       if (response.status === 201 || response.status === 200) { 
-        Alert.alert("Successo!", "Registrazione avvenuta con successo!"); 
+        alert("Successo!", "Registrazione avvenuta con successo!"); 
         router.push('/auth/login'); // Torna alla pagina di login
 
       }
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Errore di connessione al server";
-      Alert.alert("Ops!", errorMsg);
-      console.log(error);
+      
+      if (axios.isAxiosError(error)) {
+
+        const errorMsg = error.response?.data?.message || error.message || "Errore di connessione al server";
+
+        alert(errorMsg);
+
+      } else {
+
+        console.log("ERRORE GENERICO:");
+        console.log(error);
+
+        alert("Errore sconosciuto");
+      }
     }
   };
 

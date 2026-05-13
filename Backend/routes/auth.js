@@ -7,6 +7,17 @@ const User = require('../models/user'); // Importa il modello User
 //Rotta per la registrazione: Uso POST per inviare i dati del nuovo utente
 router.post('/register', async (req, res) => {
     const { username, email, password } = req.body; // Estaggo i dati dal corpo della richiesta
+    
+    // --- CONTROLLO DEI DATI INSERITI ---
+    if (!username || !email || !password) { // Controllo se tutti i campi sono presenti
+        return res.status(400).json({ message: 'Compila tutti i campi' }); // Se manca qualcosa, ritorno un errore
+    }
+    else if (password.length < 6) { // Controllo se la password è abbastanza lunga
+        return res.status(400).json({ message: 'La password deve essere lunga almeno 6 caratteri' }); // Se la password è troppo corta, ritorno un errore
+    }
+    else if (!/\S+@\S+\.\S+/.test(email)) { // Controllo se l'email è in un formato valido
+        return res.status(400).json({ message: 'Email non valida' }); // Se l'email non è valida, ritorno un errore
+    }
 
     try {
         // Controllo se l'utente esiste già
@@ -41,6 +52,14 @@ router.post('/register', async (req, res) => {
 // Rotta per il login: controllo email e password dell'utente
 router.post('/login', async (req, res) => {
     const { email, password } = req.body; // Estraggo email e password dal corpo della richiesta
+
+    if (!email || !password) { // Controllo se email e password sono presenti
+        return res.status(400).json({ message: 'Compila tutti i campi' }); // Se manca qualcosa, ritorno un errore
+    }
+
+    if (!/\S+@\S+\.\S+/.test(email)) { // Controllo se l'email è in un formato valido
+        return res.status(400).json({ message: 'Email non valida' }); // Se l'email non è valida, ritorno un errore
+    }
 
     try {
         // Cerco l'utente tramite email

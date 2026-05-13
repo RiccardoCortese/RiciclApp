@@ -29,11 +29,12 @@ app.use('/api/off', require('./routes/OFF_APP'));
 // rotta per il profilo utente
 app.use('/api/user', require('./routes/user'));
 
-
+/*
 // Rotte di prova
 app.get('/', (req, res) => {
   res.send('Server RiciclApp attivo e connesso ad Atlas!');
 });
+*/
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server in esecuzione sulla porta ${PORT}`));
