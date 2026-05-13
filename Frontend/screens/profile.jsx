@@ -78,6 +78,17 @@ export default function ProfileScreen() {
       ) : (
         <Text style={styles.value}>Nessun dato utente disponibile.</Text>
       )}
+
+      
+      <TouchableOpacity
+        style={styles.logoutButton}
+        onPress={async () => {
+          await AsyncStorage.removeItem("token");
+          router.push("/auth/login");
+        }}
+      >
+        <Text style={styles.logoutButtonText}>Logout</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -142,5 +153,18 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 18,
     marginBottom: 5,
+  },
+
+  logoutButton: {
+    marginTop: 30,
+    backgroundColor: "#009933",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });

@@ -154,7 +154,7 @@ export default function App() {
             if (loggedIn) {
               router.push('/profile');
             } else {
-              router.push('/authregister');
+              router.push('/auth/register');
             }
           }
         }>
