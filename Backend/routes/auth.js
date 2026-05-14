@@ -76,9 +76,7 @@ router.post('/login', async (req, res) => {
     if (!/\S+@\S+\.\S+/.test(email)) { // Controllo se l'email è in un formato valido
         return res.status(400).json({ message: 'Email non valida' }); // Se l'email non è valida, ritorno un errore
     }
-    if (user.isVerified === false) { // Controllo se l'utente ha verificato l'email
-        return res.status(400).json({ message: 'Email non verificata. Controlla la tua casella di posta.' }); // Se l'email non è verificata, ritorno un errore
-    }
+    
 
     try {
         // Cerco l'utente tramite email
@@ -87,6 +85,10 @@ router.post('/login', async (req, res) => {
         if (!user) {
             return res.status(400).json({ message: 'Email o password non validi' });
         }
+
+        if (user.isVerified === false) { // Controllo se l'utente ha verificato l'email
+        return res.status(400).json({ message: 'Email non verificata. Controlla la tua casella di posta.' }); // Se l'email non è verificata, ritorno un errore
+    }
 
         // Confronto la password inserita con quella salvata nel database
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
