@@ -28,8 +28,7 @@ export default function ProfileScreen() {
 
       setUser(response.data.user);
     } catch (error) {
-      const errorMsg =
-        error.response?.data?.message || "Errore nel recupero del profilo";
+      const errorMsg = error.response?.data?.message || "Errore nel recupero del profilo";
 
       alert(errorMsg);
       console.log(error);
@@ -90,12 +89,7 @@ export default function ProfileScreen() {
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.eliminaButton}
-        onPress={async () => {
-          router.push("/auth/elimina-account");
-        }}
-      >
+      <TouchableOpacity style={styles.eliminaButton} onPress={async () => { router.push("/auth/elimina_account"); }}>
         <Text style={styles.eliminaButtonText}>Elimina Account</Text>
       </TouchableOpacity>
     </View>
@@ -172,6 +166,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoutButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+
+  eliminaButton: {
+    marginTop: 30,
+    backgroundColor: "#cc0000",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  eliminaButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
