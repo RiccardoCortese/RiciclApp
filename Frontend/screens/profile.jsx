@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform} from "react-native";
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform, TextInput } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../src/config";
@@ -9,6 +10,15 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [username, setUsername] = useState("");
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [showUsernameForm, setShowUsernameForm] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -27,13 +37,107 @@ export default function ProfileScreen() {
       });
 
       setUser(response.data.user);
+      setUsername(response.data.user.name);
+
     } catch (error) {
-      const errorMsg = error.response?.data?.message || "Errore nel recupero del profilo";
+      const errorMsg =
+        error.response?.data?.message || "Errore nel recupero del profilo";
 
       alert(errorMsg);
       console.log(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateUsername = async () => {
+    if (!username || username.trim().length < 2) {
+      Alert.alert(
+        "Errore",
+        "Lo username deve contenere almeno 2 caratteri"
+      );
+      return;
+    }
+
+    try {
+      setSavingUsername(true);
+
+      const token = await AsyncStorage.getItem("token");
+
+      const response = await axios.patch(
+        `${API_URL}/user/profile/name`,
+        {
+          username: username,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setUser(response.data.user);
+      setUsername(response.data.user.name);
+      setShowUsernameForm(false);
+
+      Alert.alert("Successo", "Username aggiornato con successo");
+
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.message ||
+        "Errore durante aggiornamento username";
+
+      Alert.alert("Errore", errorMsg);
+
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!oldPassword || !newPassword) {
+      Alert.alert("Errore", "Inserisci vecchia e nuova password");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert("Errore", "La nuova password deve essere lunga almeno 6 caratteri");
+      return;
+    }
+
+    try {
+      setSavingPassword(true);
+
+      const token = await AsyncStorage.getItem("token");
+
+      await axios.patch(
+        `${API_URL}/user/profile/password`,
+        {
+          oldPassword,
+          newPassword,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setOldPassword("");
+      setNewPassword("");
+      setShowPasswordForm(false);
+
+      Alert.alert("Successo", "Password aggiornata con successo");
+
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.message ||
+        "Errore durante aggiornamento password";
+
+      Alert.alert("Errore", errorMsg);
+
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -62,8 +166,102 @@ export default function ProfileScreen() {
 
       {user ? (
         <View style={styles.card}>
-          <Text style={styles.label}>Nome</Text>
+
+          <Text style={styles.label}>Username</Text>
           <Text style={styles.value}>{user.name}</Text>
+
+          <TouchableOpacity
+            style={styles.changeButton}
+            onPress={() => setShowUsernameForm(!showUsernameForm)}
+          >
+            <Text style={styles.changeButtonText}>
+              {showUsernameForm ? "Annulla" : "Cambia username"}
+            </Text>
+          </TouchableOpacity>
+
+          {showUsernameForm && (
+            <>
+              <TextInput
+                style={styles.input}
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Inserisci nuovo username"
+              />
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleUpdateUsername}
+                disabled={savingUsername}
+              >
+                <Text style={styles.saveButtonText}>
+                  {savingUsername ? "Salvataggio..." : "Salva username"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <TouchableOpacity
+            style={styles.changeButton}
+            onPress={() => setShowPasswordForm(!showPasswordForm)}
+          >
+            <Text style={styles.changeButtonText}>
+              {showPasswordForm ? "Annulla" : "Cambia password"}
+            </Text>
+          </TouchableOpacity>
+
+          {showPasswordForm && (
+            <>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={oldPassword}
+                  onChangeText={setOldPassword}
+                  placeholder="Vecchia password"
+                  secureTextEntry={!showOldPassword}
+                />
+
+                <TouchableOpacity
+                  onPress={() => setShowOldPassword(!showOldPassword)}
+                >
+                  <Ionicons
+                    name={showOldPassword ? "eye-off" : "eye"}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="Nuova password"
+                  secureTextEntry={!showNewPassword}
+                />
+
+                <TouchableOpacity
+                  onPress={() => setShowNewPassword(!showNewPassword)}
+                >
+                  <Ionicons
+                    name={showNewPassword ? "eye-off" : "eye"}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleUpdatePassword}
+                disabled={savingPassword}
+              >
+                <Text style={styles.saveButtonText}>
+                  {savingPassword ? "Salvataggio..." : "Salva password"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           <Text style={styles.label}>Email</Text>
           <Text style={styles.value}>{user.email}</Text>
@@ -73,6 +271,7 @@ export default function ProfileScreen() {
 
           <Text style={styles.label}>Punti</Text>
           <Text style={styles.value}>{user.points}</Text>
+
         </View>
       ) : (
         <Text style={styles.value}>Nessun dato utente disponibile.</Text>
@@ -87,10 +286,6 @@ export default function ProfileScreen() {
         }}
       >
         <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.eliminaButton} onPress={async () => { router.push("/auth/elimina_account"); }}>
-        <Text style={styles.eliminaButtonText}>Elimina Account</Text>
       </TouchableOpacity>
     </View>
   );
@@ -158,6 +353,44 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
+  input: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 5,
+    marginBottom: 10,
+    fontSize: 16,
+  },
+
+  saveButton: {
+    backgroundColor: "#009933",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+
+  saveButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+
+  changeButton: {
+    backgroundColor: "#e8f5e9",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 10,
+  },
+
+  changeButtonText: {
+    color: "#009933",
+    fontWeight: "700",
+  },
+
   logoutButton: {
     marginTop: 30,
     backgroundColor: "#009933",
@@ -171,16 +404,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  eliminaButton: {
-    marginTop: 30,
-    backgroundColor: "#cc0000",
-    padding: 10,
-    borderRadius: 5,
+  passwordContainer: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
-  eliminaButtonText: {
-    color: "#fff",
+
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 10,
     fontSize: 16,
-    fontWeight: "700",
   },
 });
