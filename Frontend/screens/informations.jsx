@@ -6,7 +6,51 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import axios from 'axios';
 import { API_URL } from '../src/config';
+
+// ─── Disposal logic (used as fallback when ZX_API is unreachable) ────────────
+
+const PACKAGING_DISPOSAL = {
+  plastic:     { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
+  glass:       { label: 'Vetro',           bin: 'Campana Verde (Vetro)',             color: '#2E7D32', icon: '🫙' },
+  cardboard:   { label: 'Carta / Cartone', bin: 'Bidone Blu (Carta/Cartone)',        color: '#1565C0', icon: '📦' },
+  paper:       { label: 'Carta',           bin: 'Bidone Blu (Carta/Cartone)',        color: '#1565C0', icon: '📄' },
+  metal:       { label: 'Metallo',         bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥫' },
+  aluminium:   { label: 'Alluminio',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥫' },
+  steel:       { label: 'Acciaio',         bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🔩' },
+  wood:        { label: 'Legno',           bin: 'Centro di Raccolta',               color: '#6D4C41', icon: '🪵' },
+  tetra:       { label: 'Tetrapak',        bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥛' },
+  polystyrene: { label: 'Polistirolo',     bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '📦' },
+};
+
+const FALLBACK_DISPOSAL = {
+  label: 'Indifferenziato',
+  bin: 'Bidone Nero (Rifiuto Generico)',
+  color: '#757575',
+  icon: '🗑️',
+};
+
+function resolveDisposal(product) {
+  if (!product) return [FALLBACK_DISPOSAL];
+  const tags = (product.packaging_tags || []).join(' ').toLowerCase();
+  const text = (product.packaging || '').toLowerCase();
+  const combined = `${tags} ${text}`;
+
+  const matches = Object.entries(PACKAGING_DISPOSAL)
+    .filter(([key]) => combined.includes(key))
+    .map(([, info]) => info);
+
+  const seen = new Set();
+  const unique = matches.filter(({ bin }) => {
+    if (seen.has(bin)) return false;
+    seen.add(bin);
+    return true;
+  });
+  return unique.length > 0 ? unique : [FALLBACK_DISPOSAL];
+}
+
+// ─── Ecoscore display info ────────────────────────────────────────────────────
 
 const ECOSCORE_INFO = {
   a: { color: '#1B5E20', text: 'Impatto ambientale molto basso' },
@@ -16,20 +60,30 @@ const ECOSCORE_INFO = {
   e: { color: '#B71C1C', text: 'Impatto ambientale molto alto' },
 };
 
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
 export default function Informations() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
 
-  const [barcode, setBarcode] = useState('');
-  const [product, setProduct] = useState(null);
-  const [disposal, setDisposal] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [searched, setSearched] = useState(false);
+  const [barcode, setBarcode]     = useState('');
+  const [product, setProduct]     = useState(null);
+  const [disposal, setDisposal]   = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState(null);
+  const [searched, setSearched]   = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
-  // Ref-based guard prevents firing onBarcodeScanned more than once per session
+  // Prevents onBarcodeScanned firing more than once per scan session
   const scannedRef = useRef(false);
+
+  // ── Product search ──────────────────────────────────────────────────────────
+  // Primary path  → ZX_API backend (pre-computes disposal server-side)
+  // Fallback path → OpenFoodFacts directly (disposal computed client-side)
+  //
+  // Using axios instead of fetch because axios uses XMLHttpRequest in React
+  // Native, which has reliable timeout support regardless of AbortController
+  // polyfill quirks in Expo's JS engine.
 
   const searchProduct = async (code) => {
     const trimmed = (code ?? barcode).trim();
@@ -42,30 +96,53 @@ export default function Informations() {
     setSearched(true);
 
     try {
-      // ZX_API endpoint: resolves barcode via Open Food Facts and returns
-      // pre-computed disposal categories so the frontend renders directly.
-      const res = await fetch(`${API_URL}/zx/scan/${trimmed}`);
-      const data = await res.json();
+      // ── Primary: ZX_API backend ──
+      const { data } = await axios.get(`${API_URL}/zx/scan/${trimmed}`, {
+        timeout: 10000,
+      });
+
       if (data.status === 1) {
         setProduct(data.product);
         setDisposal(data.disposal ?? []);
       } else {
-        setError('Prodotto non trovato. Verifica il codice e riprova.');
+        setError(data.error || 'Prodotto non trovato. Verifica il codice e riprova.');
       }
-    } catch {
-      setError('Errore di connessione. Controlla la tua rete e riprova.');
+    } catch (primaryErr) {
+      // ── Fallback: call OpenFoodFacts directly ──
+      // Triggered when the backend is unreachable (wrong IP, not started, etc.)
+      console.warn('[ZX_API] Backend non raggiungibile, uso OpenFoodFacts diretto:', primaryErr.message);
+      try {
+        const { data } = await axios.get(
+          `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(trimmed)}.json`,
+          {
+            timeout: 15000,
+            headers: { 'User-Agent': 'RiciclApp/1.0 (riciclapp@example.com)' },
+          }
+        );
+
+        if (data.status === 1) {
+          setProduct(data.product);
+          setDisposal(resolveDisposal(data.product));
+        } else {
+          setError('Prodotto non trovato. Verifica il codice e riprova.');
+        }
+      } catch (fallbackErr) {
+        console.error('[OFF diretto]', fallbackErr.message);
+        setError('Nessuna connessione disponibile. Controlla la tua rete e riprova.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Camera handler ──────────────────────────────────────────────────────────
   const handleBarcodeScan = useCallback(({ data }) => {
     if (scannedRef.current) return;
     scannedRef.current = true;
     setShowScanner(false);
     setBarcode(data);
     searchProduct(data);
-  }, []); // stable — scannedRef never changes identity
+  }, []); // stable — relies only on stable setters and the ref
 
   const openScanner = async () => {
     if (!permission?.granted) {
@@ -76,9 +153,11 @@ export default function Informations() {
     setShowScanner(true);
   };
 
+  // ── Derived display values ──────────────────────────────────────────────────
   const ecoscore = product?.ecoscore_grade;
   const ecoscoreInfo = ecoscore && ecoscore !== 'not-applicable' ? ECOSCORE_INFO[ecoscore] : null;
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -131,7 +210,7 @@ export default function Informations() {
             </TouchableOpacity>
           </View>
 
-          {/* Scan button — hidden on web, the camera API is not needed there */}
+          {/* Scan button — hidden on web */}
           {Platform.OS !== 'web' && (
             <TouchableOpacity style={styles.scanBtn} activeOpacity={0.85} onPress={openScanner}>
               <Text style={styles.scanBtnIcon}>📷</Text>
@@ -233,7 +312,7 @@ export default function Informations() {
               </View>
             ) : null}
 
-            {/* Disposal card — data comes pre-computed from ZX_API */}
+            {/* Disposal card */}
             <View style={[styles.card, styles.disposalCard]}>
               <Text style={styles.cardTitle}>Come Smaltire ♻️</Text>
               <Text style={styles.disposalSubtitle}>
@@ -273,8 +352,6 @@ export default function Informations() {
               }}
               onBarcodeScanned={handleBarcodeScan}
             />
-
-            {/* Overlay UI on top of the camera feed */}
             <View style={styles.scannerOverlay}>
               <View style={styles.scannerHeader}>
                 <Text style={styles.scannerTitle}>Scansiona il Codice a Barre</Text>
@@ -286,10 +363,7 @@ export default function Informations() {
                   <Text style={styles.scannerCloseText}>✕</Text>
                 </TouchableOpacity>
               </View>
-
-              {/* Target frame to guide the user */}
               <View style={styles.scannerFrame} />
-
               <Text style={styles.scannerHint}>Inquadra il codice a barre del prodotto</Text>
             </View>
           </View>
@@ -299,13 +373,12 @@ export default function Informations() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f4f6f4',
-  },
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-  // ── Header ──
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f4f6f4' },
+
+  // Header
   header: {
     backgroundColor: '#009933',
     paddingTop: Platform.OS === 'web' ? 20 : 50,
@@ -321,397 +394,160 @@ const styles = StyleSheet.create({
     elevation: 6,
     zIndex: 10,
   },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
+  headerTitle: { color: '#fff', fontSize: 20, fontWeight: '700', letterSpacing: 0.3 },
   closeButton: {
     position: 'absolute',
     right: 16,
     top: Platform.OS === 'web' ? 14 : 44,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  closeButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  // ── Scroll ──
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-  },
-  bottomPad: {
-    height: 40,
-  },
+  // Scroll
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 24 },
+  bottomPad: { height: 40 },
 
-  // ── Hero ──
-  hero: {
-    marginBottom: 20,
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#1a1a1a',
-    marginBottom: 8,
-  },
-  heroSubtitle: {
-    fontSize: 15,
-    color: '#555',
-    lineHeight: 22,
-  },
+  // Hero
+  hero: { marginBottom: 20 },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: '#1a1a1a', marginBottom: 8 },
+  heroSubtitle: { fontSize: 15, color: '#555', lineHeight: 22 },
 
-  // ── Search card ──
+  // Search card
   searchCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 4,
   },
   inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#444',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    fontSize: 13, fontWeight: '600', color: '#444', marginBottom: 10,
+    textTransform: 'uppercase', letterSpacing: 0.8,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   input: {
-    flex: 1,
-    height: 50,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#1a1a1a',
-    backgroundColor: '#fafafa',
+    flex: 1, height: 50, borderWidth: 2, borderColor: '#e0e0e0',
+    borderRadius: 12, paddingHorizontal: 16, fontSize: 16,
+    color: '#1a1a1a', backgroundColor: '#fafafa',
   },
   searchBtn: {
-    height: 50,
-    paddingHorizontal: 22,
-    backgroundColor: '#009933',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: 50, paddingHorizontal: 22, backgroundColor: '#009933',
+    borderRadius: 12, justifyContent: 'center', alignItems: 'center',
   },
-  searchBtnDisabled: {
-    backgroundColor: '#ccc',
-  },
-  searchBtnText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  searchBtnDisabled: { backgroundColor: '#ccc' },
+  searchBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   scanBtn: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    backgroundColor: '#e8f5e9',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#009933',
+    marginTop: 12, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 8, height: 50,
+    backgroundColor: '#e8f5e9', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#009933',
   },
-  scanBtnIcon: {
-    fontSize: 20,
-  },
-  scanBtnText: {
-    color: '#009933',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  hint: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#888',
-  },
+  scanBtnIcon: { fontSize: 20 },
+  scanBtnText: { color: '#009933', fontSize: 15, fontWeight: '700' },
+  hint: { marginTop: 12, fontSize: 13, color: '#888' },
 
-  // ── State boxes ──
-  stateBox: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 12,
-  },
-  stateIcon: {
-    fontSize: 40,
-  },
-  stateText: {
-    fontSize: 16,
-    color: '#666',
-  },
+  // State boxes
+  stateBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  stateIcon: { fontSize: 40 },
+  stateText: { fontSize: 16, color: '#666' },
   errorBox: {
-    backgroundColor: '#fff3f3',
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    backgroundColor: '#fff3f3', borderRadius: 16,
+    paddingHorizontal: 20, marginBottom: 20,
   },
-  errorText: {
-    fontSize: 15,
-    color: '#c62828',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
+  errorText: { fontSize: 15, color: '#c62828', textAlign: 'center', lineHeight: 22 },
 
-  // ── Results ──
-  results: {
-    gap: 14,
-  },
+  // Results
+  results: { gap: 14 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: '#fff', borderRadius: 16, padding: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 8, elevation: 3,
   },
   cardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#009933',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 14,
+    fontSize: 14, fontWeight: '700', color: '#009933',
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14,
   },
 
   // Product identity
-  productHeader: {
-    flexDirection: 'row',
-    gap: 14,
-    marginBottom: 14,
-  },
-  productImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    resizeMode: 'contain',
-    backgroundColor: '#f5f5f5',
-  },
+  productHeader: { flexDirection: 'row', gap: 14, marginBottom: 14 },
+  productImage: { width: 80, height: 80, borderRadius: 12, resizeMode: 'contain', backgroundColor: '#f5f5f5' },
   productImagePlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 80, height: 80, borderRadius: 12,
+    backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center',
   },
-  productImagePlaceholderText: {
-    fontSize: 36,
-  },
-  productMeta: {
-    flex: 1,
-    gap: 4,
-  },
-  productName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    lineHeight: 24,
-  },
-  productBrand: {
-    fontSize: 14,
-    color: '#666',
-  },
+  productImagePlaceholderText: { fontSize: 36 },
+  productMeta: { flex: 1, gap: 4 },
+  productName: { fontSize: 18, fontWeight: '700', color: '#1a1a1a', lineHeight: 24 },
+  productBrand: { fontSize: 14, color: '#666' },
   badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#e8f5e9',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 4,
+    alignSelf: 'flex-start', backgroundColor: '#e8f5e9',
+    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4,
   },
-  badgeText: {
-    fontSize: 12,
-    color: '#2e7d32',
-    fontWeight: '600',
-  },
+  badgeText: { fontSize: 12, color: '#2e7d32', fontWeight: '600' },
   infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    gap: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingVertical: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', gap: 12,
   },
-  infoKey: {
-    fontSize: 13,
-    color: '#888',
-    fontWeight: '500',
-    flexShrink: 0,
-  },
-  infoValue: {
-    fontSize: 13,
-    color: '#333',
-    fontWeight: '500',
-    textAlign: 'right',
-    flex: 1,
-  },
+  infoKey: { fontSize: 13, color: '#888', fontWeight: '500', flexShrink: 0 },
+  infoValue: { fontSize: 13, color: '#333', fontWeight: '500', textAlign: 'right', flex: 1 },
 
-  // Eco-score
-  ecoscoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  ecoscoreBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  ecoscoreLetter: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: '800',
-  },
-  ecoscoreDesc: {
-    fontSize: 15,
-    color: '#444',
-    flex: 1,
-  },
+  // Ecoscore
+  ecoscoreRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  ecoscoreBadge: { width: 52, height: 52, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  ecoscoreLetter: { color: '#fff', fontSize: 26, fontWeight: '800' },
+  ecoscoreDesc: { fontSize: 15, color: '#444', flex: 1 },
 
   // Packaging
-  packagingText: {
-    fontSize: 14,
-    color: '#444',
-    lineHeight: 21,
-  },
+  packagingText: { fontSize: 14, color: '#444', lineHeight: 21 },
 
   // Disposal
-  disposalCard: {
-    borderWidth: 1.5,
-    borderColor: '#c8e6c9',
-  },
-  disposalSubtitle: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 14,
-    marginTop: -8,
-    lineHeight: 19,
-  },
+  disposalCard: { borderWidth: 1.5, borderColor: '#c8e6c9' },
+  disposalSubtitle: { fontSize: 13, color: '#666', marginBottom: 14, marginTop: -8, lineHeight: 19 },
   disposalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderLeftWidth: 4,
-    borderRadius: 10,
-    backgroundColor: '#fafafa',
-    marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderLeftWidth: 4, borderRadius: 10,
+    backgroundColor: '#fafafa', marginBottom: 10,
   },
-  disposalIcon: {
-    fontSize: 28,
-  },
-  disposalText: {
-    flex: 1,
-    gap: 2,
-  },
-  disposalLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  disposalBin: {
-    fontSize: 13,
-    color: '#555',
-  },
+  disposalIcon: { fontSize: 28 },
+  disposalText: { flex: 1, gap: 2 },
+  disposalLabel: { fontSize: 16, fontWeight: '700' },
+  disposalBin: { fontSize: 13, color: '#555' },
 
-  // ── Camera Scanner ──
-  scannerContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  camera: {
-    flex: 1,
-  },
+  // Camera scanner
+  scannerContainer: { flex: 1, backgroundColor: '#000' },
+  camera: { flex: 1 },
   scannerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 70,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: 60, paddingBottom: 70,
   },
   scannerHeader: {
-    width: '100%',
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%', paddingHorizontal: 20,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
   },
   scannerTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
+    color: '#fff', fontSize: 18, fontWeight: '700',
     textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   scannerClose: {
-    position: 'absolute',
-    right: 20,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    position: 'absolute', right: 20,
+    width: 42, height: 42, borderRadius: 21,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  scannerCloseText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
+  scannerCloseText: { color: '#fff', fontSize: 18, fontWeight: '700' },
   scannerFrame: {
-    width: 260,
-    height: 160,
-    borderRadius: 16,
-    borderWidth: 3,
-    borderColor: '#00cc44',
-    backgroundColor: 'transparent',
-    shadowColor: '#00cc44',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 12,
-    elevation: 8,
+    width: 260, height: 160, borderRadius: 16,
+    borderWidth: 3, borderColor: '#00cc44', backgroundColor: 'transparent',
+    shadowColor: '#00cc44', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9, shadowRadius: 12, elevation: 8,
   },
   scannerHint: {
-    color: '#fff',
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 32,
+    color: '#fff', fontSize: 14, textAlign: 'center', paddingHorizontal: 32,
     textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
 });
