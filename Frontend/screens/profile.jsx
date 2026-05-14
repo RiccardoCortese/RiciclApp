@@ -89,6 +89,15 @@ export default function ProfileScreen() {
       >
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.eliminaButton}
+        onPress={async () => {
+          router.push("/auth/elimina-account");
+        }}
+      >
+        <Text style={styles.eliminaButtonText}>Elimina Account</Text>
+      </TouchableOpacity>
     </View>
   );
 }
