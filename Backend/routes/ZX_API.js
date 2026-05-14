@@ -23,6 +23,8 @@ const FALLBACK_DISPOSAL = {
 };
 
 function resolveDisposal(product) {
+  if (!product) return [FALLBACK_DISPOSAL];
+
   const tags = (product.packaging_tags || []).join(' ').toLowerCase();
   const text = (product.packaging || '').toLowerCase();
   const combined = `${tags} ${text}`;
@@ -42,20 +44,28 @@ function resolveDisposal(product) {
 }
 
 // GET /api/zx/scan/:barcode
-// Receives a barcode (scanned via ZXing/expo-camera on the client),
-// fetches product data from Open Food Facts, and returns a clean response
-// with pre-computed disposal categories so the frontend has no logic to run.
+// Receives a barcode scanned via ZXing/expo-camera on the client.
+// Fetches product data from Open Food Facts with a hard timeout and returns
+// a clean payload including pre-computed disposal categories.
 router.get('/scan/:barcode', async (req, res) => {
   const { barcode } = req.params;
   if (!barcode) return res.status(400).json({ error: 'Barcode obbligatorio' });
+
+  // Hard 8-second timeout on the upstream Open Food Facts call so that
+  // a slow external API cannot leave the frontend in an infinite loading state.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
     const url = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'RiciclApp/1.0 (riciclapp@example.com)' },
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) throw new Error(`OFF HTTP ${response.status}`);
+
     const data = await response.json();
 
     if (data.status === 0) {
@@ -65,7 +75,7 @@ router.get('/scan/:barcode', async (req, res) => {
     const p = data.product;
     const disposal = resolveDisposal(p);
 
-    res.json({
+    return res.json({
       status: 1,
       barcode,
       product: {
@@ -82,8 +92,13 @@ router.get('/scan/:barcode', async (req, res) => {
       disposal,
     });
   } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      console.error('ZX scan timeout: Open Food Facts did not respond in 8 s');
+      return res.status(504).json({ status: 0, error: 'Timeout nella ricerca del prodotto' });
+    }
     console.error('ZX scan error:', err.message);
-    res.status(500).json({ error: 'Errore nel recupero dati dal database prodotti' });
+    return res.status(500).json({ status: 0, error: 'Errore nel recupero dati dal database prodotti' });
   }
 });
 
