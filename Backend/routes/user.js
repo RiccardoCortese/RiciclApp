@@ -3,7 +3,7 @@ const router = express.Router();
 
 const User = require('../models/user');
 const authMiddleware = require('../middleware/authMiddleware');
-
+const { sendAccountDeletionEmail } = require('../services/email_elimina_account'); // Importa la funzione per inviare email di eliminazione account
 // Rotta protetta per ottenere i dati dell'utente loggato
 router.get('/profile', authMiddleware, async (req, res) => {
     try {
@@ -47,6 +47,9 @@ router.delete('/delete', authMiddleware, async (req, res) => {
         // Elimina l'utente dal database, funzione findByIdAndDelete è più efficiente perché elimina direttamente senza dover prima recuperare l'utente
         //è una funzione di mongoose
         await User.findByIdAndDelete(req.user.userId); 
+
+        // Invia l'email di eliminazione account
+        await sendAccountDeletionEmail({ username: user.name, email: user.email });
 
         res.status(200).json({message: "Account eliminato con successo"});
     } catch (error) {
