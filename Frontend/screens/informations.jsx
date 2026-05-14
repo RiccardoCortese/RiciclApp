@@ -1,27 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, ActivityIndicator, Image, Platform,
+  StyleSheet, ScrollView, ActivityIndicator, Image, Platform, Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { API_URL } from '../src/config';
-
-// Maps Open Food Facts packaging tags to Italian disposal categories
-const PACKAGING_DISPOSAL = {
-  'plastic':      { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  'glass':        { label: 'Vetro',           bin: 'Campana Verde (Vetro)',             color: '#2E7D32', icon: '🫙' },
-  'cardboard':    { label: 'Carta / Cartone', bin: 'Bidone Blu (Carta/Cartone)',        color: '#1565C0', icon: '📦' },
-  'paper':        { label: 'Carta',           bin: 'Bidone Blu (Carta/Cartone)',        color: '#1565C0', icon: '📄' },
-  'metal':        { label: 'Metallo',         bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥫' },
-  'aluminium':    { label: 'Alluminio',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥫' },
-  'steel':        { label: 'Acciaio',         bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🔩' },
-  'wood':         { label: 'Legno',           bin: 'Centro di Raccolta',               color: '#6D4C41', icon: '🪵' },
-  'tetra':        { label: 'Tetrapak',        bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥛' },
-  'polystyrene':  { label: 'Polistirolo',     bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '📦' },
-};
-
-const FALLBACK_DISPOSAL = { label: 'Indifferenziato', bin: 'Bidone Nero (Rifiuto Generico)', color: '#757575', icon: '🗑️' };
 
 const ECOSCORE_INFO = {
   a: { color: '#1B5E20', text: 'Impatto ambientale molto basso' },
@@ -31,50 +16,39 @@ const ECOSCORE_INFO = {
   e: { color: '#B71C1C', text: 'Impatto ambientale molto alto' },
 };
 
-function resolveDisposal(product) {
-  const tags = (product.packaging_tags || []).join(' ').toLowerCase();
-  const text = (product.packaging || '').toLowerCase();
-  const combined = tags + ' ' + text;
-
-  const matches = Object.entries(PACKAGING_DISPOSAL)
-    .filter(([key]) => combined.includes(key))
-    .map(([, info]) => info);
-
-  // Deduplicate by bin label
-  const seen = new Set();
-  const unique = matches.filter(({ bin }) => {
-    if (seen.has(bin)) return false;
-    seen.add(bin);
-    return true;
-  });
-
-  return unique.length > 0 ? unique : [FALLBACK_DISPOSAL];
-}
-
 export default function Informations() {
-
   const router = useRouter();
+  const [permission, requestPermission] = useCameraPermissions();
 
   const [barcode, setBarcode] = useState('');
   const [product, setProduct] = useState(null);
+  const [disposal, setDisposal] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searched, setSearched] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
-  const searchProduct = async () => {
-    const code = barcode.trim();
-    if (!code) return;
+  // Ref-based guard prevents firing onBarcodeScanned more than once per session
+  const scannedRef = useRef(false);
+
+  const searchProduct = async (code) => {
+    const trimmed = (code ?? barcode).trim();
+    if (!trimmed) return;
 
     setLoading(true);
     setError(null);
     setProduct(null);
+    setDisposal([]);
     setSearched(true);
 
     try {
-      const res = await fetch(`${API_URL}/off/product/${code}`);
+      // ZX_API endpoint: resolves barcode via Open Food Facts and returns
+      // pre-computed disposal categories so the frontend renders directly.
+      const res = await fetch(`${API_URL}/zx/scan/${trimmed}`);
       const data = await res.json();
       if (data.status === 1) {
         setProduct(data.product);
+        setDisposal(data.disposal ?? []);
       } else {
         setError('Prodotto non trovato. Verifica il codice e riprova.');
       }
@@ -85,7 +59,23 @@ export default function Informations() {
     }
   };
 
-  const disposalItems = product ? resolveDisposal(product) : [];
+  const handleBarcodeScan = useCallback(({ data }) => {
+    if (scannedRef.current) return;
+    scannedRef.current = true;
+    setShowScanner(false);
+    setBarcode(data);
+    searchProduct(data);
+  }, []); // stable — scannedRef never changes identity
+
+  const openScanner = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) return;
+    }
+    scannedRef.current = false;
+    setShowScanner(true);
+  };
+
   const ecoscore = product?.ecoscore_grade;
   const ecoscoreInfo = ecoscore && ecoscore !== 'not-applicable' ? ECOSCORE_INFO[ecoscore] : null;
 
@@ -111,7 +101,9 @@ export default function Informations() {
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>Cerca un Prodotto</Text>
           <Text style={styles.heroSubtitle}>
-            Inserisci il codice a barre per scoprire le informazioni sul prodotto e come smaltirlo correttamente
+            {Platform.OS === 'web'
+              ? 'Inserisci il codice a barre per scoprire le informazioni sul prodotto e come smaltirlo correttamente'
+              : 'Inserisci il codice a barre oppure scansiona la confezione per scoprire come smaltire il prodotto correttamente'}
           </Text>
         </View>
 
@@ -126,18 +118,27 @@ export default function Informations() {
               value={barcode}
               onChangeText={setBarcode}
               keyboardType="numeric"
-              onSubmitEditing={searchProduct}
+              onSubmitEditing={() => searchProduct()}
               returnKeyType="search"
             />
             <TouchableOpacity
               style={[styles.searchBtn, !barcode.trim() && styles.searchBtnDisabled]}
               activeOpacity={0.85}
-              onPress={searchProduct}
+              onPress={() => searchProduct()}
               disabled={!barcode.trim()}
             >
               <Text style={styles.searchBtnText}>Cerca</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Scan button — hidden on web, the camera API is not needed there */}
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity style={styles.scanBtn} activeOpacity={0.85} onPress={openScanner}>
+              <Text style={styles.scanBtnIcon}>📷</Text>
+              <Text style={styles.scanBtnText}>Scansiona Codice a Barre</Text>
+            </TouchableOpacity>
+          )}
+
           <Text style={styles.hint}>💡 Il codice a barre si trova sulla confezione del prodotto</Text>
         </View>
 
@@ -232,13 +233,13 @@ export default function Informations() {
               </View>
             ) : null}
 
-            {/* Disposal card */}
+            {/* Disposal card — data comes pre-computed from ZX_API */}
             <View style={[styles.card, styles.disposalCard]}>
               <Text style={styles.cardTitle}>Come Smaltire ♻️</Text>
               <Text style={styles.disposalSubtitle}>
                 Segui queste indicazioni per la raccolta differenziata corretta
               </Text>
-              {disposalItems.map((item, i) => (
+              {disposal.map((item, i) => (
                 <View key={i} style={[styles.disposalItem, { borderLeftColor: item.color }]}>
                   <Text style={styles.disposalIcon}>{item.icon}</Text>
                   <View style={styles.disposalText}>
@@ -254,6 +255,46 @@ export default function Informations() {
 
         <View style={styles.bottomPad} />
       </ScrollView>
+
+      {/* ── Camera Scanner Modal — native only ── */}
+      {Platform.OS !== 'web' && (
+        <Modal
+          visible={showScanner}
+          animationType="slide"
+          statusBarTranslucent
+          onRequestClose={() => setShowScanner(false)}
+        >
+          <View style={styles.scannerContainer}>
+            <CameraView
+              style={styles.camera}
+              facing="back"
+              barcodeScannerSettings={{
+                barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
+              }}
+              onBarcodeScanned={handleBarcodeScan}
+            />
+
+            {/* Overlay UI on top of the camera feed */}
+            <View style={styles.scannerOverlay}>
+              <View style={styles.scannerHeader}>
+                <Text style={styles.scannerTitle}>Scansiona il Codice a Barre</Text>
+                <TouchableOpacity
+                  style={styles.scannerClose}
+                  activeOpacity={0.8}
+                  onPress={() => setShowScanner(false)}
+                >
+                  <Text style={styles.scannerCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Target frame to guide the user */}
+              <View style={styles.scannerFrame} />
+
+              <Text style={styles.scannerHint}>Inquadra il codice a barre del prodotto</Text>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -380,6 +421,26 @@ const styles = StyleSheet.create({
   },
   searchBtnText: {
     color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  scanBtn: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 50,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#009933',
+  },
+  scanBtnIcon: {
+    fontSize: 20,
+  },
+  scanBtnText: {
+    color: '#009933',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -580,5 +641,77 @@ const styles = StyleSheet.create({
   disposalBin: {
     fontSize: 13,
     color: '#555',
+  },
+
+  // ── Camera Scanner ──
+  scannerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  camera: {
+    flex: 1,
+  },
+  scannerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingBottom: 70,
+  },
+  scannerHeader: {
+    width: '100%',
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scannerTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  scannerClose: {
+    position: 'absolute',
+    right: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scannerCloseText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  scannerFrame: {
+    width: 260,
+    height: 160,
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: '#00cc44',
+    backgroundColor: 'transparent',
+    shadowColor: '#00cc44',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  scannerHint: {
+    color: '#fff',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });

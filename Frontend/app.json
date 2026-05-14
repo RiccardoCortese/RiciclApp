@@ -7,11 +7,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "RiciclApp usa la fotocamera per scansionare i codici a barre dei prodotti e fornire informazioni sul riciclo."
+      }
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"]
     },
     "web": {
       "bundler": "metro",
@@ -25,9 +29,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ], 
-
-        ["expo-router"]
+      ],
+      ["expo-router"],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "RiciclApp usa la fotocamera per scansionare i codici a barre dei prodotti e fornire informazioni sul riciclo."
+        }
+      ]
     ]
   }
 }

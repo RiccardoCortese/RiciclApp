@@ -32,5 +32,8 @@ app.use('/api/ofm', require('./routes/OFM_API'));
 // rotta per il profilo utente
 app.use('/api/user', require('./routes/user'));
 
+// Rotte ZXing — barcode scan → product info + disposal categories
+app.use('/api/zx', require('./routes/ZX_API'));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server in esecuzione sulla porta ${PORT}`));
