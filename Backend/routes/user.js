@@ -4,6 +4,7 @@ const router = express.Router();
 const User = require('../models/user');
 const authMiddleware = require('../middleware/authMiddleware');
 const bcrypt = require('bcryptjs');
+const { sendPasswordResetEmail } = require('../services/email_verification');
 
 // Rotta protetta per ottenere i dati dell'utente loggato
 router.get('/profile', authMiddleware, async (req, res) => {
@@ -128,6 +129,79 @@ router.patch('/profile/password', authMiddleware, async (req, res) => {
         res.status(500).json({
             message: 'Errore del server'
         });
+    }
+});
+
+// Rotta protetta per richiedere il reset della password tramite codice email
+router.post('/profile/request-password-reset', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Utente non trovato' });
+        }
+
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const hashedResetCode = await bcrypt.hash(resetCode, 10);
+
+        user.passwordResetToken = hashedResetCode;
+        await user.save();
+
+        const emailSent = await sendPasswordResetEmail({ username: user.name, email: user.email }, resetCode);
+
+        if (!emailSent) {
+            return res.status(500).json({ message: 'Errore durante l\'invio dell\'email' });
+        }
+
+        res.status(200).json({ message: 'Codice di reset inviato via email' });
+        console.log(`Codice di reset inviato a ${user.email}`);
+
+    } catch (error) {
+        console.error('Errore durante la richiesta di reset password:', error);
+        res.status(500).json({ message: 'Errore del server' });
+    }
+});
+
+// Rotta protetta per reimpostare la password con il codice ricevuto via email
+router.post('/profile/reset-password', authMiddleware, async (req, res) => {
+    try {
+        const { newPassword, code } = req.body;
+
+        if (!newPassword || !code) {
+            return res.status(400).json({ message: 'Inserisci la nuova password e il codice' });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: 'La nuova password deve essere lunga almeno 6 caratteri' });
+        }
+
+        const user = await User.findById(req.user.userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Utente non trovato' });
+        }
+
+        if (!user.passwordResetToken) {
+            return res.status(400).json({ message: 'Nessun reset richiesto. Premi prima il pulsante per ricevere il codice.' });
+        }
+
+        const isCodeValid = await bcrypt.compare(code, user.passwordResetToken);
+
+        if (!isCodeValid) {
+            return res.status(400).json({ message: 'Codice errato' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        user.passwordHash = await bcrypt.hash(newPassword, salt);
+        user.passwordResetToken = null;
+        await user.save();
+
+        res.status(200).json({ message: 'Password reimpostata con successo' });
+        console.log(`Password reimpostata per l'utente ${user.email}`);
+
+    } catch (error) {
+        console.error('Errore durante il reset della password:', error);
+        res.status(500).json({ message: 'Errore del server' });
     }
 });
 

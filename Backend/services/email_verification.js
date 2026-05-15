@@ -35,4 +35,20 @@ async function sendVerificationEmail({ username, email }, verificationCode) {
     }
 }
 
-module.exports = { sendVerificationEmail };
+async function sendPasswordResetEmail({ username, email }, resetCode) {
+    try {
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: email,
+            subject: 'Reset password RiciclApp',
+            text: `Ciao ${username},\n\nHai richiesto il reset della password su RiciclApp.\n\nIl tuo codice di reset è:\n\n${resetCode}\n\nInserisci questo codice nell'app per impostare la nuova password.\n\nSe non hai richiesto il reset, ignora questa email.\n\nSaluti,\nIl team di RiciclApp`
+        };
+
+        await transporter.sendMail(mailOptions);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail };
