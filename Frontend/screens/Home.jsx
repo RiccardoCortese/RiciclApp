@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Image, Platform, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../src/config';
 
 import Logo from '../src/assets/Riciclapp_Logo.png';
 import Info from '../src/assets/Info_rifiuti.png';
-import User from '../src/assets/User_icon.png';
+import UserDefault from '../src/assets/Profile_image/User_image.png';
 import Opz from '../src/assets/Opzioni.png';
 
 const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 }; // Trento, Italy
@@ -152,6 +153,7 @@ export default function HomeScreen() {
   const [searching, setSearching] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
+  const [avatarUri, setAvatarUri] = useState(null);
 
   useEffect(() => {
     // Check auth token
@@ -162,6 +164,12 @@ export default function HomeScreen() {
       .then((data) => { if (data?.styleUrl) setMapStyleUrl(data.styleUrl); })
       .catch(() => {}); // silently fall back to OFM_STYLE_FALLBACK
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem('profileAvatarUri').then((uri) => setAvatarUri(uri || null));
+    }, [])
+  );
 
   const handleSearch = async () => {
     const q = searchQuery.trim();
@@ -233,7 +241,10 @@ export default function HomeScreen() {
           activeOpacity={0.85}
           onPress={() => router.push(loggedIn ? '/profile' : '/auth/register')}
         >
-          <Image source={User} style={styles.buttonIcon} />
+          <Image
+            source={avatarUri ? { uri: avatarUri } : UserDefault}
+            style={styles.buttonIcon}
+          />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.button} activeOpacity={0.85}>

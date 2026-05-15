@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform, TextInput } from "react-native";
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform, TextInput, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../src/config";
 import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+
+const DEFAULT_AVATAR = require("../src/assets/Profile_image/User_image.png");
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -27,6 +31,7 @@ export default function ProfileScreen() {
   const [savingResetPassword, setSavingResetPassword] = useState(false);
   const [showResetNewPassword, setShowResetNewPassword] = useState(false);
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+  const [avatarUri, setAvatarUri] = useState(null);
 
   const fetchProfile = async () => {
     try {
@@ -212,8 +217,70 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleChangeAvatar = async () => {
+    if (Platform.OS === "web") {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/png,image/jpeg,.png,.jpg,.jpeg";
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const ext = file.name.split(".").pop().toLowerCase();
+        if (!["png", "jpg", "jpeg"].includes(ext)) {
+          Alert.alert("Errore", "Seleziona un file PNG o JPG");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const dataUrl = event.target.result;
+          await AsyncStorage.setItem("profileAvatarUri", dataUrl);
+          setAvatarUri(dataUrl);
+          Alert.alert("Successo", "Immagine profilo aggiornata");
+        };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permesso negato", "È necessario il permesso per accedere alla galleria");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 1,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const srcUri = asset.uri;
+      const ext = srcUri.split(".").pop().toLowerCase().split("?")[0];
+      if (!["png", "jpg", "jpeg"].includes(ext)) {
+        Alert.alert("Errore", "Seleziona un file PNG o JPG");
+        return;
+      }
+      const destDir = FileSystem.documentDirectory + "Profile_image/";
+      const dirInfo = await FileSystem.getInfoAsync(destDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(destDir, { intermediates: true });
+      }
+      for (const old of ["User_image.png", "User_image.jpg", "User_image.jpeg"]) {
+        const oldInfo = await FileSystem.getInfoAsync(destDir + old);
+        if (oldInfo.exists) await FileSystem.deleteAsync(destDir + old);
+      }
+      const destUri = destDir + "User_image." + ext;
+      await FileSystem.copyAsync({ from: srcUri, to: destUri });
+      await AsyncStorage.setItem("profileAvatarUri", destUri);
+      setAvatarUri(destUri);
+      Alert.alert("Successo", "Immagine profilo aggiornata");
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
+    AsyncStorage.getItem("profileAvatarUri").then((uri) => {
+      if (uri) setAvatarUri(uri);
+    });
   }, []);
 
   if (loading) {
@@ -237,6 +304,16 @@ export default function ProfileScreen() {
 
       {user ? (
         <View style={styles.card}>
+
+          <View style={styles.avatarSection}>
+            <Image
+              source={avatarUri ? { uri: avatarUri } : DEFAULT_AVATAR}
+              style={styles.avatarImage}
+            />
+            <TouchableOpacity style={styles.changeButton} onPress={handleChangeAvatar}>
+              <Text style={styles.changeButtonText}>Cambia foto profilo</Text>
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.label}>Username</Text>
           <Text style={styles.value}>{user.name}</Text>
@@ -558,5 +635,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     fontSize: 16,
+  },
+
+  avatarSection: {
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: "#009933",
+    marginBottom: 8,
   },
 });
