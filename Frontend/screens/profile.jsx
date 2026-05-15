@@ -19,6 +19,14 @@ export default function ProfileScreen() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showResetPasswordForm, setShowResetPasswordForm] = useState(false);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [sendingResetCode, setSendingResetCode] = useState(false);
+  const [savingResetPassword, setSavingResetPassword] = useState(false);
+  const [showResetNewPassword, setShowResetNewPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -141,6 +149,69 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleRequestPasswordReset = async () => {
+    try {
+      setSendingResetCode(true);
+      const token = await AsyncStorage.getItem("token");
+
+      await axios.post(
+        `${API_URL}/user/profile/request-password-reset`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setShowResetPasswordForm(true);
+      Alert.alert("Codice inviato", `È stato inviato un codice di reset a ${user.email}`);
+
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || "Errore durante l'invio del codice";
+      Alert.alert("Errore", errorMsg);
+    } finally {
+      setSendingResetCode(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetNewPassword || !resetConfirmPassword || !resetCode) {
+      Alert.alert("Errore", "Compila tutti i campi");
+      return;
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      Alert.alert("Errore", "Le due password non coincidono");
+      return;
+    }
+
+    if (resetNewPassword.length < 6) {
+      Alert.alert("Errore", "La password deve essere lunga almeno 6 caratteri");
+      return;
+    }
+
+    try {
+      setSavingResetPassword(true);
+      const token = await AsyncStorage.getItem("token");
+
+      await axios.post(
+        `${API_URL}/user/profile/reset-password`,
+        { newPassword: resetNewPassword, code: resetCode },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setResetNewPassword("");
+      setResetConfirmPassword("");
+      setResetCode("");
+      setShowResetPasswordForm(false);
+
+      Alert.alert("Successo", "Password reimpostata con successo");
+
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || "Errore durante il reset della password";
+      Alert.alert("Errore", errorMsg);
+    } finally {
+      setSavingResetPassword(false);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -258,6 +329,74 @@ export default function ProfileScreen() {
               >
                 <Text style={styles.saveButtonText}>
                   {savingPassword ? "Salvataggio..." : "Salva password"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <TouchableOpacity
+            style={styles.changeButton}
+            onPress={() => {
+              if (showResetPasswordForm) {
+                setShowResetPasswordForm(false);
+                setResetNewPassword("");
+                setResetConfirmPassword("");
+                setResetCode("");
+              } else {
+                handleRequestPasswordReset();
+              }
+            }}
+            disabled={sendingResetCode}
+          >
+            <Text style={styles.changeButtonText}>
+              {sendingResetCode ? "Invio codice..." : showResetPasswordForm ? "Annulla" : "Reimposta password"}
+            </Text>
+          </TouchableOpacity>
+
+          {showResetPasswordForm && (
+            <>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={resetNewPassword}
+                  onChangeText={setResetNewPassword}
+                  placeholder="Nuova password"
+                  secureTextEntry={!showResetNewPassword}
+                />
+                <TouchableOpacity onPress={() => setShowResetNewPassword(!showResetNewPassword)}>
+                  <Ionicons name={showResetNewPassword ? "eye-off" : "eye"} size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={resetConfirmPassword}
+                  onChangeText={setResetConfirmPassword}
+                  placeholder="Conferma nuova password"
+                  secureTextEntry={!showResetConfirmPassword}
+                />
+                <TouchableOpacity onPress={() => setShowResetConfirmPassword(!showResetConfirmPassword)}>
+                  <Ionicons name={showResetConfirmPassword ? "eye-off" : "eye"} size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                value={resetCode}
+                onChangeText={setResetCode}
+                placeholder="Codice ricevuto via email"
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleResetPassword}
+                disabled={savingResetPassword}
+              >
+                <Text style={styles.saveButtonText}>
+                  {savingResetPassword ? "Salvataggio..." : "Salva nuova password"}
                 </Text>
               </TouchableOpacity>
             </>
