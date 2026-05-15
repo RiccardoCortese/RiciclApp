@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Image, Platform, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../src/config';
 
 import Logo from '../src/assets/Riciclapp_Logo.png';
 import Info from '../src/assets/Info_rifiuti.png';
-import User from '../src/assets/User_icon.png';
-import Opz from '../src/assets/Opzioni.png';
+import UserDefault from '../src/assets/Profile_image/User_image.png';
 
 const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 }; // Trento, Italy
 const DEFAULT_ZOOM = 14;
@@ -152,6 +152,8 @@ export default function HomeScreen() {
   const [searching, setSearching] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
+  const [avatarUri, setAvatarUri] = useState(null);
+  const [showInfoCard, setShowInfoCard] = useState(false);
 
   useEffect(() => {
     // Check auth token
@@ -162,6 +164,12 @@ export default function HomeScreen() {
       .then((data) => { if (data?.styleUrl) setMapStyleUrl(data.styleUrl); })
       .catch(() => {}); // silently fall back to OFM_STYLE_FALLBACK
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem('profileAvatarUri').then((uri) => setAvatarUri(uri || null));
+    }, [])
+  );
 
   const handleSearch = async () => {
     const q = searchQuery.trim();
@@ -186,7 +194,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onStartShouldSetResponder={() => { if (showInfoCard) { setShowInfoCard(false); } return false; }}>
       {Platform.OS === 'web' ? (
         <WebMap targetCenter={mapCenter} styleUrl={mapStyleUrl} />
       ) : (
@@ -233,21 +241,36 @@ export default function HomeScreen() {
           activeOpacity={0.85}
           onPress={() => router.push(loggedIn ? '/profile' : '/auth/register')}
         >
-          <Image source={User} style={styles.buttonIcon} />
+          <Image
+            source={avatarUri ? { uri: avatarUri } : UserDefault}
+            style={styles.buttonIcon}
+          />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} activeOpacity={0.85}>
-          <Image source={Logo} style={styles.buttonIcon} />
-        </TouchableOpacity>
+        <View style={styles.logoWrapper}>
+          {showInfoCard && (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Riciclapp</Text>
+              <Text style={styles.infoVersion}>Version Alpha 1.0.0</Text>
+              <Text style={styles.infoSectionLabel}>Developers</Text>
+              <Text style={styles.infoName}>Binco Francesco</Text>
+              <Text style={styles.infoName}>Cortese Riccardo</Text>
+              <Text style={styles.infoName}>Giovagnetti Lorenzo</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.button}
+            activeOpacity={0.85}
+            onPress={() => setShowInfoCard((v) => !v)}
+          >
+            <Image source={Logo} style={styles.buttonIcon} />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity style={styles.button} activeOpacity={0.85} onPress={() => router.push('/informations')}>
           <Image source={Info} style={styles.buttonIcon} />
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={styles.smallButton} activeOpacity={0.85}>
-        <Image source={Opz} style={{ width: 60, height: 60 }} />
-      </TouchableOpacity>
 
       <StatusBar style="auto" />
     </View>
@@ -276,10 +299,12 @@ const styles = StyleSheet.create({
   buttonBar: {
     position: 'absolute',
     bottom: 40,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
-    alignSelf: 'center',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
   button: {
     width: 110,
@@ -299,23 +324,48 @@ const styles = StyleSheet.create({
     zIndex: 1,
     marginHorizontal: 20,
   },
-  smallButton: {
+  logoWrapper: {
+    alignItems: 'center',
+  },
+  infoCard: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    overflow: 'hidden',
+    bottom: 120,
     backgroundColor: '#fff',
-    justifyContent: 'center',
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#009933',
+    paddingVertical: 14,
+    paddingHorizontal: 22,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    zIndex: 1,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 12,
+    zIndex: 20,
+    minWidth: 180,
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#009933',
+    marginBottom: 2,
+  },
+  infoVersion: {
+    fontSize: 13,
+    color: '#555',
+    marginBottom: 10,
+  },
+  infoSectionLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#2e7d32',
+    marginBottom: 4,
+  },
+  infoName: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 2,
   },
   buttonIcon: {
     width: 100,
