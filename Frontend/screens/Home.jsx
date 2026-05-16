@@ -174,10 +174,9 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; }
-    /* Ingrandiamo l'area di tocco dei marker per renderli facili da premere su mobile */
-    .maplibregl-marker {
-      width: 32px !important;
-      height: 32px !important;
+    .custom-marker {
+      width: 35px !important;
+      height: 35px !important;
       cursor: pointer;
     }
   </style>
@@ -196,17 +195,17 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
 
     map.on('load', () => {
       centers.forEach((center, index) => {
+        if (!center.coordinates || !center.coordinates.lng || !center.coordinates.lat) return;
+
         const el = document.createElement('div');
-        el.className = 'maplibregl-marker';
+        el.className = 'custom-marker';
         
-        // Disegniamo un pin verde standard via SVG dentro l'elemento
         el.innerHTML = \`
           <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#009933"/>
           </svg>
         \`;
 
-        // Funzione di invio dati a React Native
         function triggerClick() {
           if (window.ReactNativeWebView) {
             window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -216,7 +215,6 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
           }
         }
 
-        // Intercettiamo il tocco direttamente sull'elemento prima che MapLibre lo disfi
         el.addEventListener('touchend', (e) => {
           e.stopPropagation();
           triggerClick();
@@ -226,21 +224,18 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
           triggerClick();
         });
 
-        //Aggiunto marker alla mappa
         new maplibregl.Marker({ element: el })
-          .setLngLat([center.coordinates.lng, center.coordinates.lat])
+          .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
           .addTo(map);
       });
     });
 
-    function handleMsg(e) {
+    document.addEventListener('message', function(e) {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === 'flyTo') map.flyTo({ center: [msg.lon, msg.lat], zoom: 15 });
       } catch (_) {}
-    }
-    document.addEventListener('message', handleMsg);
-    window.addEventListener('message', handleMsg);
+    });
   </script>
 </body>
 </html>`;
@@ -248,10 +243,15 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   return (
     <WebView
       ref={webViewRef}
+      // TRUCCO: Usando la lunghezza dei centri come chiave, la WebView si distrugge 
+      // e si ricrea da sola non appena i dati arrivano da Axios, mostrando subito i marker!
+      key={`map-centers-${centers.length}`}
       source={{ html: mapHtml }}
       style={{ flex: 1 }}
       javaScriptEnabled
+      domStorageEnabled={true}
       originWhitelist={['*']}
+      mixedContentMode="always"
       onMessage={handleOnMessage}
     />
   );
