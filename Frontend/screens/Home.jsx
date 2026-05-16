@@ -78,9 +78,6 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
       if (!center.coordinates) return;
 
       const centerId = center._id;
-      console.log(
-        `center ${centerId}: ${center.name} at [${center.coordinates.lat}, ${center.coordinates.lng}]`
-      );
 
       const marker = new maplibreInstance.Marker({
         color: 'green',
@@ -132,7 +129,6 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
 
   useEffect(() => {
-    // Lazy-require so Metro doesn't bundle WebView on web platform
     try {
       const mod = require('react-native-webview');
       setWebView(() => mod.WebView ?? mod.default?.WebView ?? mod.default);
@@ -148,6 +144,17 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
     );
   }, [targetCenter]);
 
+  const handleOnMessage = (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'centerClicked' && data.center) {
+        onCenterClick(data.center);
+      }
+    } catch (error) {
+      console.error("Errore nel ricevere il messaggio dalla WebView:", error);
+    }
+  };
+
   if (!WebView) {
     return (
       <View style={styles.mapPlaceholder}>
@@ -161,12 +168,18 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const mapHtml = `<!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
   <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; }
+    /* Ingrandiamo l'area di tocco dei marker per renderli facili da premere su mobile */
+    .maplibregl-marker {
+      width: 32px !important;
+      height: 32px !important;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -182,13 +195,40 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
     const centers = ${JSON.stringify(centers || [])};
 
     map.on('load', () => {
-      centers.forEach(center => {
-        const popup = new maplibregl.Popup({ offset: 25 }).setHTML(
-          '<h3>' + center.name + '</h3><p>' + center.address + '</p><p>' + center.openingHours + '</p>'
-        );
-        new maplibregl.Marker({ color: 'green' })
+      centers.forEach((center, index) => {
+        const el = document.createElement('div');
+        el.className = 'maplibregl-marker';
+        
+        // Disegniamo un pin verde standard via SVG dentro l'elemento
+        el.innerHTML = \`
+          <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#009933"/>
+          </svg>
+        \`;
+
+        // Funzione di invio dati a React Native
+        function triggerClick() {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'centerClicked',
+              center: centers[index]
+            }));
+          }
+        }
+
+        // Intercettiamo il tocco direttamente sull'elemento prima che MapLibre lo disfi
+        el.addEventListener('touchend', (e) => {
+          e.stopPropagation();
+          triggerClick();
+        });
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          triggerClick();
+        });
+
+        //Aggiunto marker alla mappa
+        new maplibregl.Marker({ element: el })
           .setLngLat([center.coordinates.lng, center.coordinates.lat])
-          .setPopup(popup)
           .addTo(map);
       });
     });
@@ -199,7 +239,6 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
         if (msg.type === 'flyTo') map.flyTo({ center: [msg.lon, msg.lat], zoom: 15 });
       } catch (_) {}
     }
-    // Both events needed: Android uses document, iOS uses window
     document.addEventListener('message', handleMsg);
     window.addEventListener('message', handleMsg);
   </script>
@@ -213,6 +252,7 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
       style={{ flex: 1 }}
       javaScriptEnabled
       originWhitelist={['*']}
+      onMessage={handleOnMessage}
     />
   );
 }

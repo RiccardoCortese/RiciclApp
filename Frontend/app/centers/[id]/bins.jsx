@@ -6,7 +6,6 @@ import BinScreenComponent from '../../../screens/bins';
 export default function Page() {
     const router = useRouter();
     const { id } = useLocalSearchParams(); // Prende il <center_id> dall'URL
-    console.log("Parametri ricevuti dalla rotta:", { id });
 
     // Se l'id non è ancora arrivato o è la stringa "undefined"
     if (!id || id === 'undefined') {

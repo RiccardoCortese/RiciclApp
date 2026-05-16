@@ -2,28 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../src/config';
+import { useRouter } from 'expo-router';
 
 export default function BinScreen({ centerId, onBack }) {
   const [center, setCenter] = useState(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
   
 
   useEffect(() => {
-    console.log("Caricamento dati per il centro con ID:", centerId);
     if (!centerId || centerId === 'undefined') {
       console.warn("ID del centro non valido o non ricevuto:", centerId);
       setLoading(false);
       return;
     }
 
-    console.log("Inizio caricamento dati per il centro con ID:", centerId);
 
     setLoading(true);
 
     // Chiamata al backend per ottenere i dati del centro e dei suoi bidoni
     axios.get(`${API_URL}/centers/${centerId}`)
     .then(centerRes => {
-      console.log("Dati del centro ricevuti dal backend:", centerRes.data);
       setCenter(centerRes.data);
     })
     .catch(err => {
@@ -40,7 +39,6 @@ export default function BinScreen({ centerId, onBack }) {
     );
   }
 
-  console.log("Dati del centro ricevuti dal backend:", center);
 
   if (!center) {
     return (
@@ -54,11 +52,10 @@ export default function BinScreen({ centerId, onBack }) {
   }
 
   const binsList = center.bins || [];
-  console.log(`Bidoni associati al centro ${center.name}:`, binsList);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity style={styles.backButtonInline} onPress={onBack}>
+      <TouchableOpacity style={styles.backButtonInline} onPress={() => router.replace('/')}>
         <Text style={styles.backButtonInlineText}>⬅ Torna alla Mappa</Text>
       </TouchableOpacity>
 
