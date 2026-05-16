@@ -35,5 +35,22 @@ app.use('/api/user', require('./routes/user'));
 // Rotte ZXing — barcode scan → product info + disposal categories
 app.use('/api/zx', require('./routes/ZX_API'));
 
+// Rotta per i centri di raccolta
+app.use('/api/centers', require('./routes/center'));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server in esecuzione sulla porta ${PORT}`));
+
+
+  // Questo stamperà l'elenco reale senza far crashare Node
+  if (app._router && app._router.stack) {
+    app._router.stack.forEach((r) => {
+      if (r.name === 'router' && r.handle && r.handle.stack) {
+        r.handle.stack.forEach((layer) => {
+          if (layer.route) {
+            console.log(`> Rotta caricata: ${r.regexp} esegue ${layer.route.path}`);
+          }
+        });
+      }
+    });
+  }

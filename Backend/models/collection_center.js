@@ -26,7 +26,6 @@ const collectionCenterSchema = new mongoose.Schema(
     coordinates: {
         lat: { type: Number, required: true },
         lng: { type: Number, required: true },
-        required: true,
     },
   },
 
@@ -35,4 +34,4 @@ const collectionCenterSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("CollectionCenter", collectionCenterSchema);
+module.exports = mongoose.model("CollectionCenter", collectionCenterSchema, "collection_centers");
