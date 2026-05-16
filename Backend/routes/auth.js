@@ -12,20 +12,20 @@ router.post('/register', async (req, res) => {
     
     // --- CONTROLLO DEI DATI INSERITI ---
     if (!username || !email || !password) { // Controllo se tutti i campi sono presenti
-        return res.status(400).json({ message: 'Compila tutti i campi' }); // Se manca qualcosa, ritorno un errore
+        return res.status(400).json({ message: 'Compila tutti i campi' }); 
     }
     else if (password.length < 6) { // Controllo se la password è abbastanza lunga
-        return res.status(400).json({ message: 'La password deve essere lunga almeno 6 caratteri' }); // Se la password è troppo corta, ritorno un errore
+        return res.status(400).json({ message: 'La password deve essere lunga almeno 6 caratteri' }); 
     }
     else if (!/\S+@\S+\.\S+/.test(email)) { // Controllo se l'email è in un formato valido
-        return res.status(400).json({ message: 'Email non valida' }); // Se l'email non è valida, ritorno un errore
+        return res.status(400).json({ message: 'Email non valida' });
     }
 
     try {
         // Controllo se l'utente esiste già
         const existingUser = await User.findOne({ email }); //controllo se esiste già un utente con la stessa email
         if (existingUser) {
-            return res.status(400).json({ message: 'Utente già registrato' }); // Se esiste, ritorno un errore
+            return res.status(400).json({ message: 'Utente già registrato' }); 
         }
 
         //ALTRIMENTI
@@ -48,11 +48,11 @@ router.post('/register', async (req, res) => {
 
         // Creo un nuovo utente con i dati forniti
         const newUser = new User({
-            name: username, // Salvo il nome utente
+            name: username, 
             email,
-            passwordHash: hashedPassword, // Salvo la password hashata
-            isVerified: false, // L'utente non è verificato finché non conferma l'email
-            verificationToken: hashedVerificationCode // Salvo il codice di verifica hashato nel database
+            passwordHash: hashedPassword, 
+            isVerified: false, 
+            verificationToken: hashedVerificationCode 
         });
         await newUser.save(); // Salvo l'utente nel database
         res.status(201).json({ message: 'Utente registrato con successo' }); // Ritorno un messaggio di successo
@@ -70,11 +70,11 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body; // Estraggo email e password dal corpo della richiesta
 
     if (!email || !password) { // Controllo se email e password sono presenti
-        return res.status(400).json({ message: 'Compila tutti i campi' }); // Se manca qualcosa, ritorno un errore
+        return res.status(400).json({ message: 'Compila tutti i campi' }); 
     }
 
     if (!/\S+@\S+\.\S+/.test(email)) { // Controllo se l'email è in un formato valido
-        return res.status(400).json({ message: 'Email non valida' }); // Se l'email non è valida, ritorno un errore
+        return res.status(400).json({ message: 'Email non valida' }); 
     }
     
 
@@ -87,7 +87,7 @@ router.post('/login', async (req, res) => {
         }
 
         if (user.isVerified === false) { // Controllo se l'utente ha verificato l'email
-        return res.status(400).json({ message: 'Email non verificata. Controlla la tua casella di posta.' }); // Se l'email non è verificata, ritorno un errore
+        return res.status(400).json({ message: 'Email non verificata. Controlla la tua casella di posta.' }); 
     }
 
         // Confronto la password inserita con quella salvata nel database
@@ -156,5 +156,5 @@ router.post('/verify-email', async (req, res) => {
     }
 });
 
-module.exports = router; // Esporto il router per poterlo usare in server.js
+module.exports = router; 
 

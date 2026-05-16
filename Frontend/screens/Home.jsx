@@ -19,7 +19,7 @@ const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
 // ─── Web map: MapLibre GL JS rendered directly in the browser ────────────────
-function WebMap({ targetCenter, styleUrl, centers }) {
+function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
@@ -60,7 +60,7 @@ function WebMap({ targetCenter, styleUrl, centers }) {
 
   useEffect(() => {
     if (!targetCenter || !mapRef.current) return;
-    // targetCenter is [lat, lon]; MapLibre expects [lon, lat]
+    // targetCenter è [lat, lon]; MapLibre vuole [lon, lat]
     mapRef.current.flyTo({ center: [targetCenter[1], targetCenter[0]], zoom: 15 });
   }, [targetCenter]);
 
@@ -77,8 +77,9 @@ function WebMap({ targetCenter, styleUrl, centers }) {
     centers.forEach(center => {
       if (!center.coordinates) return;
 
+      const centerId = center._id;
       console.log(
-        `center: ${center.name} at [${center.coordinates.lat}, ${center.coordinates.lng}]`
+        `center ${centerId}: ${center.name} at [${center.coordinates.lat}, ${center.coordinates.lng}]`
       );
 
       const marker = new maplibreInstance.Marker({
@@ -89,9 +90,26 @@ function WebMap({ targetCenter, styleUrl, centers }) {
           Number(center.coordinates.lat),
         ])
         .addTo(map);
-      const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(
-        `<h3>${center.name}</h3><p>${center.address}</p><p>${center.openingHours}</p>`
-      );
+
+      //per ogni marker, creo un popup con le info del centro e un link per vedere i bidoni 
+      const popupHtml = `
+          <div style="font-family: Arial, sans-serif; padding: 5px; cursor: pointer;" id="popup-click-${center._id}">
+            <h3 style="color: #009933; margin: 0 0 4px 0; text-decoration: underline;">${center.name}</h3>
+            <p style="margin: 0; font-size: 12px; color: #666;">${center.address || ''}</p>
+            <p style="margin: 4px 0 0 0; font-size: 11px; color: #009933; font-weight: bold;">👉 Clicca qui per vedere i bidoni</p>
+          </div>
+        `;
+      const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(popupHtml);
+      popup.once('open', () => {
+        setTimeout(() => {
+          const container = document.getElementById(`popup-click-${center._id}`);
+          if (container) {
+            container.onclick = () => {
+              onCenterClick(center); // con questo una volta cliccato il link nel popup vado nella schermata dei bidoni del centro, 
+            };
+          }
+        }, 50);
+      });
       marker.setPopup(popup);
 
       markersRef.current.push(marker);
@@ -102,13 +120,13 @@ function WebMap({ targetCenter, styleUrl, centers }) {
   return (
     <div
       ref={containerRef}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', zIndex: 0 }} // assicurati che la mappa sia sotto gli altri elementi UI
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', zIndex: 0 }} 
     />
   );
 }
 
 // ─── Native map: MapLibre GL JS in a WebView (requires development build) ───
-function NativeMap({ targetCenter, styleUrl, centers }) {
+function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
@@ -253,9 +271,17 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       {Platform.OS === 'web' ? (
-        <WebMap targetCenter={mapCenter} styleUrl={mapStyleUrl} centers={centers} />
+        <WebMap 
+          targetCenter={mapCenter} 
+          styleUrl={mapStyleUrl} 
+          centers={centers} 
+          onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       ) : (
-        <NativeMap targetCenter={mapCenter} styleUrl={mapStyleUrl} centers={centers} />
+        <NativeMap 
+          targetCenter={mapCenter} 
+          styleUrl={mapStyleUrl} 
+          centers={centers} 
+          onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
 
       {/* ── Search Bar ── */}
