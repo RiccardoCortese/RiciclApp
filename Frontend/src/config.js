@@ -5,4 +5,4 @@ import { Platform } from 'react-native';
 // On native (Expo Go) the phone needs the actual LAN IP to reach the backend.
 export const API_URL = Platform.OS === 'web'
   ? 'http://localhost:5000/api'
-  : 'http://192.168.1.76:5000/api';
+  : 'http://192.168.1.109:5000/api';

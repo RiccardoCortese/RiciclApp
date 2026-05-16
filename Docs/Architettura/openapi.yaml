@@ -8,13 +8,6 @@ servers:
   - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
     description: Server Locale (Sviluppo)
 
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
 paths:
   /auth/register:
     post:
@@ -119,4 +112,263 @@ paths:
 
         '500':
           description: Errore interno del server
-      
+  
+  /center/all:
+    get:
+      tags:
+        - Centers
+      summary: Recupera tutti i centri di raccolta
+      description: Restituisce la lista completa dei centri di raccolta presenti nel database.
+      responses:
+        '200':
+          description: Lista dei centri recuperata con successo
+
+        '500':
+          description: Errore interno del server
+
+  /center/{id}:
+    get:
+      tags:
+        - Centers
+      summary: Recupera un centro di raccolta con i suoi bidoni
+      description: Restituisce i dettagli di un centro di raccolta specifico insieme ai bidoni associati.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del centro di raccolta
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Centro di raccolta recuperato con successo
+
+        '400':
+          description: ID del centro non valido
+
+        '404':
+          description: Centro di raccolta non trovato
+
+        '500':
+          description: Errore interno del server
+   
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665ba1cd2f9f6c001234abcd
+
+        name:
+          type: string
+          example: Mario Rossi
+          description: Nome completo dell'utente
+
+        email:
+          type: string
+          format: email
+          example: mario.rossi@example.com
+          description: Email dell'utente
+
+        passwordHash:
+          type: string
+          example: $2b$10$abcdefghilmnopqrstuv
+          description: Password criptata dell'utente
+
+        role:
+          type: string
+          enum:
+            - registered_user
+            - operator
+            - admin
+          example: registered_user
+          description: Ruolo dell'utente nel sistema
+
+        points:
+          type: number
+          example: 120
+          description: Punti accumulati dall'utente
+
+        employeeCode:
+          type: string
+          nullable: true
+          example: EMP001
+          description: Codice identificativo dell'operatore
+
+        assignedRouteId:
+          type: string
+          nullable: true
+          example: 665bc2222f9f6c001239999
+          description: ID della route assegnata all'operatore
+
+        accessLevel:
+          type: number
+          nullable: true
+          example: 2
+          description: Livello di accesso dell'utente
+
+        isVerified:
+          type: boolean
+          example: true
+          description: Stato di verifica dell'account
+
+        verificationToken:
+          type: string
+          nullable: true
+          example: verify_token_123456
+          description: Token per la verifica email
+
+        passwordResetToken:
+          type: string
+          nullable: true
+          example: reset_token_abcdef
+          description: Token per il reset della password
+
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:00:00.000Z
+
+      required:
+        - name
+        - email
+        - passwordHash
+
+    Bin:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665b90ad2f9f6c0012349999
+
+        binCode:
+          type: string
+          example: BIN001
+          description: Codice univoco del bidone
+
+        wasteType:
+          type: string
+          enum:
+            - carta
+            - plastica
+            - vetro
+            - umido
+            - indifferenziato
+            - olio esausto
+          example: plastica
+
+        fillLevel:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 75
+          description: Percentuale di riempimento del bidone
+
+        status:
+          type: string
+          enum:
+            - OK
+            - MANUTENZIONE
+            - PIENO
+          example: OK
+
+        centerId:
+          type: string
+          example: 665b8f5d2f9f6c0012345678
+          description: ID del centro di raccolta associato
+
+        sensor:
+          type: object
+          properties:
+            sensorCode:
+              type: string
+              example: SENS123
+
+            batteryLevel:
+              type: number
+              minimum: 0
+              maximum: 100
+              example: 87
+
+            lastUpdate:
+              type: string
+              format: date-time
+              example: 2026-05-16T10:30:00.000Z
+
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:00:00.000Z
+
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:30:00.000Z
+
+      required:
+        - binCode
+        - wasteType
+        - fillLevel
+        - status
+        - centerId
+        - sensor
+    Center:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665b8f5d2f9f6c0012345678
+
+        name:
+          type: string
+          example: Centro Raccolta Milano Nord
+          description: Nome del centro di raccolta
+
+        address:
+          type: string
+          example: Via Roma 10
+          description: Indirizzo del centro
+
+        area:
+          type: string
+          example: Milano Nord
+          description: Area geografica del centro di raccolta
+
+        openingHours:
+          type: string
+          example: Lun-Ven 8:00-18:00, Sab 9:00-13:00, Dom chiuso
+          description: Orari di apertura del centro
+
+        coordinates:
+          type: object
+          properties:
+            lat:
+              type: number
+              format: double
+              example: 45.4642
+
+            lng:
+              type: number
+              format: double
+              example: 9.1900
+
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T09:00:00.000Z
+
+      required:
+        - name
+        - address
+        - area
+        - coordinates

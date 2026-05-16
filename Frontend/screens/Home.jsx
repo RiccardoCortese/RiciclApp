@@ -12,16 +12,21 @@ import { API_URL } from '../src/config';
 import Logo from '../src/assets/Riciclapp_Logo.png';
 import Info from '../src/assets/Info_rifiuti.png';
 import UserDefault from '../src/assets/Profile_image/User_image.png';
+import User from '../src/assets/User_icon.png';
+import Opz from '../src/assets/Opzioni.png';
+import axios from 'axios';
 
 const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 }; // Trento, Italy
 const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
 // ─── Web map: MapLibre GL JS rendered directly in the browser ────────────────
-function WebMap({ targetCenter, styleUrl }) {
+function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
+  const [maplibreInstance, setMaplibreInstance] = useState(null);
+  const markersRef = useRef([]);
 
   useEffect(() => {
     // Load MapLibre CSS from CDN (Metro bundler doesn't handle CSS imports)
@@ -35,6 +40,9 @@ function WebMap({ targetCenter, styleUrl }) {
     import('maplibre-gl').then((mod) => {
       if (!containerRef.current) return;
       const maplibregl = mod.default ?? mod;
+
+      setMaplibreInstance(maplibregl); 
+      
       map = new maplibregl.Map({
         container: containerRef.current,
         style,
@@ -54,26 +62,75 @@ function WebMap({ targetCenter, styleUrl }) {
 
   useEffect(() => {
     if (!targetCenter || !mapRef.current) return;
-    // targetCenter is [lat, lon]; MapLibre expects [lon, lat]
+    // targetCenter è [lat, lon]; MapLibre vuole [lon, lat]
     mapRef.current.flyTo({ center: [targetCenter[1], targetCenter[0]], zoom: 15 });
   }, [targetCenter]);
+
+  useEffect(() => {
+    if (!mapRef.current || !maplibreInstance) return;
+
+    const map = mapRef.current;
+
+    // rimuove marker precedenti
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    // marker dei centri
+    centers.forEach(center => {
+      if (!center.coordinates) return;
+
+      const centerId = center._id;
+
+      const marker = new maplibreInstance.Marker({
+        color: 'green',
+      })
+        .setLngLat([
+          Number(center.coordinates.lng),
+          Number(center.coordinates.lat),
+        ])
+        .addTo(map);
+
+      //per ogni marker, creo un popup con le info del centro e un link per vedere i bidoni 
+      const popupHtml = `
+          <div style="font-family: Arial, sans-serif; padding: 5px; cursor: pointer;" id="popup-click-${center._id}">
+            <h3 style="color: #009933; margin: 0 0 4px 0; text-decoration: underline;">${center.name}</h3>
+            <p style="margin: 0; font-size: 12px; color: #666;">${center.address || ''}</p>
+            <p style="margin: 4px 0 0 0; font-size: 11px; color: #009933; font-weight: bold;">👉 Clicca qui per vedere i bidoni</p>
+          </div>
+        `;
+      const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(popupHtml);
+      popup.once('open', () => {
+        setTimeout(() => {
+          const container = document.getElementById(`popup-click-${center._id}`);
+          if (container) {
+            container.onclick = () => {
+              onCenterClick(center); // con questo una volta cliccato il link nel popup vado nella schermata dei bidoni del centro, 
+            };
+          }
+        }, 50);
+      });
+      marker.setPopup(popup);
+
+      markersRef.current.push(marker);
+    });
+
+  }, [centers, maplibreInstance]);
 
   return (
     <div
       ref={containerRef}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', zIndex: 0 }} 
     />
   );
 }
 
 // ─── Native map: MapLibre GL JS in a WebView (requires development build) ───
-function NativeMap({ targetCenter, styleUrl }) {
+function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
 
   useEffect(() => {
-    // Lazy-require so Metro doesn't bundle WebView on web platform
     try {
       const mod = require('react-native-webview');
       setWebView(() => mod.WebView ?? mod.default?.WebView ?? mod.default);
@@ -89,6 +146,17 @@ function NativeMap({ targetCenter, styleUrl }) {
     );
   }, [targetCenter]);
 
+  const handleOnMessage = (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'centerClicked' && data.center) {
+        onCenterClick(data.center);
+      }
+    } catch (error) {
+      console.error("Errore nel ricevere il messaggio dalla WebView:", error);
+    }
+  };
+
   if (!WebView) {
     return (
       <View style={styles.mapPlaceholder}>
@@ -102,12 +170,18 @@ function NativeMap({ targetCenter, styleUrl }) {
   const mapHtml = `<!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
   <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; }
+    /* Ingrandiamo l'area di tocco dei marker per renderli facili da premere su mobile */
+    .maplibregl-marker {
+      width: 32px !important;
+      height: 32px !important;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -119,13 +193,54 @@ function NativeMap({ targetCenter, styleUrl }) {
       center: [${DEFAULT_CENTER.lon}, ${DEFAULT_CENTER.lat}],
       zoom: ${DEFAULT_ZOOM},
     });
+
+    const centers = ${JSON.stringify(centers || [])};
+
+    map.on('load', () => {
+      centers.forEach((center, index) => {
+        const el = document.createElement('div');
+        el.className = 'maplibregl-marker';
+        
+        // Disegniamo un pin verde standard via SVG dentro l'elemento
+        el.innerHTML = \`
+          <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#009933"/>
+          </svg>
+        \`;
+
+        // Funzione di invio dati a React Native
+        function triggerClick() {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'centerClicked',
+              center: centers[index]
+            }));
+          }
+        }
+
+        // Intercettiamo il tocco direttamente sull'elemento prima che MapLibre lo disfi
+        el.addEventListener('touchend', (e) => {
+          e.stopPropagation();
+          triggerClick();
+        });
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          triggerClick();
+        });
+
+        //Aggiunto marker alla mappa
+        new maplibregl.Marker({ element: el })
+          .setLngLat([center.coordinates.lng, center.coordinates.lat])
+          .addTo(map);
+      });
+    });
+
     function handleMsg(e) {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === 'flyTo') map.flyTo({ center: [msg.lon, msg.lat], zoom: 15 });
       } catch (_) {}
     }
-    // Both events needed: Android uses document, iOS uses window
     document.addEventListener('message', handleMsg);
     window.addEventListener('message', handleMsg);
   </script>
@@ -139,6 +254,7 @@ function NativeMap({ targetCenter, styleUrl }) {
       style={{ flex: 1 }}
       javaScriptEnabled
       originWhitelist={['*']}
+      onMessage={handleOnMessage}
     />
   );
 }
@@ -154,15 +270,24 @@ export default function HomeScreen() {
   const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
   const [avatarUri, setAvatarUri] = useState(null);
   const [showInfoCard, setShowInfoCard] = useState(false);
+  const [centers, setCenters] = useState([]);
 
   useEffect(() => {
     // Check auth token
     AsyncStorage.getItem('token').then((token) => setLoggedIn(!!token));
-    // Fetch map config from backend (/api/ofm/config)
-    fetch(`${API_URL}/ofm/config`)
-      .then((r) => r.json())
-      .then((data) => { if (data?.styleUrl) setMapStyleUrl(data.styleUrl); })
-      .catch(() => {}); // silently fall back to OFM_STYLE_FALLBACK
+    //mappa: prima carico la configurazione (per avere lo stile personalizzato di default), poi i centri di raccolta
+    axios.get(`${API_URL}/ofm/config`)
+      .then((response) => {
+        if (response.data?.styleUrl) setMapStyleUrl(response.data.styleUrl);
+      })
+      .catch(() => { /* keep default style */ });
+    
+    // trovo i centri di raccolta e li salvo nello stato per mostrarli sulla mappa (sia web che native) tramite marker
+    axios.get(`${API_URL}/centers/all`)
+      .then((response) => {
+        setCenters(Array.isArray(response.data) ? response.data : []); // assicuro che sia un array
+      })
+      .catch(() => setCenters([])); // in caso di errore, mostra comunque la mappa senza centri
   }, []);
 
   useFocusEffect(
@@ -177,8 +302,8 @@ export default function HomeScreen() {
     setSearching(true);
     setSearchResults([]);
     try {
-      const res = await fetch(`${API_URL}/osm/search?q=${encodeURIComponent(q)}&limit=5`);
-      const data = await res.json();
+      const res = await axios.get(`${API_URL}/osm/search?q=${encodeURIComponent(q)}&limit=5`);
+      const data = await res.data;
       setSearchResults(Array.isArray(data) ? data : []);
     } catch {
       setSearchResults([]);
@@ -196,13 +321,21 @@ export default function HomeScreen() {
   return (
     <View style={styles.container} onStartShouldSetResponder={() => { if (showInfoCard) { setShowInfoCard(false); } return false; }}>
       {Platform.OS === 'web' ? (
-        <WebMap targetCenter={mapCenter} styleUrl={mapStyleUrl} />
+        <WebMap 
+          targetCenter={mapCenter} 
+          styleUrl={mapStyleUrl} 
+          centers={centers} 
+          onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       ) : (
-        <NativeMap targetCenter={mapCenter} styleUrl={mapStyleUrl} />
+        <NativeMap 
+          targetCenter={mapCenter} 
+          styleUrl={mapStyleUrl} 
+          centers={centers} 
+          onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
 
       {/* ── Search Bar ── */}
-      <View style={styles.searchBarWrapper}>
+      <View style={[styles.searchBarWrapper, { zIndex: 10 }]} pointerEvents="box-none">
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -235,7 +368,7 @@ export default function HomeScreen() {
       </View>
 
       {/* ── Button Bar ── */}
-      <View style={styles.buttonBar}>
+      <View style={[styles.buttonBar, { zIndex: 10 }]} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.button}
           activeOpacity={0.85}

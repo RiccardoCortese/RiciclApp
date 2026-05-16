@@ -25,7 +25,7 @@ export default function Register() {
         alert("Codice Inviato", "Controlla la tua email per il codice di verifica.");
         router.push({
           pathname: "/auth/verify_email",
-          params: { email: email } // Passiamo l'email per sapere chi stiamo verificando
+          params: { email: email } // Passo l'email per sapere chi stiamo verificando
         });
         
 
