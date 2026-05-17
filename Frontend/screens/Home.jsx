@@ -266,6 +266,7 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState([]);
   const [mapCenter, setMapCenter] = useState(null);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
   const [avatarUri, setAvatarUri] = useState(null);
@@ -301,12 +302,19 @@ export default function HomeScreen() {
     if (!q) return;
     setSearching(true);
     setSearchResults([]);
+    setSearchError(false);
     try {
       const res = await axios.get(`${API_URL}/osm/search?q=${encodeURIComponent(q)}&limit=5`);
-      const data = await res.data;
-      setSearchResults(Array.isArray(data) ? data : []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      if (data.length > 0) {
+        selectResult(data[0]);
+      } else {
+        setSearchError(true);
+        setTimeout(() => setSearchError(false), 2500);
+      }
     } catch {
-      setSearchResults([]);
+      setSearchError(true);
+      setTimeout(() => setSearchError(false), 2500);
     } finally {
       setSearching(false);
     }
@@ -337,7 +345,9 @@ export default function HomeScreen() {
       {/* ── Search Bar ── */}
       <View style={[styles.searchBarWrapper, { zIndex: 10 }]} pointerEvents="box-none">
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <TouchableOpacity onPress={handleSearch} activeOpacity={0.7}>
+            <Text style={styles.searchIcon}>🔍</Text>
+          </TouchableOpacity>
           <TextInput
             style={styles.searchInput}
             placeholder="Cerca una location..."
@@ -349,6 +359,12 @@ export default function HomeScreen() {
           />
           {searching && <ActivityIndicator size="small" color="#009933" style={{ marginLeft: 8 }} />}
         </View>
+
+        {searchError && (
+          <View style={styles.searchErrorBox}>
+            <Text style={styles.searchErrorText}>Location not found</Text>
+          </View>
+        )}
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
@@ -534,6 +550,21 @@ const styles = StyleSheet.create({
   searchIcon: {
     fontSize: 16,
     marginRight: 8,
+  },
+  searchErrorBox: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#d32f2f',
+    borderRadius: 10,
+    marginTop: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  searchErrorText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   searchInput: {
     flex: 1,
