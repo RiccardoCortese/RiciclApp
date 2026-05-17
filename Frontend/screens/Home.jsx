@@ -264,6 +264,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [selectedCenter, setSelectedCenter] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(false);
@@ -297,33 +298,36 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const handleSearch = async () => {
-    const q = searchQuery.trim();
-    if (!q) return;
-    setSearching(true);
-    setSearchResults([]);
+  const handleQueryChange = (text) => {
+    setSearchQuery(text);
+    setSelectedCenter(null);
     setSearchError(false);
-    try {
-      const res = await axios.get(`${API_URL}/osm/search?q=${encodeURIComponent(q)}&limit=5`);
-      const data = Array.isArray(res.data) ? res.data : [];
-      if (data.length > 0) {
-        selectResult(data[0]);
-      } else {
-        setSearchError(true);
-        setTimeout(() => setSearchError(false), 2500);
-      }
-    } catch {
-      setSearchError(true);
-      setTimeout(() => setSearchError(false), 2500);
-    } finally {
-      setSearching(false);
-    }
+    const q = text.trim().toLowerCase();
+    if (!q) { setSearchResults([]); return; }
+    const matches = centers
+      .filter(c => c.name.toLowerCase().includes(q))
+      .slice(0, 5);
+    setSearchResults(matches);
   };
 
-  const selectResult = (result) => {
-    setMapCenter([parseFloat(result.lat), parseFloat(result.lon)]);
-    setSearchQuery(result.display_name);
+  const selectCenter = (center) => {
+    setSearchQuery(center.name);
+    setSelectedCenter(center);
     setSearchResults([]);
+  };
+
+  const handleSearch = () => {
+    setSearchResults([]);
+    setSearchError(false);
+    const target = selectedCenter || centers.find(
+      c => c.name.toLowerCase() === searchQuery.trim().toLowerCase()
+    );
+    if (target?.coordinates) {
+      setMapCenter([target.coordinates.lat, target.coordinates.lng]);
+    } else {
+      setSearchError(true);
+      setTimeout(() => setSearchError(false), 2500);
+    }
   };
 
   return (
@@ -353,11 +357,10 @@ export default function HomeScreen() {
             placeholder="Cerca una location..."
             placeholderTextColor="#9999"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleQueryChange}
             onSubmitEditing={handleSearch}
             returnKeyType="search"
           />
-          {searching && <ActivityIndicator size="small" color="#009933" style={{ marginLeft: 8 }} />}
         </View>
 
         {searchError && (
@@ -368,15 +371,18 @@ export default function HomeScreen() {
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
-            {searchResults.map((result, i) => (
+            {searchResults.map((center, i) => (
               <TouchableOpacity
-                key={i}
+                key={center._id ?? i}
                 style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => selectResult(result)}
+                onPress={() => selectCenter(center)}
               >
                 <Text style={styles.resultIcon}>📍</Text>
-                <Text style={styles.resultText} numberOfLines={2}>{result.display_name}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resultText} numberOfLines={1}>{center.name}</Text>
+                  {center.address ? <Text style={styles.resultSubText} numberOfLines={1}>{center.address}</Text> : null}
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -600,9 +606,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   resultText: {
-    flex: 1,
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
+  },
+  resultSubText: {
+    fontSize: 12,
+    color: '#888',
+    lineHeight: 16,
   },
 });
