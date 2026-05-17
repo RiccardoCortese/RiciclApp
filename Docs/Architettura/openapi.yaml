@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+  - url: http://localhost:5000/api  
     description: Server Locale (Sviluppo)
 
 paths:
@@ -151,7 +151,158 @@ paths:
 
         '500':
           description: Errore interno del server
-   
+
+  /off/product/{barcode}:
+    get:
+      tags:
+        - OFF
+      summary: Recupera dati prodotto tramite barcode
+      description: >
+        Invia una richiesta proxy a `https://world.openfoodfacts.org/api/v0/product/{barcode}.json`
+        e restituisce il payload originale al frontend. Non richiede autenticazione.
+        Per la versione con categorie di smaltimento pre-calcolate, usare `GET /api/zx/scan/{barcode}`.
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          description: Codice a barre del prodotto (EAN-13, EAN-8, UPC, ecc.)
+          schema:
+            type: string
+            example: "3017620422003"
+      responses:
+        '200':
+          description: Prodotto trovato — payload originale di Open Food Facts
+
+        '400':
+          description: Parametro barcode assente
+
+        '404':
+          description: Prodotto non trovato nel database Open Food Facts
+
+        '500':
+          description: Errore di rete o risposta non valida da Open Food Facts
+
+  /ofm/config:
+    get:
+      tags:
+        - OFM
+      summary: Recupera la configurazione della mappa
+      description: >
+        Restituisce i parametri di inizializzazione per la mappa interattiva:
+        URL dello stile vettoriale OpenFreeMap, coordinate del centro iniziale
+        (Trento, Italia) e livello di zoom. Non richiede autenticazione.
+      responses:
+        '200':
+          description: Configurazione mappa restituita con successo
+  
+  /osm/search:
+    get:
+      tags:
+        - OSM
+      summary: Ricerca per testo (geocoding diretto)
+      description: >
+        Delega la ricerca al geocoder Nominatim di OpenStreetMap tramite
+        `https://nominatim.openstreetmap.org/search`. Restituisce un array di
+        luoghi corrispondenti alla stringa di ricerca, ordinati per rilevanza.
+        Non richiede autenticazione.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Stringa di ricerca libera (indirizzo, luogo, punto di interesse)
+          schema:
+            type: string
+            example: "Piazza Dante, Trento"
+        - name: limit
+          in: query
+          required: false
+          description: Numero massimo di risultati (default 5)
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 50
+            example: 5
+      responses:
+        '200':
+          description: Lista di risultati Nominatim
+
+        '400':
+          description: Parametro q assente
+
+        '500':
+          description: Errore di rete o risposta non valida da Nominatim
+
+  /osm/reverse:
+    get:
+      tags:
+        - OSM
+      summary: Geocoding inverso (coordinate → indirizzo)
+      description: >
+        Converte una coppia di coordinate geografiche in un indirizzo leggibile
+        delegando la richiesta a `https://nominatim.openstreetmap.org/reverse`.
+        Non richiede autenticazione.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitudine in gradi decimali
+          schema:
+            type: number
+            format: double
+            example: 46.0679
+        - name: lon
+          in: query
+          required: true
+          description: Longitudine in gradi decimali
+          schema:
+            type: number
+            format: double
+            example: 11.1211
+      responses:
+        '200':
+          description: Indirizzo corrispondente alle coordinate fornite
+        '400':
+          description: Parametri lat o lon assenti
+        '500':
+          description: Errore di rete o risposta non valida da Nominatim
+
+  /zx/scan/{barcode}:
+    get:
+      tags:
+        - ZX
+      summary: Scansiona barcode e ottieni istruzioni di smaltimento
+      description: >
+        Recupera i dati del prodotto da Open Food Facts tramite il barcode fornito,
+        analizza i campi `packaging` e `packaging_tags` e restituisce le categorie
+        di smaltimento corrette per ogni materiale rilevato.
+        La chiamata verso Open Food Facts ha un timeout fisso di 8 secondi (AbortController).
+        Non richiede autenticazione.
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          description: Codice a barre del prodotto (EAN-13, EAN-8, UPC, ecc.)
+          schema:
+            type: string
+            example: "3017620422003"
+      responses:
+        '200':
+          description: Prodotto trovato con categorie di smaltimento calcolate
+
+        '400':
+          description: Parametro barcode assente
+
+        '404':
+          description: Prodotto non trovato nel database Open Food Facts
+
+        '504':
+          description: Timeout — Open Food Facts non ha risposto entro 8 secondi
+        '500':
+          description: Errore generico durante il recupero dei dati
+
+
+
 components:
 
   securitySchemes:
