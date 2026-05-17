@@ -1,0 +1,71 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp - OFM API (OpenFreeMap Configuration)
+  description: >
+    Endpoint di configurazione per la mappa interattiva di RiciclApp.
+    Restituisce i parametri necessari al frontend per inizializzare
+    MapLibre GL con i tile vettoriali di OpenFreeMap (servizio gratuito, senza chiave API).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+    description: Server Locale (Sviluppo)
+
+tags:
+  - name: OFM
+    description: Configurazione mappa OpenFreeMap
+
+paths:
+  /ofm/config:
+    get:
+      tags:
+        - OFM
+      summary: Recupera la configurazione della mappa
+      description: >
+        Restituisce i parametri di inizializzazione per la mappa interattiva:
+        URL dello stile vettoriale OpenFreeMap, coordinate del centro iniziale
+        (Trento, Italia) e livello di zoom. Non richiede autenticazione.
+      responses:
+        '200':
+          description: Configurazione mappa restituita con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapConfig'
+
+components:
+  schemas:
+    MapConfig:
+      type: object
+      description: Parametri di configurazione per l'inizializzazione della mappa MapLibre GL
+      properties:
+        styleUrl:
+          type: string
+          format: uri
+          description: URL dello stile vettoriale da passare a MapLibre GL come `mapStyle`
+          example: https://tiles.openfreemap.org/styles/liberty
+        center:
+          type: object
+          description: Coordinate geografiche del centro di visualizzazione iniziale
+          properties:
+            lat:
+              type: number
+              format: double
+              description: Latitudine (default Trento, Italia)
+              example: 46.0667
+            lon:
+              type: number
+              format: double
+              description: Longitudine (default Trento, Italia)
+              example: 11.1333
+          required:
+            - lat
+            - lon
+        zoom:
+          type: integer
+          description: Livello di zoom iniziale (14 = scala urbana)
+          example: 14
+      required:
+        - styleUrl
+        - center
+        - zoom

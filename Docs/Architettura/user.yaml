@@ -1,0 +1,282 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp - User API
+  description: Documentazione delle API per la gestione del profilo utente in RiciclApp.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+    description: Server Locale (Sviluppo)
+
+tags:
+  - name: User
+    description: Operazioni sul profilo dell'utente autenticato
+
+paths:
+  /user/profile:
+    get:
+      tags:
+        - User
+      summary: Recupera il profilo utente
+      description: >
+        Restituisce i dati del profilo dell'utente autenticato tramite token JWT.
+        Il campo `passwordHash` è sempre escluso dalla risposta.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profilo recuperato con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Token JWT assente o non valido
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore interno del server
+
+  /user/profile/name:
+    patch:
+      tags:
+        - User
+      summary: Aggiorna il nome utente
+      description: Modifica il nome visualizzato dell'utente autenticato. Il nome deve contenere almeno 2 caratteri.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+              properties:
+                username:
+                  type: string
+                  minLength: 2
+                  example: Mario Rossi
+      responses:
+        '200':
+          description: Nome aggiornato con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Nome aggiornato con successo
+                  user:
+                    $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Nome non valido (meno di 2 caratteri o assente)
+        '401':
+          description: Token JWT assente o non valido
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore interno del server
+
+  /user/profile/password:
+    patch:
+      tags:
+        - User
+      summary: Cambia la password
+      description: >
+        Permette all'utente di modificare la propria password.
+        Richiede la password attuale per la verifica e la nuova password (minimo 6 caratteri).
+        La nuova password viene salvata come hash bcrypt.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                  example: vecchiaPassword123
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 6
+                  example: nuovaPassword456
+      responses:
+        '200':
+          description: Password aggiornata con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password aggiornata con successo
+        '400':
+          description: Dati mancanti, password troppo corta, o vecchia password errata
+        '401':
+          description: Token JWT assente o non valido
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore interno del server
+
+  /user/profile/request-password-reset:
+    post:
+      tags:
+        - User
+      summary: Richiedi codice di reset password
+      description: >
+        Genera un codice numerico a 6 cifre, salva il suo hash nel database e lo invia
+        via email all'utente autenticato. Il codice è necessario per eseguire il reset
+        tramite /user/profile/reset-password.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Codice di reset inviato via email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Codice di reset inviato via email
+        '401':
+          description: Token JWT assente o non valido
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore interno del server o errore nell'invio dell'email
+
+  /user/profile/reset-password:
+    post:
+      tags:
+        - User
+      summary: Reimposta la password con il codice
+      description: >
+        Verifica il codice ricevuto via email e aggiorna la password dell'utente.
+        Dopo un reset andato a buon fine, il token di reset viene annullato.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - newPassword
+              properties:
+                code:
+                  type: string
+                  example: "123456"
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 6
+                  example: nuovaPassword456
+      responses:
+        '200':
+          description: Password reimpostata con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password reimpostata con successo
+        '400':
+          description: Dati mancanti, password troppo corta, nessun reset richiesto, o codice errato
+        '401':
+          description: Token JWT assente o non valido
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore interno del server
+
+  /user/delete:
+    delete:
+      tags:
+        - User
+      summary: Elimina l'account utente
+      description: |
+        Elimina definitivamente l'account dell'utente autenticato tramite token JWT.
+        Dopo l'eliminazione viene inviata una email di conferma.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account eliminato con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Account eliminato con successo
+        '401':
+          description: Token JWT assente o non valido
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore interno del server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserProfile:
+      type: object
+      description: Dati del profilo utente (senza passwordHash)
+      properties:
+        id:
+          type: string
+          example: 665ba1cd2f9f6c001234abcd
+        name:
+          type: string
+          example: Mario Rossi
+          description: Nome completo dell'utente
+        email:
+          type: string
+          format: email
+          example: mario.rossi@gmail.com
+          description: Email dell'utente
+        role:
+          type: string
+          enum:
+            - registered_user
+            - operator
+            - admin
+          example: registered_user
+          description: Ruolo dell'utente nel sistema
+        points:
+          type: number
+          example: 120
+          description: Punti accumulati dall'utente
+      required:
+        - id
+        - name
+        - email
+        - role
+        - points

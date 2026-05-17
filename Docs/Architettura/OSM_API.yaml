@@ -1,0 +1,194 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp - OSM API (OpenStreetMap Nominatim Proxy)
+  description: >
+    Proxy backend verso il servizio Nominatim di OpenStreetMap.
+    Fornisce geocoding diretto (testo → coordinate) e geocoding inverso
+    (coordinate → indirizzo) per la mappa interattiva di RiciclApp.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+    description: Server Locale (Sviluppo)
+
+tags:
+  - name: OSM
+    description: Proxy OpenStreetMap Nominatim — geocoding diretto e inverso
+
+paths:
+  /osm/search:
+    get:
+      tags:
+        - OSM
+      summary: Ricerca per testo (geocoding diretto)
+      description: >
+        Delega la ricerca al geocoder Nominatim di OpenStreetMap tramite
+        `https://nominatim.openstreetmap.org/search`. Restituisce un array di
+        luoghi corrispondenti alla stringa di ricerca, ordinati per rilevanza.
+        Non richiede autenticazione.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Stringa di ricerca libera (indirizzo, luogo, punto di interesse)
+          schema:
+            type: string
+            example: "Piazza Dante, Trento"
+        - name: limit
+          in: query
+          required: false
+          description: Numero massimo di risultati (default 5)
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 50
+            example: 5
+      responses:
+        '200':
+          description: Lista di risultati Nominatim
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NominatimSearchResult'
+        '400':
+          description: Parametro q assente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Parametro q obbligatorio
+        '500':
+          description: Errore di rete o risposta non valida da Nominatim
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Errore nel recupero dati da Nominatim
+
+  /osm/reverse:
+    get:
+      tags:
+        - OSM
+      summary: Geocoding inverso (coordinate → indirizzo)
+      description: >
+        Converte una coppia di coordinate geografiche in un indirizzo leggibile
+        delegando la richiesta a `https://nominatim.openstreetmap.org/reverse`.
+        Non richiede autenticazione.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitudine in gradi decimali
+          schema:
+            type: number
+            format: double
+            example: 46.0679
+        - name: lon
+          in: query
+          required: true
+          description: Longitudine in gradi decimali
+          schema:
+            type: number
+            format: double
+            example: 11.1211
+      responses:
+        '200':
+          description: Indirizzo corrispondente alle coordinate fornite
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NominatimReverseResult'
+        '400':
+          description: Parametri lat o lon assenti
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Parametri lat e lon obbligatori
+        '500':
+          description: Errore di rete o risposta non valida da Nominatim
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Errore nel recupero dati da Nominatim
+
+components:
+  schemas:
+    NominatimAddress:
+      type: object
+      description: Indirizzo strutturato restituito da Nominatim
+      properties:
+        road:
+          type: string
+          example: Via Roma
+        house_number:
+          type: string
+          example: "10"
+        city:
+          type: string
+          example: Trento
+        town:
+          type: string
+          example: Trento
+        county:
+          type: string
+          example: Provincia di Trento
+        state:
+          type: string
+          example: Trentino-Alto Adige
+        country:
+          type: string
+          example: Italia
+        postcode:
+          type: string
+          example: "38122"
+
+    NominatimSearchResult:
+      type: object
+      description: Singolo risultato di ricerca Nominatim
+      properties:
+        place_id:
+          type: integer
+          example: 123456
+        display_name:
+          type: string
+          description: Indirizzo completo leggibile
+          example: "Piazza Dante, Trento, Provincia di Trento, Trentino-Alto Adige, Italia"
+        lat:
+          type: string
+          description: Latitudine come stringa (formato Nominatim)
+          example: "46.0679"
+        lon:
+          type: string
+          description: Longitudine come stringa (formato Nominatim)
+          example: "11.1211"
+        type:
+          type: string
+          example: square
+        address:
+          $ref: '#/components/schemas/NominatimAddress'
+
+    NominatimReverseResult:
+      type: object
+      description: Risultato del geocoding inverso
+      properties:
+        display_name:
+          type: string
+          description: Indirizzo completo leggibile
+          example: "Via Roma, 10, Trento, Provincia di Trento, Italia"
+        address:
+          $ref: '#/components/schemas/NominatimAddress'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
