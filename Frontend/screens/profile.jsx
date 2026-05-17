@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform, TextInput, Image } from "react-native";
+import { View, Text, StyleSheet, Alert, TouchableOpacity, Platform, TextInput, Image, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -293,7 +293,7 @@ export default function ProfileScreen() {
 
   return (
 
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
       <Text style={styles.headerTitle}>Profilo Utente</Text>
       
@@ -507,16 +507,20 @@ export default function ProfileScreen() {
       <TouchableOpacity style={styles.eliminaButton} onPress={async () => { router.push("/auth/elimina_account"); }}>
         <Text style={styles.eliminaButtonText}>Elimina Account</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    padding: 20,
     backgroundColor: "#f5f5f5",
+  },
+
+  scrollContainer: {
+    flexGrow: 1,
+    padding: 20,
+    paddingBottom: 40,
   },
 
   header: {
@@ -653,5 +657,18 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: "#009933",
     marginBottom: 8,
+  },
+
+    eliminaButton: {
+    marginTop: 30,
+    backgroundColor: "#cc0000",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+  },
+  eliminaButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
