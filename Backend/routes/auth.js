@@ -141,7 +141,7 @@ router.post('/verify-email', async (req, res) => {
             return res.status(404).json({ message: "Utente non trovato" });
         }
 
-        // Controlla se il codice corrisponde
+        // Controllo se il codice corrisponde
         if (!await bcrypt.compare(code, user.verificationToken)) {
             return res.status(400).json({ message: "Codice errato" });
         }

@@ -20,7 +20,7 @@ const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 }; // Trento, Italy
 const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
-// ─── Web map: MapLibre GL JS rendered directly in the browser ────────────────
+// ------- Web map -------
 function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
@@ -124,7 +124,7 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   );
 }
 
-// ─── Native map: MapLibre GL JS in a WebView (requires development build) ───
+// ---- Native map: MapLibre GL JS in a WebView (requires development build) -----
 function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
@@ -245,8 +245,7 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   return (
     <WebView
       ref={webViewRef}
-      // TRUCCO: Usando la lunghezza dei centri come chiave, la WebView si distrugge 
-      // e si ricrea da sola non appena i dati arrivano da Axios, mostrando subito i marker!
+      // key serve a forzare il reload completo della WebView quando cambia la lista dei centri (così da aggiornare i marker), altrimenti aggiorna solo l'HTML interno ma non riesce a rimuovere i vecchi marker
       key={`map-centers-${centers.length}`}
       source={{ html: mapHtml }}
       style={{ flex: 1 }}
@@ -259,7 +258,7 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   );
 }
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
+// ------- Main screen -------
 export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');

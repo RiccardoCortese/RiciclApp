@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// OpenFreeMap is a free, no-API-key tile service (https://openfreemap.org)
+// connessione a OpenFreeMap  (https://openfreemap.org)
 const OFM_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 
 // Returns the map configuration for the frontend to consume

@@ -9,7 +9,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
 import { API_URL } from '../src/config';
 
-// ─── Disposal logic (used as fallback when ZX_API is unreachable) ────────────
+// ---- Disposal logic (used as fallback when ZX_API is unreachable) -----
 
 const PACKAGING_DISPOSAL = {
   plastic:     { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
@@ -50,7 +50,7 @@ function resolveDisposal(product) {
   return unique.length > 0 ? unique : [FALLBACK_DISPOSAL];
 }
 
-// ─── Ecoscore display info ────────────────────────────────────────────────────
+// ---- Ecoscore display info -----
 
 const ECOSCORE_INFO = {
   a: { color: '#1B5E20', text: 'Impatto ambientale molto basso' },
@@ -60,7 +60,7 @@ const ECOSCORE_INFO = {
   e: { color: '#B71C1C', text: 'Impatto ambientale molto alto' },
 };
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
+// ------ Screen -----
 
 export default function Informations() {
   const router = useRouter();
@@ -80,10 +80,7 @@ export default function Informations() {
   // ── Product search ──────────────────────────────────────────────────────────
   // Primary path  → ZX_API backend (pre-computes disposal server-side)
   // Fallback path → OpenFoodFacts directly (disposal computed client-side)
-  //
-  // Using axios instead of fetch because axios uses XMLHttpRequest in React
-  // Native, which has reliable timeout support regardless of AbortController
-  // polyfill quirks in Expo's JS engine.
+
 
   const searchProduct = async (code) => {
     const trimmed = (code ?? barcode).trim();
@@ -96,7 +93,7 @@ export default function Informations() {
     setSearched(true);
 
     try {
-      // ── Primary: ZX_API backend ──
+      // --- Primary: ZX_API backend ---
       const { data } = await axios.get(`${API_URL}/zx/scan/${trimmed}`, {
         timeout: 10000,
       });
@@ -108,7 +105,7 @@ export default function Informations() {
         setError(data.error || 'Prodotto non trovato. Verifica il codice e riprova.');
       }
     } catch (primaryErr) {
-      // ── Fallback: call OpenFoodFacts directly ──
+      // --- Fallback: call OpenFoodFacts directly ---
       // Triggered when the backend is unreachable (wrong IP, not started, etc.)
       console.warn('[ZX_API] Backend non raggiungibile, uso OpenFoodFacts diretto:', primaryErr.message);
       try {
@@ -135,7 +132,7 @@ export default function Informations() {
     }
   };
 
-  // ── Camera handler ──────────────────────────────────────────────────────────
+  // ------ Camera handler -----
   const handleBarcodeScan = useCallback(({ data }) => {
     if (scannedRef.current) return;
     scannedRef.current = true;
@@ -153,16 +150,16 @@ export default function Informations() {
     setShowScanner(true);
   };
 
-  // ── Derived display values ──────────────────────────────────────────────────
+  // ------ Derived display values ------
   const ecoscore = product?.ecoscore_grade;
   const ecoscoreInfo = ecoscore && ecoscore !== 'not-applicable' ? ECOSCORE_INFO[ecoscore] : null;
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ------ Render ------
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      {/* ── Header ── */}
+      {/* ------ Header ------ */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Info Prodotto</Text>
         <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
@@ -176,7 +173,7 @@ export default function Informations() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Hero ── */}
+        {/* ------ Hero ------ */}
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>Cerca un Prodotto</Text>
           <Text style={styles.heroSubtitle}>
@@ -373,7 +370,7 @@ export default function Informations() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ---- Styles  -----
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f6f4' },

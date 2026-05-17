@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Disposal map: Open Food Facts packaging keywords → Italian waste categories
+// Rotta per la scansione del codice a barre tramite ZXing/expo-camera e recupero dati da Open Food Facts
 const PACKAGING_DISPOSAL = {
   plastic:     { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
   glass:       { label: 'Vetro',           bin: 'Campana Verde (Vetro)',             color: '#2E7D32', icon: '🫙' },
