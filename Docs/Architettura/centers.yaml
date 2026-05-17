@@ -1,0 +1,230 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp - Centers API
+  description: Documentazione delle API per la consultazione dei centri di raccolta e dei loro bidoni in RiciclApp.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+    description: Server Locale (Sviluppo)
+
+tags:
+  - name: Centers
+    description: Operazioni di lettura sui centri di raccolta differenziata
+
+paths:
+  /centers/all:
+    get:
+      tags:
+        - Centers
+      summary: Recupera tutti i centri di raccolta
+      description: >
+        Restituisce la lista completa dei centri di raccolta presenti nel database
+        (collection MongoDB `collection_centers`). Endpoint pubblico, non richiede autenticazione.
+      responses:
+        '200':
+          description: Lista dei centri recuperata con successo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Center'
+        '500':
+          description: Errore interno del server
+
+  /centers/{id}:
+    get:
+      tags:
+        - Centers
+      summary: Recupera un centro di raccolta con i suoi bidoni
+      description: >
+        Restituisce i dettagli di un centro di raccolta specifico, arricchiti con l'array
+        `bins` contenente tutti i bidoni intelligenti ad esso associati.
+        La ricerca dei bidoni usa una query `$or` per gestire sia ObjectId che stringhe.
+        Endpoint pubblico, non richiede autenticazione.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID MongoDB del centro di raccolta
+          schema:
+            type: string
+            example: 665b8f5d2f9f6c0012345678
+      responses:
+        '200':
+          description: Centro di raccolta recuperato con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CenterWithBins'
+        '400':
+          description: L'ID fornito non è un ObjectId MongoDB valido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "L'ID del centro fornito non è valido."
+        '404':
+          description: Centro di raccolta non trovato
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Centro di raccolta non trovato nel database.
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Errore interno del server durante il recupero dei dati.
+
+components:
+  schemas:
+    Center:
+      type: object
+      description: Centro di raccolta differenziata
+      properties:
+        _id:
+          type: string
+          example: 665b8f5d2f9f6c0012345678
+        name:
+          type: string
+          example: Centro Raccolta Milano Nord
+          description: Nome del centro di raccolta
+        address:
+          type: string
+          example: Via Roma 10
+          description: Indirizzo fisico del centro
+        area:
+          type: string
+          example: Milano Nord
+          description: Area geografica di competenza
+        openingHours:
+          type: string
+          example: "Lun-Ven 8:00-18:00, Sab 9:00-13:00, Dom chiuso"
+          description: Orari di apertura (testo libero)
+        coordinates:
+          type: object
+          properties:
+            lat:
+              type: number
+              format: double
+              example: 45.4642
+            lng:
+              type: number
+              format: double
+              example: 9.1900
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T09:00:00.000Z
+      required:
+        - name
+        - address
+        - area
+        - coordinates
+
+    Bin:
+      type: object
+      description: Bidone intelligente associato a un centro di raccolta
+      properties:
+        _id:
+          type: string
+          example: 665b90ad2f9f6c0012349999
+        binCode:
+          type: string
+          example: BIN001
+          description: Codice univoco del bidone
+        wasteType:
+          type: string
+          enum:
+            - carta
+            - plastica
+            - vetro
+            - umido
+            - indifferenziato
+            - olio esausto
+          example: plastica
+          description: Tipo di rifiuto racconto dal bidone
+        fillLevel:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 75
+          description: Percentuale di riempimento del bidone
+        status:
+          type: string
+          enum:
+            - OK
+            - MANUTENZIONE
+            - PIENO
+          example: OK
+          description: Stato operativo del bidone
+        centerId:
+          type: string
+          example: 665b8f5d2f9f6c0012345678
+          description: ID del centro di raccolta associato
+        sensor:
+          type: object
+          description: Dati del sensore IoT installato nel bidone
+          properties:
+            sensorCode:
+              type: string
+              example: SENS123
+            batteryLevel:
+              type: number
+              minimum: 0
+              maximum: 100
+              example: 87
+            lastUpdate:
+              type: string
+              format: date-time
+              example: 2026-05-16T10:30:00.000Z
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:00:00.000Z
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:30:00.000Z
+      required:
+        - binCode
+        - wasteType
+        - fillLevel
+        - status
+        - centerId
+        - sensor
+
+    CenterWithBins:
+      allOf:
+        - $ref: '#/components/schemas/Center'
+        - type: object
+          properties:
+            bins:
+              type: array
+              description: Bidoni associati al centro di raccolta
+              items:
+                $ref: '#/components/schemas/Bin'
+          required:
+            - bins

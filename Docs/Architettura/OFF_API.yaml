@@ -1,0 +1,123 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp - OFF API (Open Food Facts Proxy)
+  description: >
+    Proxy backend verso le API pubbliche di Open Food Facts.
+    Consente al frontend di interrogare il servizio esterno aggirando
+    le restrizioni CORS tipiche delle app mobile/web.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+    description: Server Locale (Sviluppo)
+
+tags:
+  - name: OFF
+    description: Proxy Open Food Facts — ricerca prodotti tramite barcode
+
+paths:
+  /off/product/{barcode}:
+    get:
+      tags:
+        - OFF
+      summary: Recupera dati prodotto tramite barcode
+      description: >
+        Invia una richiesta proxy a `https://world.openfoodfacts.org/api/v0/product/{barcode}.json`
+        e restituisce il payload originale al frontend. Non richiede autenticazione.
+        Per la versione con categorie di smaltimento pre-calcolate, usare `GET /api/zx/scan/{barcode}`.
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          description: Codice a barre del prodotto (EAN-13, EAN-8, UPC, ecc.)
+          schema:
+            type: string
+            example: "3017620422003"
+      responses:
+        '200':
+          description: Prodotto trovato — payload originale di Open Food Facts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OFFProductResponse'
+        '400':
+          description: Parametro barcode assente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Barcode obbligatorio
+        '404':
+          description: Prodotto non trovato nel database Open Food Facts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 0
+                  error:
+                    type: string
+                    example: Prodotto non trovato
+        '500':
+          description: Errore di rete o risposta non valida da Open Food Facts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Errore nel recupero dati da OpenFoodFacts
+
+components:
+  schemas:
+    OFFProductResponse:
+      type: object
+      description: Risposta originale dell'API Open Food Facts v0
+      properties:
+        status:
+          type: integer
+          description: "1 = prodotto trovato, 0 = non trovato"
+          example: 1
+        product:
+          type: object
+          description: Dati del prodotto (subset dei campi più rilevanti)
+          properties:
+            product_name:
+              type: string
+              example: Nutella
+            brands:
+              type: string
+              example: Ferrero
+            quantity:
+              type: string
+              example: 400 g
+            categories:
+              type: string
+              example: Spreads, Sweet spreads, Hazelnut spreads
+            countries:
+              type: string
+              example: Italy
+            packaging:
+              type: string
+              example: "glass, plastic"
+            packaging_tags:
+              type: array
+              items:
+                type: string
+              example: ["en:glass", "en:plastic"]
+            ecoscore_grade:
+              type: string
+              enum: [a, b, c, d, e]
+              example: d
+            image_front_small_url:
+              type: string
+              format: uri
+              example: "https://images.openfoodfacts.org/images/products/.../front_en.small.jpg"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
