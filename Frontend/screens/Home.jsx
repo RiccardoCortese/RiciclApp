@@ -264,8 +264,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [selectedCenter, setSelectedCenter] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
   const [avatarUri, setAvatarUri] = useState(null);
@@ -296,26 +298,36 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const handleSearch = async () => {
-    const q = searchQuery.trim();
-    if (!q) return;
-    setSearching(true);
-    setSearchResults([]);
-    try {
-      const res = await axios.get(`${API_URL}/osm/search?q=${encodeURIComponent(q)}&limit=5`);
-      const data = await res.data;
-      setSearchResults(Array.isArray(data) ? data : []);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
+  const handleQueryChange = (text) => {
+    setSearchQuery(text);
+    setSelectedCenter(null);
+    setSearchError(false);
+    const q = text.trim().toLowerCase();
+    if (!q) { setSearchResults([]); return; }
+    const matches = centers
+      .filter(c => c.name.toLowerCase().includes(q))
+      .slice(0, 5);
+    setSearchResults(matches);
   };
 
-  const selectResult = (result) => {
-    setMapCenter([parseFloat(result.lat), parseFloat(result.lon)]);
-    setSearchQuery(result.display_name);
+  const selectCenter = (center) => {
+    setSearchQuery(center.name);
+    setSelectedCenter(center);
     setSearchResults([]);
+  };
+
+  const handleSearch = () => {
+    setSearchResults([]);
+    setSearchError(false);
+    const target = selectedCenter || centers.find(
+      c => c.name.toLowerCase() === searchQuery.trim().toLowerCase()
+    );
+    if (target?.coordinates) {
+      setMapCenter([target.coordinates.lat, target.coordinates.lng]);
+    } else {
+      setSearchError(true);
+      setTimeout(() => setSearchError(false), 2500);
+    }
   };
 
   return (
@@ -337,30 +349,40 @@ export default function HomeScreen() {
       {/* ── Search Bar ── */}
       <View style={[styles.searchBarWrapper, { zIndex: 10 }]} pointerEvents="box-none">
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <TouchableOpacity onPress={handleSearch} activeOpacity={0.7}>
+            <Text style={styles.searchIcon}>🔍</Text>
+          </TouchableOpacity>
           <TextInput
             style={styles.searchInput}
             placeholder="Cerca una location..."
             placeholderTextColor="#9999"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleQueryChange}
             onSubmitEditing={handleSearch}
             returnKeyType="search"
           />
-          {searching && <ActivityIndicator size="small" color="#009933" style={{ marginLeft: 8 }} />}
         </View>
+
+        {searchError && (
+          <View style={styles.searchErrorBox}>
+            <Text style={styles.searchErrorText}>Location not found</Text>
+          </View>
+        )}
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
-            {searchResults.map((result, i) => (
+            {searchResults.map((center, i) => (
               <TouchableOpacity
-                key={i}
+                key={center._id ?? i}
                 style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => selectResult(result)}
+                onPress={() => selectCenter(center)}
               >
                 <Text style={styles.resultIcon}>📍</Text>
-                <Text style={styles.resultText} numberOfLines={2}>{result.display_name}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resultText} numberOfLines={1}>{center.name}</Text>
+                  {center.address ? <Text style={styles.resultSubText} numberOfLines={1}>{center.address}</Text> : null}
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -535,6 +557,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 8,
   },
+  searchErrorBox: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#d32f2f',
+    borderRadius: 10,
+    marginTop: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  searchErrorText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   searchInput: {
     flex: 1,
     fontSize: 15,
@@ -569,9 +606,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   resultText: {
-    flex: 1,
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
+  },
+  resultSubText: {
+    fontSize: 12,
+    color: '#888',
+    lineHeight: 16,
   },
 });

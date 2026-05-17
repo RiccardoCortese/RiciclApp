@@ -498,6 +498,7 @@ export default function ProfileScreen() {
         style={styles.logoutButton}
         onPress={async () => {
           await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("profileAvatarUri");
           router.push("/auth/login");
         }}
       >
