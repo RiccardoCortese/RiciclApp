@@ -25,11 +25,13 @@ export default function Login() {
     // Salvo token e utente nel dispositivo
     await AsyncStorage.setItem("token", token);
     await AsyncStorage.setItem("user", JSON.stringify(user));
+    await AsyncStorage.setItem("userRole", user.role); // Salvo anche il ruolo per il redirect
+
     alert("Successo", "Login effettuato!");
     console.log("TOKEN:", token);
     console.log("USER:", user);
     
-    router.push('/'); // Torna alla home page
+    router.replace('/'); // Torna alla home page
 
   } catch (error) {
     if (axios.isAxiosError(error)) {
