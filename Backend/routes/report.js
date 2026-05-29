@@ -1,7 +1,7 @@
 const expess = require('express');
 const router = expess.Router();
 const Report = require('../models/reports');
-const Bin = require('../models/bins');
+const Bin = require('../models/bin');
 
 //POST per creare un nuovo report
 router.post('/create', async (req, res) => {

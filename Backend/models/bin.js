@@ -42,4 +42,4 @@ const binSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Bin", binSchema);
+module.exports = mongoose.models.Bin || mongoose.model("Bin", binSchema);

@@ -38,6 +38,9 @@ app.use('/api/zx', require('./routes/ZX_API'));
 // Rotta per i centri di raccolta
 app.use('/api/centers', require('./routes/center'));
 
+// Rotta per le segnalazioni sui bidoni
+app.use('/api/report', require('./routes/report'));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server in esecuzione sulla porta ${PORT}`));
 
