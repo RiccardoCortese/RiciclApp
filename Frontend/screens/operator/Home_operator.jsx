@@ -213,7 +213,14 @@ export default function HomeOperatorScreen() {
   const [centers,        setCenters]        = useState([]);
   const [avatarUri,      setAvatarUri]      = useState(null);
 
-  const [showInfoCard, setShowInfoCard] = useState(false);
+  const [showInfoCard,      setShowInfoCard]      = useState(false);
+  const [segnalazioniOpen, setSegnalazioniOpen] = useState(false);
+
+  const segnalazioni = [
+    { id: '1', label: 'Bidone pieno — Via Roma 12' },
+    { id: '2', label: 'Raccolta mancata — Via Verdi 5' },
+    { id: '3', label: 'Contenitore danneggiato — Piazza Duomo' },
+  ];
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -325,6 +332,35 @@ export default function HomeOperatorScreen() {
             ))}
           </View>
         )}
+
+        {/* ── Segnalazioni dropdown ── */}
+        <View style={styles.segnalazioniPanel}>
+          <TouchableOpacity
+            style={styles.segnalazioniHeader}
+            activeOpacity={0.75}
+            onPress={() => setSegnalazioniOpen(v => !v)}
+          >
+            <Text style={styles.segnalazioniTitle}>Segnalazioni</Text>
+            <Text style={styles.segnalazioniArrow}>
+              {segnalazioniOpen ? '▲' : '▼'}
+            </Text>
+          </TouchableOpacity>
+
+          {segnalazioniOpen && (
+            <View style={styles.segnalazioniList}>
+              {segnalazioni.map(s => (
+                <TouchableOpacity
+                  key={s.id}
+                  style={styles.segnalazioneButton}
+                  activeOpacity={0.8}
+                  onPress={() => {}}
+                >
+                  <Text style={styles.segnalazioneText}>{s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
 
       {/* ── Button bar ── */}
@@ -460,4 +496,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 3,
     fontSize: 13, fontWeight: '700',
   },
+
+  // Segnalazioni
+  segnalazioniPanel: {
+    width: '100%', maxWidth: 480, marginTop: 10,
+    backgroundColor: PRIMARY, borderRadius: 16, borderWidth: 2.5, borderColor: PRIMARY,
+    overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 8, elevation: 10,
+  },
+  segnalazioniHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 18, paddingVertical: 12,
+  },
+  segnalazioniTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  segnalazioniArrow: { fontSize: 14, color: '#fff', fontWeight: '700' },
+  segnalazioniList:  { paddingHorizontal: 14, paddingBottom: 14, gap: 8 },
+  segnalazioneButton: {
+    backgroundColor: '#fff', borderRadius: 20, borderWidth: 2, borderColor: PRIMARY,
+    paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 4, elevation: 3,
+  },
+  segnalazioneText: { color: PRIMARY, fontSize: 14, fontWeight: '600' },
 });
