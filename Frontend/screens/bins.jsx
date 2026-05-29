@@ -95,12 +95,11 @@ export default function BinScreen({ centerId, onBack }) {
     try {
       const response = await axios.post(`${API_URL}/report/create`, {
         userId,
-        binId: selectedBin._id, // Spediamo l'ID unico del bidone specifico
-        description: description.trim()
+        binId: selectedBin._id, // l'ID unico del bidone specifico
+        description: description.trim() // Rimuove spazi extra all'inizio e alla fine della descrizione
       });
 
       if (response.data.success) {
-        alert("La segnalazione è stata inviata con successo.");
         setModalVisible(false);
         setDescription('');
         
@@ -111,6 +110,16 @@ export default function BinScreen({ centerId, onBack }) {
           );
           return { ...prevCenter, bins: updatedBins };
         });
+
+        setLoading(true); // Ricarica i dati del centro per ottenere lo stato aggiornato dei bidoni
+
+        const centerRes = await axios.get(`${API_URL}/centers/${centerId}`);
+        setCenter(centerRes.data);
+        setLoading(false);
+
+        setTimeout(() => {
+          alert("La segnalazione è stata inviata e lo stato del bidone è stato aggiornato.");
+        }, 300); // Un piccolissimo delay evita conflitti grafici con la chiusura del modal
       }
     } catch (error) {
       console.error("Errore invio report:", error);
