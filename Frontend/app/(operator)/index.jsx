@@ -1,4 +1,4 @@
-import OperatorScreen from '../../screens/OperatorDashboard';
+import HomeOperatorScreen from '../../screens/operator/Home_operator';
 export default function Page() {
-  return <OperatorScreen />;
+  return <HomeOperatorScreen />;
 }
