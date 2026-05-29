@@ -1,4 +1,4 @@
-import InfoScreen from '../screens/informations';
+import InfoScreen from '../screens/citizen/informations';
 export default function Page() {
   return <InfoScreen />;
 }
