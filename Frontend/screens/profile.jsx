@@ -10,8 +10,25 @@ import * as FileSystem from "expo-file-system";
 
 const DEFAULT_AVATAR = require("../src/assets/Profile_image/User_image.png");
 
+const ROLE_COLOR = {
+  admin:    '#C0174D', // amaranth
+  operator: '#0097A7', // cyan
+  user:     '#009933', // green (default)
+};
+
+function usePrimaryColor() {
+  const [color, setColor] = useState('#009933');
+  useEffect(() => {
+    AsyncStorage.getItem('userRole').then((role) => {
+      setColor(ROLE_COLOR[role] ?? '#009933');
+    });
+  }, []);
+  return color;
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
+  const PRIMARY = usePrimaryColor();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("");
@@ -294,9 +311,9 @@ export default function ProfileScreen() {
   return (
 
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: PRIMARY }]}>
       <Text style={styles.headerTitle}>Profilo Utente</Text>
-      
+
       <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
             <Text style={styles.closeButtonText}>✕</Text>
         </TouchableOpacity>
@@ -308,21 +325,21 @@ export default function ProfileScreen() {
           <View style={styles.avatarSection}>
             <Image
               source={avatarUri ? { uri: avatarUri } : DEFAULT_AVATAR}
-              style={styles.avatarImage}
+              style={[styles.avatarImage, { borderColor: PRIMARY }]}
             />
-            <TouchableOpacity style={styles.changeButton} onPress={handleChangeAvatar}>
-              <Text style={styles.changeButtonText}>Cambia foto profilo</Text>
+            <TouchableOpacity style={[styles.changeButton, { backgroundColor: `${PRIMARY}18` }]} onPress={handleChangeAvatar}>
+              <Text style={[styles.changeButtonText, { color: PRIMARY }]}>Cambia foto profilo</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.label}>Username</Text>
+          <Text style={[styles.label, { color: PRIMARY }]}>Username</Text>
           <Text style={styles.value}>{user.name}</Text>
 
           <TouchableOpacity
-            style={styles.changeButton}
+            style={[styles.changeButton, { backgroundColor: `${PRIMARY}18` }]}
             onPress={() => setShowUsernameForm(!showUsernameForm)}
           >
-            <Text style={styles.changeButtonText}>
+            <Text style={[styles.changeButtonText, { color: PRIMARY }]}>
               {showUsernameForm ? "Annulla" : "Cambia username"}
             </Text>
           </TouchableOpacity>
@@ -337,7 +354,7 @@ export default function ProfileScreen() {
               />
 
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: PRIMARY }]}
                 onPress={handleUpdateUsername}
                 disabled={savingUsername}
               >
@@ -349,10 +366,10 @@ export default function ProfileScreen() {
           )}
 
           <TouchableOpacity
-            style={styles.changeButton}
+            style={[styles.changeButton, { backgroundColor: `${PRIMARY}18` }]}
             onPress={() => setShowPasswordForm(!showPasswordForm)}
           >
-            <Text style={styles.changeButtonText}>
+            <Text style={[styles.changeButtonText, { color: PRIMARY }]}>
               {showPasswordForm ? "Annulla" : "Cambia password"}
             </Text>
           </TouchableOpacity>
@@ -400,7 +417,7 @@ export default function ProfileScreen() {
               </View>
 
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: PRIMARY }]}
                 onPress={handleUpdatePassword}
                 disabled={savingPassword}
               >
@@ -412,7 +429,7 @@ export default function ProfileScreen() {
           )}
 
           <TouchableOpacity
-            style={styles.changeButton}
+            style={[styles.changeButton, { backgroundColor: `${PRIMARY}18` }]}
             onPress={() => {
               if (showResetPasswordForm) {
                 setShowResetPasswordForm(false);
@@ -425,7 +442,7 @@ export default function ProfileScreen() {
             }}
             disabled={sendingResetCode}
           >
-            <Text style={styles.changeButtonText}>
+            <Text style={[styles.changeButtonText, { color: PRIMARY }]}>
               {sendingResetCode ? "Invio codice..." : showResetPasswordForm ? "Annulla" : "Reimposta password"}
             </Text>
           </TouchableOpacity>
@@ -468,7 +485,7 @@ export default function ProfileScreen() {
               />
 
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: PRIMARY }]}
                 onPress={handleResetPassword}
                 disabled={savingResetPassword}
               >
@@ -479,13 +496,13 @@ export default function ProfileScreen() {
             </>
           )}
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={[styles.label, { color: PRIMARY }]}>Email</Text>
           <Text style={styles.value}>{user.email}</Text>
 
-          <Text style={styles.label}>Ruolo</Text>
+          <Text style={[styles.label, { color: PRIMARY }]}>Ruolo</Text>
           <Text style={styles.value}>{user.role}</Text>
 
-          <Text style={styles.label}>Punti</Text>
+          <Text style={[styles.label, { color: PRIMARY }]}>Punti</Text>
           <Text style={styles.value}>{user.points}</Text>
 
         </View>
@@ -493,9 +510,9 @@ export default function ProfileScreen() {
         <Text style={styles.value}>Nessun dato utente disponibile.</Text>
       )}
 
-      
+
       <TouchableOpacity
-        style={styles.logoutButton}
+        style={[styles.logoutButton, { backgroundColor: PRIMARY }]}
         onPress={async () => {
           await AsyncStorage.removeItem("token");
           await AsyncStorage.removeItem("profileAvatarUri");
@@ -525,7 +542,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: '#009933',
+    backgroundColor: 'transparent', // overridden inline per role
     paddingTop: Platform.OS === 'web' ? 20 : 50,
     paddingBottom: 18,
     paddingHorizontal: 20,
@@ -570,7 +587,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#2e7d32",
     marginTop: 10,
   },
   value: {
@@ -590,7 +606,7 @@ const styles = StyleSheet.create({
   },
 
   saveButton: {
-    backgroundColor: "#009933",
+    backgroundColor: 'transparent', // overridden inline per role
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
@@ -603,7 +619,7 @@ const styles = StyleSheet.create({
   },
 
   changeButton: {
-    backgroundColor: "#e8f5e9",
+    backgroundColor: 'transparent', // overridden inline per role
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
@@ -612,13 +628,13 @@ const styles = StyleSheet.create({
   },
 
   changeButtonText: {
-    color: "#009933",
+    color: 'transparent', // overridden inline per role
     fontWeight: "700",
   },
 
   logoutButton: {
     marginTop: 30,
-    backgroundColor: "#009933",
+    backgroundColor: 'transparent', // overridden inline per role
     padding: 10,
     borderRadius: 5,
     alignItems: "center",
@@ -656,7 +672,6 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     borderWidth: 3,
-    borderColor: "#009933",
     marginBottom: 8,
   },
 
