@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert, Image, Platform, StyleSheet,
+  Alert, Dimensions, Image, Platform, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +16,9 @@ import UserDefault from '../../src/assets/Profile_image/User_image.png';
 
 // ── Brand color ──────────────────────────────────────────────────────────────
 const PRIMARY = '#C0174D'; // amaranth
+
+// Half viewport height minus top/bottom margins used by the two menus
+const MENU_MAX_HEIGHT = Dimensions.get('window').height / 2 - 69;
 
 const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 };
 const DEFAULT_ZOOM   = 14;
@@ -120,6 +123,12 @@ export default function HomeAdminScreen() {
   const [centers,        setCenters]        = useState([]);
   const [avatarUri,      setAvatarUri]      = useState(null);
 
+  // Dropdown menus
+  const [operatorsOpen, setOperatorsOpen] = useState(true);
+  const [citizensOpen,  setCitizensOpen]  = useState(true);
+  const [operators,     setOperators]     = useState([]);
+  const [citizens,      setCitizens]      = useState([]);
+
   // Card visibility
   const [showInfoCard, setShowInfoCard] = useState(false); // logo / version card
 
@@ -130,6 +139,17 @@ export default function HomeAdminScreen() {
     axios.get(`${API_URL}/centers/all`)
       .then(r => setCenters(Array.isArray(r.data) ? r.data : []))
       .catch(() => setCenters([]));
+
+    // Fetch operators and citizens lists (admin-only endpoints)
+    AsyncStorage.getItem('token').then(token => {
+      const auth = { headers: { Authorization: `Bearer ${token}` } };
+      axios.get(`${API_URL}/admin/users?role=operator`, auth)
+        .then(r => setOperators(Array.isArray(r.data) ? r.data : []))
+        .catch(() => setOperators([]));
+      axios.get(`${API_URL}/admin/users?role=user`, auth)
+        .then(r => setCitizens(Array.isArray(r.data) ? r.data : []))
+        .catch(() => setCitizens([]));
+    });
   }, []);
 
   useFocusEffect(
@@ -250,6 +270,61 @@ export default function HomeAdminScreen() {
             <Image source={WorkImg} style={styles.sideButtonIcon} />
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* ── Right panels: Operators + Citizens stacked ── */}
+      <View style={styles.rightPanels}>
+
+        {/* Operators */}
+        <View style={styles.dropdownCard}>
+          <View style={styles.dropdownHeader}>
+            <Text style={styles.dropdownTitle}>Operators</Text>
+            <TouchableOpacity
+              onPress={() => setOperatorsOpen(v => !v)}
+              style={styles.dropdownArrowBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dropdownArrow}>{operatorsOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+          </View>
+          {operatorsOpen && (
+            <ScrollView style={styles.dropdownContent} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {operators.length === 0 ? (
+                <Text style={styles.dropdownEmpty}>_ no operators found</Text>
+              ) : operators.map((op, i) => (
+                <Text key={op._id ?? i} style={styles.dropdownItem}>
+                  {'◆  '}{op.name ?? op.username ?? op.email ?? '—'}
+                </Text>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Citizens — sits directly below Operators, follows it */}
+        <View style={styles.dropdownCard}>
+          <View style={styles.dropdownHeader}>
+            <Text style={styles.dropdownTitle}>Citizens</Text>
+            <TouchableOpacity
+              onPress={() => setCitizensOpen(v => !v)}
+              style={styles.dropdownArrowBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.dropdownArrow}>{citizensOpen ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+          </View>
+          {citizensOpen && (
+            <ScrollView style={styles.dropdownContent} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+              {citizens.length === 0 ? (
+                <Text style={styles.dropdownEmpty}>_ no citizens found</Text>
+              ) : citizens.map((c, i) => (
+                <Text key={c._id ?? i} style={styles.dropdownItem}>
+                  {'◆  '}{c.name ?? c.username ?? c.email ?? '—'}
+                </Text>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
       </View>
 
       {/* ── Button bar ── */}
@@ -405,6 +480,72 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, marginHorizontal: 20,
   },
   buttonIcon: { width: 100, height: 100, resizeMode: 'contain' },
+
+  // ── Dropdown menus ────────────────────────────────────────────────────────────
+  rightPanels: {
+    position: 'absolute',
+    top: 64,
+    right: 64,
+    width: 300,
+    zIndex: 15,
+    flexDirection: 'column',
+    gap: 8,
+  },
+  dropdownCard: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+  dropdownHeader: {
+    backgroundColor: PRIMARY,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  dropdownTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  dropdownArrowBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  dropdownArrow: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dropdownContent: {
+    backgroundColor: 'rgba(15, 15, 15, 0.88)',
+    maxHeight: MENU_MAX_HEIGHT - 46, // subtract header height
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  dropdownItem: {
+    color: '#FFD700',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier New',
+    fontSize: 13,
+    lineHeight: 24,
+    letterSpacing: 0.2,
+  },
+  dropdownEmpty: {
+    color: 'rgba(255, 215, 0, 0.5)',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier New',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 10,
+  },
 
   // Popup cards
   popupCard: {
