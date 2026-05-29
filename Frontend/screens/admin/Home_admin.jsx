@@ -238,6 +238,20 @@ export default function HomeAdminScreen() {
         )}
       </View>
 
+      {/* ── Left vertical tool bar ── */}
+      <View style={[styles.sideBar, { zIndex: 10 }]}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <TouchableOpacity
+            key={i}
+            style={styles.sideButton}
+            activeOpacity={0.85}
+            onPress={() => {}}
+          >
+            <Image source={WorkImg} style={styles.sideButtonIcon} />
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* ── Button bar ── */}
       <View style={[styles.buttonBar, { zIndex: 10 }]} pointerEvents="box-none">
 
@@ -335,6 +349,46 @@ const styles = StyleSheet.create({
   resultIcon: { fontSize: 16 },
   resultText: { fontSize: 14, color: '#333', lineHeight: 20 },
   resultSubText: { fontSize: 12, color: '#888', lineHeight: 16 },
+
+  // Left vertical tool bar
+  sideBar: {
+    position: 'absolute',
+    left: 64,
+    top: 64,
+    bottom: 64,
+    backgroundColor: '#444',
+    borderRadius: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  sideButton: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#fff',
+    borderWidth: 5,
+    borderColor: PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  sideButtonIcon: {
+    width: 100,
+    height: 100,
+    resizeMode: 'contain',
+  },
 
   // Button bar
   buttonBar: {
