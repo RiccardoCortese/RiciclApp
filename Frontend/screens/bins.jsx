@@ -79,13 +79,6 @@ export default function BinScreen({ centerId, onBack }) {
     setSending(true);
     setErrorMessage('');
 
-    // controllo di sicurezza: se per qualche motivo userId o selectedBin non sono settati, l'invio non procede
-    if (!userId || !selectedBin) {
-      setErrorMessage("Dati utente o bidone non validi. Riprova.");
-      setSending(false);
-      return;
-    }
-
     try {
       const response = await axios.post(`${API_URL}/report/create`, {
         userId,
@@ -104,7 +97,7 @@ export default function BinScreen({ centerId, onBack }) {
         // Aggiornamento immediato dello stato del bidone in UI (solo lato client, per feedback istantaneo)
         if (center && center.bins) {
           const updatedBins = center.bins.map(b => 
-            b._id === selectedBin._id ? { ...b, status: 'MANUTENZIONE' } : b 
+            b._id === selectedBin._id ? { ...b, status: 'SEGNALATO' } : b 
           );
           
           // Spread operator per creare un oggetto totalmente nuovo, forzando React Web a ridisegnare la pagina
@@ -182,6 +175,9 @@ export default function BinScreen({ centerId, onBack }) {
         binsList.map((bin, index) => {
           const isAlmostFull = bin.fillLevel > 80;
           const isInMaintenance = bin.status === 'MANUTENZIONE';
+          const isReported = bin.status === 'SEGNALATO';
+          const isButtonDisabled = isInMaintenance || isReported; // Disabilita se è in manutenzione o già segnalato
+
           const formattedWasteType = bin.wasteType 
             ? bin.wasteType.charAt(0).toUpperCase() + bin.wasteType.slice(1) 
             : 'Rifiuto';
@@ -190,10 +186,16 @@ export default function BinScreen({ centerId, onBack }) {
             <View key={bin._id || index} style={styles.binRow}>
               <View style={styles.binInfoText}>
                 <Text style={styles.binType}>{formattedWasteType} ({bin.binCode || 'Codice non disponibile'})</Text>
-                <Text style={[styles.binPercentage, { color: isInMaintenance ? '#777' : (isAlmostFull ? '#cc0000' : '#555') }]}>
-                  {isInMaintenance ? '🔧 In Manutenzione' : `${bin.fillLevel}% ${isAlmostFull ? '⚠️ Quasi Pieno' : ''}`}
+                
+                {/* Il testo sopra la barra cambia in base allo stato */}
+                <Text style={[styles.binPercentage, { color: isInMaintenance ? '#777' : (isReported ? '#ff9800' : (isAlmostFull ? '#cc0000' : '#555')) }]}>
+                  {isInMaintenance 
+                    ? '🔧 In Manutenzione' 
+                    : (isReported ? '⚠️ Segnalato' : `${bin.fillLevel}% ${isAlmostFull ? '⚠️ Quasi Pieno' : ''}`)}
                 </Text>
               </View>
+
+              {/* Barra di avanzamento: diventa grigia SOLO se è in MANUTENZIONE */}
               <View style={styles.progressBarBackground}>
                 <View style={[
                   styles.progressBarFill, 
@@ -204,13 +206,18 @@ export default function BinScreen({ centerId, onBack }) {
                 ]} />
               </View>
 
+              {/* Pulsante di Segnalazione dinamico */}
               <TouchableOpacity
-                style={[styles.actionReportButton, isInMaintenance && styles.disabledReportButton]}
+                style={[
+                  styles.actionReportButton, 
+                  isButtonDisabled && styles.disabledReportButton,
+                  isReported && styles.reportedReportButton // Colore giallo/arancio tenue se segnalato
+                ]}
                 onPress={() => openReportModal(bin)}
-                disabled={isInMaintenance}
+                disabled={isButtonDisabled}
               >
-                <Text style={styles.actionReportButtonText}>
-                  {isInMaintenance ? '🔧 In Riparazione' : '⚠️ Segnala'}
+                <Text style={[styles.actionReportButtonText, isButtonDisabled && styles.disabledReportButtonText]}>
+                  {isInMaintenance ? '🔧 In Riparazione' : (isReported ? '⚠️ Segnalato' : '⚠️ Segnala Guasto')}
                 </Text>
               </TouchableOpacity>
             </View>

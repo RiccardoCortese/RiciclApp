@@ -27,7 +27,7 @@ router.post('/create', async (req, res) => {
         await report.save();
         
         //metto il bidone in manutenzione
-        await Bin.findByIdAndUpdate(binId, { status: 'MANUTENZIONE' });
+        await Bin.findByIdAndUpdate(binId, { status: 'SEGNALATO' });
         res.status(201).json({ message: 'Report creato con successo', report });
     } catch (error) {
         res.status(500).json({message: 'Errore interno del server durante la creazione del report' });

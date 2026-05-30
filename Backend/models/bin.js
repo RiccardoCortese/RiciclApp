@@ -23,7 +23,7 @@ const binSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["OK", "MANUTENZIONE", "PIENO"],
+      enum: ["OK", "MANUTENZIONE", "PIENO", "SEGNALATO"],
       default: "OK",
     },
     centerId: {
