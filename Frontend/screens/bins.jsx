@@ -11,13 +11,16 @@ export default function BinScreen({ centerId, onBack }) {
   const router = useRouter();
   const navigation = useNavigation();
 
-  //per la segnalazione
+  // Stati per la segnalazione
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedBin, setSelectedBin] = useState(null);
   const [description, setDescription] = useState('');
   const [userId, setUserId] = useState(null);
   const [sending, setSending] = useState(false);
   
+  // Stati per i messaggi di feedback cross-platform
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false); 
 
   useEffect(() => {
     if (!centerId || centerId === 'undefined') {
@@ -26,106 +29,117 @@ export default function BinScreen({ centerId, onBack }) {
       return;
     }
 
-
     setLoading(true);
-
-    // Chiamata al backend per ottenere i dati del centro e dei suoi bidoni
     axios.get(`${API_URL}/centers/${centerId}`)
-    .then(centerRes => {
-      setCenter(centerRes.data);
-    })
-    .catch(err => {
-      console.error("Errore nel recupero dei dati del centro:", err);
-    })
-    .finally(() => setLoading(false));
+      .then(centerRes => { setCenter(centerRes.data); })
+      .catch(err => { console.error("Errore nel recupero dei dati del centro:", err); })
+      .finally(() => setLoading(false));
   }, [centerId]);
 
-  
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // per estrarre l'id dell'utente dallo storage e salvarlo nello stato per poterlo usare nella segnalazione
         const storedUser = await AsyncStorage.getItem('user');
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
-          const extractedId = parsed.id || parsed._id;
-          setUserId(extractedId);
-          console.log("BinScreen - UserId aggiornato con successo:", extractedId);
+          setUserId(parsed.id || parsed._id);
         } else {
           setUserId(null);
-          console.log("BinScreen - Nessun utente registrato (Ospite)");
         }
       } catch (err) {
-        console.error("Errore nel recupero dell'utente:", err);
         setUserId(null);
       }
     };
 
-    // Esegue il controllo al primo avvio del componente
+    // Carichiamo l'utente all'avvio
     fetchUser();
-
-    // Controlla lo storage ogni volta che l'utente torna su questa schermata!
-    const unsubscribe = navigation.addListener('focus', () => {
-      fetchUser();
-    });
-
-    return unsubscribe; // Pulisce l'evento quando il componente si smonta
+    const unsubscribe = navigation.addListener('focus', () => { fetchUser(); });
+    return unsubscribe;
   }, [navigation]);      
 
-  // Funzione per aprire il modal di segnalazione
   const openReportModal = (bin) => {
     if (!userId) {
-      alert("Accesso richiesto", "Devi effettuare il login per poter segnalare un guasto.");
-      router.replace('/auth/login'); // Reindirizza alla pagina di login se l'utente non è autenticato
+      alert("Devi effettuare il login per poter segnalare un guasto.");
+      router.replace('/auth/login');
       return;
     }
+    setErrorMessage('');
+    setIsSuccess(false);
     setSelectedBin(bin);
     setModalVisible(true);
   };
 
-  // Funzione per inviare la segnalazione al backend
+  // Funzione per inviare la segnalazione al server e aggiornare lo stato del bidone 
   const submitReport = async () => {
-    if (!description.trim()) { // Controllo per assicurarsi che la descrizione non sia vuota o solo spazi
-      alert("Inserisci una descrizione del problema per aiutare l'operatore.");
+    if (!description.trim()) { // se la descrizione è vuota o solo spazi
+      setErrorMessage("Inserisci una descrizione del problema.");
       return;
     }
 
     setSending(true);
+    setErrorMessage('');
+
+    // controllo di sicurezza: se per qualche motivo userId o selectedBin non sono settati, l'invio non procede
+    if (!userId || !selectedBin) {
+      setErrorMessage("Dati utente o bidone non validi. Riprova.");
+      setSending(false);
+      return;
+    }
 
     try {
       const response = await axios.post(`${API_URL}/report/create`, {
         userId,
-        binId: selectedBin._id, // l'ID unico del bidone specifico
-        description: description.trim() // Rimuove spazi extra all'inizio e alla fine della descrizione
+        binId: selectedBin._id, 
+        description: description.trim() 
       });
 
-      if (response.data.success) {
-        setModalVisible(false);
-        setDescription('');
+      console.log("Risposta server:", response);
+
+      // Se la segnalazione è stata accettata
+      if (response.status === 200 || response.status === 201 || response.data.success) {
         
-        // Aggiorna localmente lo stato del bidone per mostrare subito il cambio all'utente
-        setCenter(prevCenter => {
-          const updatedBins = prevCenter.bins.map(b => 
-            b._id === selectedBin._id ? { ...b, status: 'MANUTENZIONE' } : b // Aggiornamento bidone specifico usando l'ID unico
+        // Svuotalre il campo di descrizione per la prossima segnalazione
+        setDescription('');
+
+        // Aggiornamento immediato dello stato del bidone in UI (solo lato client, per feedback istantaneo)
+        if (center && center.bins) {
+          const updatedBins = center.bins.map(b => 
+            b._id === selectedBin._id ? { ...b, status: 'MANUTENZIONE' } : b 
           );
-          return { ...prevCenter, bins: updatedBins };
-        });
+          
+          // Spread operator per creare un oggetto totalmente nuovo, forzando React Web a ridisegnare la pagina
+          setCenter({ ...center, bins: updatedBins });
+        }
 
-        setLoading(true); // Ricarica i dati del centro per ottenere lo stato aggiornato dei bidoni
+        // Schermata di successo cross-platform (sostituisce l'Alert)
+        setIsSuccess(true);
 
-        const centerRes = await axios.get(`${API_URL}/centers/${centerId}`);
-        setCenter(centerRes.data);
-        setLoading(false);
+        // Sincronizzazione con il server: dopo aver mostrato il feedback, facciamo una richiesta per aggiornare i dati del centro  (manutenzione, stato dei bidoni, ecc.)
+        try {
+          const centerRes = await axios.get(`${API_URL}/centers/${centerId}`);
+          setCenter(centerRes.data);
+        } catch (refreshErr) {
+          console.error("Errore refresh:", refreshErr);
+        }
 
-        setTimeout(() => {
-          alert("La segnalazione è stata inviata e lo stato del bidone è stato aggiornato.");
-        }, 300); // Un piccolissimo delay evita conflitti grafici con la chiusura del modal
+      } else {
+        setErrorMessage("Il server ha risposto ma non ha salvato la segnalazione.");
       }
+
     } catch (error) {
-      console.error("Errore invio report:", error);
+      console.error("Errore invio:", error);
+      setErrorMessage("Errore di connessione con il server.");
     } finally {
       setSending(false);
     }
+  };
+
+  // Funzione per chiudere il modal e resettare gli stati di feedback
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setIsSuccess(false);
+    setErrorMessage('');
+    setDescription('');
   };
 
   if (loading) {
@@ -135,7 +149,6 @@ export default function BinScreen({ centerId, onBack }) {
       </View>
     );
   }
-
 
   if (!center) {
     return (
@@ -150,6 +163,8 @@ export default function BinScreen({ centerId, onBack }) {
 
   const binsList = center.bins || [];
 
+  // Visualizzazione bidoni;
+  // Per ogni bidone, mostriamo il tipo di rifiuto, la percentuale di riempimento, e un pulsante per segnalare eventuali problemi (disabilitato se è già in manutenzione)
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <TouchableOpacity style={styles.backButtonInline} onPress={() => router.replace('/')}>
@@ -166,9 +181,7 @@ export default function BinScreen({ centerId, onBack }) {
       {binsList.length > 0 ? (
         binsList.map((bin, index) => {
           const isAlmostFull = bin.fillLevel > 80;
-          const isInMaintenance = bin.status === 'MANUTENZIONE'; // Controllo se il bidone è in manutenzione
-          
-          //formattazione nome 
+          const isInMaintenance = bin.status === 'MANUTENZIONE';
           const formattedWasteType = bin.wasteType 
             ? bin.wasteType.charAt(0).toUpperCase() + bin.wasteType.slice(1) 
             : 'Rifiuto';
@@ -191,7 +204,6 @@ export default function BinScreen({ centerId, onBack }) {
                 ]} />
               </View>
 
-              {/* Tasto per segnalare il guasto */}
               <TouchableOpacity
                 style={[styles.actionReportButton, isInMaintenance && styles.disabledReportButton]}
                 onPress={() => openReportModal(bin)}
@@ -208,44 +220,63 @@ export default function BinScreen({ centerId, onBack }) {
         <Text style={styles.noBinsText}>Nessun bidone monitorato in questo centro.</Text>
       )}
 
-      {/* ── MODAL DI SEGNALAZIONE POPUP ── */}
+      {/* ── MODAL DI SEGNALAZIONE POPUP ADATTATO WEB/MOBILE ── */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={handleCloseModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Segnala guasto: {selectedBin?.wasteType.toUpperCase()} ({selectedBin?.binCode})
-            </Text>
             
-            <TextInput
-              style={styles.textArea}
-              placeholder="Spiega il problema riscontrato (es. sportello bloccato, rifiuto incastrato, danneggiato...)"
-              multiline={true}
-              numberOfLines={4}
-              value={description}
-              onChangeText={setDescription}
-            />
+            {/* INTERFACCIA DI SUCCESSO (Sostituisce l'Alert) */}
+            {isSuccess ? (
+              <View style={styles.successContainer}>
+                <Text style={styles.successIcon}>✅</Text>
+                <Text style={styles.successTitle}>Grazie!</Text>
+                <Text style={styles.successText}>La segnalazione è stata inviata e lo stato del bidone è stato aggiornato.</Text>
+                <TouchableOpacity style={styles.closeModalBtn} onPress={handleCloseModal}>
+                  <Text style={styles.closeModalBtnText}>Chiudi</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              /* INTERFACCIA DI COMPILAZIONE STANDARD */
+              <View>
+                <Text style={styles.modalTitle}>
+                  Segnala guasto: {selectedBin?.wasteType.toUpperCase()} ({selectedBin?.binCode})
+                </Text>
+                
+                {errorMessage ? <Text style={styles.modalErrorText}>⚠️ {errorMessage}</Text> : null}
+                
+                <TextInput
+                  style={styles.textArea}
+                  placeholder="Spiega il problema riscontrato (es. sportello bloccato, danneggiato...)"
+                  multiline={true}
+                  numberOfLines={4}
+                  value={description}
+                  onChangeText={setDescription}
+                />
 
-            <View style={styles.modalButtonsRow}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]} 
-                onPress={() => { setModalVisible(false); setDescription(''); }}
-              >
-                <Text style={styles.cancelButtonText}>Annulla</Text>
-              </TouchableOpacity>
+                <View style={styles.modalButtonsRow}>
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.cancelButton]} 
+                    onPress={handleCloseModal}
+                  >
+                    <Text style={styles.cancelButtonText}>Annulla</Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.confirmButton]} 
-                onPress={submitReport}
-                disabled={sending}
-              >
-                {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmButtonText}>Invia</Text>}
-              </TouchableOpacity>
-            </View>
+                  <TouchableOpacity 
+                    style={[styles.modalButton, styles.confirmButton]} 
+                    onPress={submitReport}
+                    disabled={sending}
+                  >
+                    {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmButtonText}>Invia</Text>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
           </View>
         </View>
       </Modal>
@@ -418,5 +449,37 @@ const styles = StyleSheet.create({
   confirmButtonText: { 
     color: '#fff', 
     fontWeight: '600' 
+  },
+  successContainer: { 
+    alignItems: 'center', 
+    paddingVertical: 10 
+  },
+  successIcon: { 
+    fontSize: 46, 
+    marginBottom: 10 
+  },
+  successTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#333', 
+    marginBottom: 8 
+  },
+  successText: { 
+    fontSize: 14, 
+    color: '#666', 
+    textAlign: 'center', 
+    marginBottom: 20, 
+    lineHeight: 20 
+  },
+  closeModalBtn: { 
+    backgroundColor: '#009933', 
+    paddingVertical: 10, 
+    paddingHorizontal: 30, 
+    borderRadius: 8 
+  },
+  closeModalBtnText: { 
+    color: '#fff', 
+    fontWeight: '600', 
+    fontSize: 15 
   }
 });
