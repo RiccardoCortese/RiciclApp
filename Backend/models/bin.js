@@ -23,7 +23,7 @@ const binSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["OK", "MANUTENZIONE", "PIENO"],
+      enum: ["OK", "MANUTENZIONE", "PIENO", "SEGNALATO"],
       default: "OK",
     },
     centerId: {
@@ -42,4 +42,4 @@ const binSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Bin", binSchema);
+module.exports = mongoose.models.Bin || mongoose.model("Bin", binSchema);

@@ -516,6 +516,7 @@ export default function ProfileScreen() {
         onPress={async () => {
           await AsyncStorage.removeItem("token");
           await AsyncStorage.removeItem("profileAvatarUri");
+          await AsyncStorage.removeItem("user");
           router.push("/auth/login");
         }}
       >
