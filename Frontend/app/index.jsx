@@ -12,7 +12,7 @@ export default function RootIndex() {
         const token = await AsyncStorage.getItem('token');
         const role = await AsyncStorage.getItem('userRole');
 
-        // Se manca il token o il ruolo, l'utente non è loggato -> va al login
+        // Se manca il token o il ruolo, l'utente non è loggato -> vista generica
         if (!token || !role) {
           router.replace('/(user)');
           return;
@@ -24,7 +24,7 @@ export default function RootIndex() {
         } else if (role === 'operator') {
           router.replace('/(operator)');
         } else {
-          router.replace('/(user)');
+          router.replace('/(citizen)');
         }
       } catch (error) {
         console.error("Errore nel redirect iniziale:", error);

@@ -1,4 +1,4 @@
-import AdminScreen from '../../screens/AdminPanel';
+import HomeAdminScreen from '../../screens/admin/Home_admin';
 export default function Page() {
-  return <AdminScreen />;
+  return <HomeAdminScreen />;
 }
