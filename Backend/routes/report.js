@@ -37,19 +37,44 @@ router.post('/create', async (req, res) => {
 //GET per recuperare tutte le segnalazioni (per admin)
 router.get('/all', async (req, res) => {
     try {
-        const reports = await Report.find().populate('userId', 'name email role').populate('binId', 'location status');
-        console.log('Segnalazioni recuperate:', reports);
+        try {
+            const reports = await Report.find()
+                .populate('userId', 'name email role')
+                .populate({
+                    path: 'binId',
+                    select: 'binCode wasteType status centerId',
+                    populate: {
+                        path: 'centerId',
+                        select: 'name'
+                    }
+                });
 
-        // aggiungo nome del bidone a ogni report e tipologia
-        const reportsWithBinInfo = await Promise.all(reports.map(async (report) => {
-            const bin = await Bin.findById(report.binId);
-            return {
-                ...report._doc,
-                binName: bin?.binCode || 'Nome non disponibile',
-                binType: bin?.wasteType || 'Tipologia non disponibile'
-            };
-        }));
-        console.log('Segnalazioni con info del bidone:', reportsWithBinInfo);
+            console.log('Segnalazioni recuperate dal DB:', reports);
+
+            const reportsWithBinInfo = reports.map(report => {
+                const reportData = report._doc || report;
+
+                return {
+                    ...reportData,
+                    binName: reportData.binId?.binCode || 'Nome non disponibile',
+                    binType: reportData.binId?.wasteType || 'Tipologia non disponibile',
+                    binCenter: reportData.binId?.centerId?.name || 'Centro non disponibile'
+                };
+            });
+
+            return res.status(200).json({ success: true, reports: reportsWithBinInfo });
+
+        } catch (error) {
+            console.error('Errore nel controller report/all:', error);
+
+            return res.status(500).json({
+                success: false,
+                message: 'Errore interno del server durante il recupero delle segnalazioni.',
+                error: error.message
+            });
+        }
+
+        
         res.status(200).json({ reports: reportsWithBinInfo });
     } catch (error) {
         res.status(500).json({ message: 'Errore interno del server durante il recupero delle segnalazioni' });
