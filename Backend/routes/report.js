@@ -34,4 +34,15 @@ router.post('/create', async (req, res) => {
     }
 });
 
+//GET per recuperare tutte le segnalazioni (per admin)
+router.get('/all', async (req, res) => {
+    try {
+        const reports = await Report.find().populate('userId', 'name email role').populate('binId', 'location status');
+        res.status(200).json({ reports });
+    } catch (error) {
+        res.status(500).json({ message: 'Errore interno del server durante il recupero delle segnalazioni' });
+    }
+});
+
+
 module.exports = router;
