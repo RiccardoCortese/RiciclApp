@@ -178,6 +178,7 @@ components:
             - OK
             - MANUTENZIONE
             - PIENO
+            - SEGNALATO
           example: OK
           description: Stato operativo del bidone
         centerId:

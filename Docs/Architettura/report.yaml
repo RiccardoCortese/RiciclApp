@@ -1,0 +1,139 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp
+  description: Documentazione delle API per il progetto RiciclApp. In particolare per i reports
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  
+    description: Server Locale (Sviluppo)
+
+paths:
+  /reports/create:
+    post:
+      summary: Crea un nuovo report
+      description: Crea una segnalazione associata a un bidone e imposta lo stato del bidone a "SEGNALATO".
+      tags:
+        - Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - binId
+                - description
+              properties:
+                userId:
+                  type: string
+                  description: ID dell'utente che crea la segnalazione
+                  example: "683a7e4f9b12c8a12345678"
+                binId:
+                  type: string
+                  description: ID del bidone segnalato
+                  example: "683a7e4f9b12c8a87654321"
+                description:
+                  type: string
+                  description: Descrizione del problema
+                  example: "Il bidone è danneggiato e non si chiude."
+      responses:
+        '201':
+          description: Report creato con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Report creato con successo
+                  report:
+                    $ref: '#/components/schemas/Report'
+
+        '400':
+          description: Descrizione mancante o non valida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: La descrizione è obbligatoria
+
+        '404':
+          description: Bidone non trovato
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Bidone non trovato
+
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Errore interno del server durante la creazione del report
+
+
+components:
+  schemas:
+    Report:
+      type: object
+      required:
+        - userId
+        - binId
+        - description
+        - status
+      properties:
+        _id:
+          type: string
+          description: ID univoco del report
+          example: "683a7e4f9b12c8a99999999"
+
+        userId:
+          type: string
+          description: ID dell'utente che ha creato la segnalazione
+          example: "683a7e4f9b12c8a12345678"
+
+        binId:
+          type: string
+          description: ID del bidone segnalato
+          example: "683a7e4f9b12c8a87654321"
+
+        description:
+          type: string
+          description: Descrizione del problema riscontrato
+          example: "Il bidone è danneggiato e non si chiude."
+
+        status:
+          type: string
+          description: Stato della segnalazione
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - RESOLVED
+          example: PENDING
+
+        createdAt:
+          type: string
+          format: date-time
+          description: Data di creazione del report
+          example: "2025-06-01T12:34:56.000Z"
+
+        updatedAt:
+          type: string
+          format: date-time
+          description: Data dell'ultima modifica del report
+          example: "2025-06-01T12:34:56.000Z"
+
