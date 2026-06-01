@@ -12,6 +12,7 @@ import axios from 'axios';
 
 import Logo     from '../../src/assets/Riciclapp_Logo.png';
 import WorkImg  from '../../src/assets/Work_in_progess.png';
+import admin_report from '../../src/assets/admin_report.png';
 import UserDefault from '../../src/assets/Profile_image/User_image.png';
 
 // ── Brand color ──────────────────────────────────────────────────────────────
@@ -191,6 +192,16 @@ export default function HomeAdminScreen() {
     setShowInfoCard(false);
   };
 
+  //button per la side bar a sinistra 
+  const sideButtons = [
+  { id: 0, icon: WorkImg},
+  { id: 1, icon: WorkImg},
+  //  REPORT ADMIN
+  { id: 2, icon: admin_report, label: 'Segnalazioni', onPress: () => router.push('/report_admin') }, 
+  { id: 3, icon: WorkImg},
+  { id: 4, icon: WorkImg},
+];
+
   // ── Mobile fallback ──────────────────────────────────────────────────────────
   if (Platform.OS !== 'web') {
     return (
@@ -260,14 +271,14 @@ export default function HomeAdminScreen() {
 
       {/* ── Left vertical tool bar ── */}
       <View style={[styles.sideBar, { zIndex: 10 }]}>
-        {[0, 1, 2, 3, 4].map((i) => (
+        {sideButtons.map((btn) => (
           <TouchableOpacity
-            key={i}
+            key={btn.id}
             style={styles.sideButton}
             activeOpacity={0.85}
-            onPress={() => {}}
+            onPress={btn.onPress}
           >
-            <Image source={WorkImg} style={styles.sideButtonIcon} />
+            <Image source={btn.icon} style={styles.sideButtonIcon} />
           </TouchableOpacity>
         ))}
       </View>
