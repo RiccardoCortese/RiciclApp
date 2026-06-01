@@ -38,7 +38,19 @@ router.post('/create', async (req, res) => {
 router.get('/all', async (req, res) => {
     try {
         const reports = await Report.find().populate('userId', 'name email role').populate('binId', 'location status');
-        res.status(200).json({ reports });
+        console.log('Segnalazioni recuperate:', reports);
+
+        // aggiungo nome del bidone a ogni report e tipologia
+        const reportsWithBinInfo = await Promise.all(reports.map(async (report) => {
+            const bin = await Bin.findById(report.binId);
+            return {
+                ...report._doc,
+                binName: bin?.binCode || 'Nome non disponibile',
+                binType: bin?.wasteType || 'Tipologia non disponibile'
+            };
+        }));
+        console.log('Segnalazioni con info del bidone:', reportsWithBinInfo);
+        res.status(200).json({ reports: reportsWithBinInfo });
     } catch (error) {
         res.status(500).json({ message: 'Errore interno del server durante il recupero delle segnalazioni' });
     }
