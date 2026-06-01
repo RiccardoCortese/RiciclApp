@@ -81,5 +81,34 @@ router.get('/all', async (req, res) => {
     }
 });
 
+//PUT per aggiornare lo stato di una segnalazione (es. da PENDING a RESOLVED)
+router.put('/update/:reportId', async (req, res) => {
+    try {
+        const { reportId } = req.params;
+        const { status } = req.body;
+
+        const report = await Report.findByIdAndUpdate(reportId, { status }, { new: true });
+
+        if (!report) {
+            return res.status(404).json({ message: 'Report non trovato' });
+        }
+
+        if (status === 'RESOLVED') {
+            await Bin.findByIdAndUpdate(report.binId, { status: 'OK' });
+            await Report.findByIdAndDelete(reportId);
+        } else if (status === 'REJECTED') {
+            await Bin.findByIdAndUpdate(report.binId, { status: 'OK' });
+            await Report.findByIdAndDelete(reportId);
+        } else if (status === 'ACCEPT') {
+            await Bin.findByIdAndUpdate(report.binId, { status: 'MANUTENZIONE' });
+        }
+
+        
+
+        res.status(200).json({ message: 'Stato del report aggiornato con successo', report });
+    } catch (error) {
+        res.status(500).json({ message: 'Errore interno del server durante l\'aggiornamento dello stato del report' });
+    }
+});
 
 module.exports = router;
