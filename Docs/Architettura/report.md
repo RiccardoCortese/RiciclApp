@@ -260,6 +260,7 @@ Salvato nella collection MongoDB `reports`.
 | `PENDING`     | Segnalazione appena creata e in attesa di presa in carico |
 | `IN_PROGRESS` | Segnalazione attualmente in lavorazione                   |
 | `RESOLVED`    | Problema risolto e segnalazione chiusa                    |
+| `REJECTED`    | Segnalazione rifiutata e chiusa                            |
 
 ---
 

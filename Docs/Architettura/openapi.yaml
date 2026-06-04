@@ -717,6 +717,7 @@ components:
             - PENDING
             - IN_PROGRESS
             - RESOLVED
+            - REJECTED
           example: PENDING
 
         createdAt:
