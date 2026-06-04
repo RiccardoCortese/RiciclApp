@@ -4,41 +4,63 @@ const binSchema = new mongoose.Schema(
   {
     binCode: {
       type: String,
-      required: true,
-      unique: true, // Ogni bidone ha un codice univoco (es. BIN001)
+      // Auto-generato lato server se non fornito (vedi routes/admin.js)
+      unique: true,
+      sparse: true, // consente più documenti senza binCode senza violare l'unicità
       trim: true,
     },
+    // Nome leggibile del bidone (es. "Bidone Piazza Duomo")
+    name: {
+      type: String,
+      trim: true,
+    },
+    // Indirizzo testuale (può essere calcolato via reverse geocoding)
+    address: {
+      type: String,
+      trim: true,
+    },
+    // Legacy: singolo tipo di rifiuto. Mantenuto per i bidoni già esistenti.
     wasteType: {
       type: String,
-      required: true,
-      enum: ["carta", "plastica", "vetro", "umido", "indifferenziato", "olio esausto"], 
+      trim: true,
+    },
+    // Nuovo: un bidone può accettare più tipi di rifiuto. Il primo elemento è
+    // il tipo principale. I valori provengono dalle categorie di smaltimento
+    // dei prodotti scansionabili (vedi PACKAGING_DISPOSAL in routes/ZX_API.js).
+    wasteTypes: {
+      type: [String],
+      default: [],
+    },
+    // Posizione sulla mappa per i bidoni piazzati dall'admin.
+    coordinates: {
+      lat: { type: Number },
+      lng: { type: Number },
     },
     fillLevel: {
       type: Number,
-      required: true,
       min: 0,
       max: 100,
       default: 0,
     },
     status: {
       type: String,
-      required: true,
       enum: ["OK", "MANUTENZIONE", "PIENO", "SEGNALATO"],
       default: "OK",
     },
+    // Opzionale: un bidone piazzato liberamente sulla mappa può non appartenere
+    // a un centro di raccolta.
     centerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "CollectionCenter", 
-      required: true,
+      ref: "CollectionCenter",
     },
     sensor: {
-      sensorCode: { type: String, required: true, trim: true },
+      sensorCode: { type: String, trim: true },
       batteryLevel: { type: Number, min: 0, max: 100, default: 100 },
       lastUpdate: { type: Date, default: Date.now },
     },
   },
   {
-    timestamps: true, 
+    timestamps: true,
   }
 );
 
