@@ -160,10 +160,10 @@ export default function BinScreen({ centerId, onBack }) {
   // Per ogni bidone, mostriamo il tipo di rifiuto, la percentuale di riempimento, e un pulsante per segnalare eventuali problemi (disabilitato se è già in manutenzione)
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <TouchableOpacity style={styles.backButtonInline} onPress={() => router.replace('/')}>
+      <TouchableOpacity style={styles.backButtonInline} onPress={() => router.back()}>
         <Text style={styles.backButtonInlineText}>⬅ Torna alla Mappa</Text>
       </TouchableOpacity>
-      
+
 
       <Text style={styles.title}>{center.name}</Text>
       <Text style={styles.subtitle}>{center.address || 'Nessun indirizzo specificato'}</Text>
