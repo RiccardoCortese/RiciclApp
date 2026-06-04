@@ -216,11 +216,7 @@ export default function HomeOperatorScreen() {
   const [showInfoCard,      setShowInfoCard]      = useState(false);
   const [segnalazioniOpen, setSegnalazioniOpen] = useState(false);
 
-  const segnalazioni = [
-    { id: '1', label: 'Bidone pieno — Via Roma 12' },
-    { id: '2', label: 'Raccolta mancata — Via Verdi 5' },
-    { id: '3', label: 'Contenitore danneggiato — Piazza Duomo' },
-  ];
+  const [segnalazioni, setSegnalazioni] = useState([]);
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -234,6 +230,20 @@ export default function HomeOperatorScreen() {
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem('profileAvatarUri').then(uri => setAvatarUri(uri || null));
+
+      // Recupero delle segnalazioni reali filtrate per stato "accept"
+      axios.get(`${API_URL}/report/all`)
+        .then(r => {
+          const allReports = Array.isArray(r.data?.reports) ? r.data.reports : [];
+          // Filtro mantenendo solo quelle con status 'ACCEPT' 
+          console.log("Segnalazioni recuperate:", allReports);
+          const acceptedReports = allReports.filter(s => s.status === 'ACCEPT');
+          setSegnalazioni(acceptedReports);
+        })
+        .catch(err => {
+          console.error("Errore nel recupero delle segnalazioni:", err);
+          setSegnalazioni([]);
+        });
     }, [])
   );
 
@@ -348,16 +358,38 @@ export default function HomeOperatorScreen() {
 
           {segnalazioniOpen && (
             <View style={styles.segnalazioniList}>
-              {segnalazioni.map(s => (
-                <TouchableOpacity
-                  key={s.id}
-                  style={styles.segnalazioneButton}
-                  activeOpacity={0.8}
-                  onPress={() => {}}
-                >
-                  <Text style={styles.segnalazioneText}>{s.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {segnalazioni.length > 0 ? (
+                segnalazioni.map((s, index) => (
+                  <TouchableOpacity
+                    key={s._id || s.id || index}
+                    style={[
+                      styles.segnalazioneButton,
+                      { alignItems: 'flex-start', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 }
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => { }}
+                  >
+                    {/* RIGA 1: Descrizione */}
+                    <Text style={[styles.segnalazioneText, { fontWeight: '700', marginBottom: 4 }]} numberOfLines={2}>
+                      📝 {s.description || 'Segnalazione senza testo'}
+                    </Text>
+
+                    {/* RIGA 2: Bidone */}
+                    <Text style={[styles.segnalazioneText, { fontWeight: '700', marginBottom: 4 }]} numberOfLines={2}>
+                      🗑️{s.binType || 'Bidone non specificato'} ({s.binName || 'N/A'})
+                    </Text>
+
+                    {/* RIGA 3: Centro di Raccolta */}
+                    <Text style={{ color: '#666', fontSize: 12, fontStyle: 'italic' }} numberOfLines={1}>
+                      📍 Presso: {s.binCenter || 'Centro non specificato'}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={{ color: '#fff', fontSize: 13, fontStyle: 'italic', textAlign: 'center', paddingVertical: 4 }}>
+                  Nessuna segnalazione attiva confermata.
+                </Text>
+              )}
             </View>
           )}
         </View>
