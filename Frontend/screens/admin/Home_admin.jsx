@@ -502,32 +502,44 @@ export default function HomeAdminScreen() {
   // Once centers are known, fetch each center's bins and aggregate them by the
   // circoscrizione the center falls into (point-in-polygon on its coordinates).
   useEffect(() => {
-    if (!centers.length) return;
+    if (!centers.length && !adminBins.length) return;
     let cancelled = false;
+
+    // Add one bin's contribution to its zone's running totals
+    const tally = (agg, zone, b) => {
+      if (!zone) return;
+      const z = (agg[zone] ||= { total: 0, damaged: 0, reported: 0, sensors: 0 });
+      z.total += 1;
+      if (isDamaged(b.status))  z.damaged  += 1;
+      if (isReported(b.status)) z.reported += 1;
+      if (b.sensor && Number(b.sensor.batteryLevel) > 0) z.sensors += 1;
+    };
+
     (async () => {
       const agg = {}; // zoneName -> { total, damaged, reported, sensors }
+
+      // Center bins → zone of the center's coordinates
       await Promise.all(centers.map(async (c) => {
-        const lat = Number(c?.coordinates?.lat);
-        const lon = Number(c?.coordinates?.lng);
-        const zone = zoneForCoord(lat, lon);
+        const zone = zoneForCoord(Number(c?.coordinates?.lat), Number(c?.coordinates?.lng));
         if (!zone) return;
         let bins = [];
         try {
           const r = await axios.get(`${API_URL}/centers/${c._id}`);
           bins = Array.isArray(r.data?.bins) ? r.data.bins : [];
         } catch { /* a single center failing must not break the rest */ }
-        const z = (agg[zone] ||= { total: 0, damaged: 0, reported: 0, sensors: 0 });
-        bins.forEach((b) => {
-          z.total += 1;
-          if (isDamaged(b.status))  z.damaged  += 1;
-          if (isReported(b.status)) z.reported += 1;
-          if (b.sensor && Number(b.sensor.batteryLevel) > 0) z.sensors += 1;
-        });
+        bins.forEach((b) => tally(agg, zone, b));
       }));
+
+      // Admin-placed bins → zone of each bin's own coordinates
+      (adminBins || []).forEach((b) => {
+        const zone = zoneForCoord(Number(b?.coordinates?.lat), Number(b?.coordinates?.lng));
+        tally(agg, zone, b);
+      });
+
       if (!cancelled) setBinStatsByZone(agg);
     })();
     return () => { cancelled = true; };
-  }, [centers]);
+  }, [centers, adminBins]);
 
   // Build the full statistics object for a zone. Categories with no data in the
   // project/DB are reported as 0 (never invented); population is the exception.
