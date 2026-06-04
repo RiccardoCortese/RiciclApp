@@ -98,6 +98,7 @@ function zoneForCoord(lat, lon) {
 function WebMap({
   targetCenter, styleUrl, centers, onCenterClick, onZoneRightClick,
   placingMode = false, onPlaceClick, pendingCoord = null, adminBins = [], binColor = '#2E7D32',
+  onBinInfo,
 }) {
   const mapRef       = useRef(null);
   const containerRef = useRef(null);
@@ -108,6 +109,10 @@ function WebMap({
   // Keep the latest right-click callback reachable from the once-only map setup
   const onZoneRightClickRef = useRef(onZoneRightClick);
   useEffect(() => { onZoneRightClickRef.current = onZoneRightClick; }, [onZoneRightClick]);
+
+  // Keep the bin "Informazioni bidoni" callback reachable from popup handlers
+  const onBinInfoRef = useRef(onBinInfo);
+  useEffect(() => { onBinInfoRef.current = onBinInfo; }, [onBinInfo]);
 
   // Keep placing-phase state/callbacks reachable from once-only event handlers
   const placingModeRef  = useRef(placingMode);
@@ -340,13 +345,29 @@ function WebMap({
       const marker = new maplibreInstance.Marker({ color: binColor })
         .setLngLat([lng, lat])
         .addTo(mapRef.current);
+      // Basic-info popup + a clickable "Informazioni bidoni" link that opens the
+      // full detail view (mirrors the centers' "Clicca qui per vedere i bidoni").
       const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(`
-        <div style="font-family:Arial,sans-serif;padding:5px;">
+        <div style="font-family:Arial,sans-serif;padding:5px;min-width:170px;">
           <h3 style="color:${binColor};margin:0 0 4px 0;">${bin.name || 'Bidone'}</h3>
           <p style="margin:0;font-size:12px;color:#666;">${bin.address || ''}</p>
           <p style="margin:4px 0 0 0;font-size:11px;color:${binColor};font-weight:bold;">${types}</p>
+          <p style="margin:8px 0 0 0;font-size:12px;color:${binColor};font-weight:bold;text-decoration:underline;cursor:pointer;" id="bin-info-${bin._id}">🔍 Informazioni bidoni</p>
         </div>`);
+      popup.on('open', () => {
+        setTimeout(() => {
+          const el = document.getElementById(`bin-info-${bin._id}`);
+          if (el) el.onclick = () => onBinInfoRef.current?.(bin);
+        }, 50);
+      });
       marker.setPopup(popup);
+      // Right-clicking the marker shows the basic-info popup
+      const elMarker = marker.getElement();
+      elMarker.style.cursor = 'pointer';
+      elMarker.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        if (!popup.isOpen()) marker.togglePopup();
+      });
       binMarkersRef.current.push(marker);
     });
   }, [adminBins, maplibreInstance, binColor]);
@@ -388,6 +409,179 @@ function WasteDropdown({ value, options, placeholder, onSelect }) {
           </ScrollView>
         </View>
       )}
+    </View>
+  );
+}
+
+// ── Full bin information view (opened from "Informazioni bidoni") ─────────────
+// Admin-selectable statuses: label shown ↔ value stored in the DB
+const ADMIN_STATUS_OPTIONS = [
+  { label: 'Operativo',     value: 'OK' },
+  { label: 'Guasto',        value: 'GUASTO' },
+  { label: 'In riparazione', value: 'MANUTENZIONE' },
+];
+
+function BinInfoModal({ bin, onClose, onStatusChange, isAdmin = false, onDelete, onUpdateStatus }) {
+  const [userId, setUserId]           = useState(null);
+  const [showReport, setShowReport]   = useState(false);
+  const [description, setDescription] = useState('');
+  const [sending, setSending]         = useState(false);
+  const [feedback, setFeedback]       = useState('');
+  const [done, setDone]               = useState(false);
+  const [statusBusy, setStatusBusy]   = useState(false);
+  const [deleting, setDeleting]       = useState(false);
+
+  const changeStatus = async (value) => {
+    if (statusBusy || value === bin.status) return;
+    setStatusBusy(true);
+    try { await onUpdateStatus?.(bin._id, value); }
+    catch { Alert.alert('Errore', 'Impossibile aggiornare lo stato del bidone.'); }
+    finally { setStatusBusy(false); }
+  };
+
+  const removeBin = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try { await onDelete?.(bin._id); }
+    catch { Alert.alert('Errore', 'Impossibile eliminare il bidone.'); setDeleting(false); }
+  };
+
+  useEffect(() => {
+    AsyncStorage.getItem('user').then(s => {
+      try { const u = JSON.parse(s); setUserId(u?.id || u?._id || null); }
+      catch { setUserId(null); }
+    });
+  }, []);
+
+  const types  = (bin.wasteTypes?.length ? bin.wasteTypes : [bin.wasteType]).filter(Boolean);
+  const fill   = Number(bin.fillLevel) || 0;
+  const status = bin.status || 'OK';
+  const isReported = status === 'SEGNALATO';
+  const isMaint    = status === 'MANUTENZIONE';
+  const disabled   = isReported || isMaint;
+  const statusLabel =
+    status === 'GUASTO' ? '❌ Guasto' :
+    isMaint             ? '🔧 In riparazione' :
+    isReported          ? '⚠️ Segnalato' :
+    status === 'PIENO'  ? '🗑️ Pieno' :
+    '✅ Operativo';
+
+  const submitReport = async () => {
+    if (!description.trim()) { setFeedback('Inserisci una descrizione del problema.'); return; }
+    if (!userId)            { setFeedback('Devi effettuare il login per segnalare.'); return; }
+    setSending(true); setFeedback('');
+    try {
+      await axios.post(`${API_URL}/report/create`, {
+        userId, binId: bin._id, description: description.trim(),
+      });
+      setDone(true);
+      onStatusChange?.(bin._id, 'SEGNALATO');
+    } catch {
+      setFeedback('Errore di connessione con il server.');
+    } finally { setSending(false); }
+  };
+
+  return (
+    <View style={[styles.binOverlay, { zIndex: 40 }]}>
+      <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={onClose} />
+      <View style={styles.binCard}>
+        <View style={styles.binHeader}>
+          <Text style={styles.binTitle} numberOfLines={1}>{bin.name || 'Bidone'}</Text>
+          <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={onClose}>
+            <Text style={styles.binCloseTxt}>✕</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
+          <Text style={styles.infoAddress}>{bin.address || 'Nessun indirizzo specificato'}</Text>
+
+          <Text style={styles.infoSection}>Tipi di rifiuto</Text>
+          <View style={styles.chipRow}>
+            {types.length
+              ? types.map(t => (<View key={t} style={styles.chip}><Text style={styles.chipTxt}>{t}</Text></View>))
+              : <Text style={styles.infoMuted}>—</Text>}
+          </View>
+
+          <Text style={styles.infoSection}>Riempimento</Text>
+          <View style={styles.infoBarBg}>
+            <View style={[styles.infoBarFill, {
+              width: `${Math.min(100, Math.max(0, fill))}%`,
+              backgroundColor: fill > 80 ? '#cc0000' : '#2E7D32',
+            }]} />
+          </View>
+          <Text style={styles.infoMuted}>{fill}%{fill > 80 ? '  ·  Quasi pieno' : ''}</Text>
+
+          <Text style={styles.infoSection}>Dettagli</Text>
+          {[
+            ['Stato',      statusLabel],
+            ['Codice',     bin.binCode],
+            ['Sensore',    bin.sensor?.sensorCode],
+            ['Batteria',   bin.sensor?.batteryLevel != null ? `${bin.sensor.batteryLevel}%` : null],
+            ['Coordinate', bin.coordinates ? `${Number(bin.coordinates.lat).toFixed(5)}, ${Number(bin.coordinates.lng).toFixed(5)}` : null],
+          ].filter(r => r[1]).map(([k, v]) => (
+            <View key={k} style={styles.detailRow}>
+              <Text style={styles.detailLabel}>{k}</Text>
+              <Text style={styles.detailValue}>{v}</Text>
+            </View>
+          ))}
+
+          {done ? (
+            <Text style={styles.infoSuccess}>✅ Segnalazione inviata. Stato aggiornato.</Text>
+          ) : !showReport ? (
+            <TouchableOpacity
+              style={[styles.infoReportBtn, disabled && styles.binSubmitBtnDisabled]}
+              activeOpacity={disabled ? 1 : 0.85}
+              onPress={() => { if (!disabled) setShowReport(true); }}
+            >
+              <Text style={styles.binSubmitTxt}>{disabled ? statusLabel : '⚠️ Segnala guasto'}</Text>
+            </TouchableOpacity>
+          ) : (
+            <View>
+              {feedback ? <Text style={styles.infoError}>⚠️ {feedback}</Text> : null}
+              <TextInput
+                style={[styles.binInput, { height: 90, textAlignVertical: 'top', marginTop: 8 }]}
+                placeholder="Spiega il problema riscontrato…"
+                placeholderTextColor="#999"
+                multiline
+                value={description}
+                onChangeText={setDescription}
+              />
+              <View style={styles.infoReportRow}>
+                <TouchableOpacity style={[styles.infoReportHalf, { backgroundColor: '#eee' }]} activeOpacity={0.8} onPress={() => setShowReport(false)}>
+                  <Text style={{ color: '#555', fontWeight: '600' }}>Annulla</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.infoReportHalf, { backgroundColor: '#d32f2f' }]} activeOpacity={0.8} onPress={submitReport} disabled={sending}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>{sending ? 'Invio…' : 'Invia'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ── Admin-only controls: change status + delete ── */}
+          {isAdmin && (
+            <>
+              <Text style={styles.infoSection}>Stato (admin)</Text>
+              <WasteDropdown
+                value={ADMIN_STATUS_OPTIONS.find(o => o.value === status)?.label || status}
+                options={ADMIN_STATUS_OPTIONS.map(o => o.label)}
+                placeholder="Seleziona uno stato…"
+                onSelect={(label) => {
+                  const opt = ADMIN_STATUS_OPTIONS.find(o => o.label === label);
+                  if (opt) changeStatus(opt.value);
+                }}
+              />
+
+              <TouchableOpacity
+                style={[styles.binDeleteBtn, deleting && styles.binSubmitBtnDisabled]}
+                activeOpacity={deleting ? 1 : 0.85}
+                onPress={removeBin}
+              >
+                <Text style={styles.binSubmitTxt}>{deleting ? 'Eliminazione…' : '🗑  Elimina bidone'}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -435,6 +629,7 @@ export default function HomeAdminScreen() {
   const [adminBins,    setAdminBins]    = useState([]);        // bins shown as markers
   const [wasteOptions, setWasteOptions] = useState([]);        // selectable waste types
   const [userRole,     setUserRole]     = useState(null);      // current user's role
+  const [binInfo,      setBinInfo]      = useState(null);      // bin shown in the full info view
 
   // Marker color by role: citizen → green, operator → blue, admin → amaranth
   const binColor =
@@ -455,6 +650,25 @@ export default function HomeAdminScreen() {
     setBinWasteTypes(['']);
   };
 
+  // ── Admin-only bin actions (delete + change status) ──────────────────────────
+  const deleteBin = async (binId) => {
+    const token = await AsyncStorage.getItem('token');
+    const auth  = { headers: { Authorization: `Bearer ${token}` } };
+    await axios.delete(`${API_URL}/admin/bins/${binId}`, auth);
+    // Remove from the map (and therefore from the per-zone stats) for everyone
+    setAdminBins(prev => prev.filter(b => b._id !== binId));
+    setBinInfo(null);
+  };
+
+  const updateBinStatus = async (binId, status) => {
+    const token = await AsyncStorage.getItem('token');
+    const auth  = { headers: { Authorization: `Bearer ${token}` } };
+    const r = await axios.patch(`${API_URL}/admin/bins/${binId}/status`, { status }, auth);
+    const updated = r.data?.status || status;
+    setAdminBins(prev => prev.map(b => (b._id === binId ? { ...b, status: updated } : b)));
+    setBinInfo(prev => (prev && prev._id === binId ? { ...prev, status: updated } : prev));
+  };
+
   const fetchAdminBins = useCallback(async () => {
     const token = await AsyncStorage.getItem('token');
     const auth  = { headers: { Authorization: `Bearer ${token}` } };
@@ -463,6 +677,22 @@ export default function HomeAdminScreen() {
       setAdminBins(Array.isArray(r.data) ? r.data : []);
     } catch { setAdminBins([]); }
   }, []);
+
+  // Poll the placed bins so status changes made by an admin are seen live by
+  // everyone else (markers + the open detail view stay in sync).
+  useEffect(() => {
+    const id = setInterval(() => { fetchAdminBins(); }, 15000);
+    return () => clearInterval(id);
+  }, [fetchAdminBins]);
+
+  // Keep an open bin detail view in sync with the freshly polled data
+  useEffect(() => {
+    if (!binInfo) return;
+    const fresh = adminBins.find(b => b._id === binInfo._id);
+    if (fresh && fresh.status !== binInfo.status) {
+      setBinInfo(prev => (prev ? { ...prev, status: fresh.status } : prev));
+    }
+  }, [adminBins]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -712,6 +942,7 @@ export default function HomeAdminScreen() {
         pendingCoord={pendingCoord}
         adminBins={adminBins}
         binColor={binColor}
+        onBinInfo={setBinInfo}
       />
 
       {/* All standard chrome is hidden while in the bin-placing phase */}
@@ -979,6 +1210,21 @@ export default function HomeAdminScreen() {
         </>
       )}
 
+      {/* ── Full bin information view ── */}
+      {binInfo && (
+        <BinInfoModal
+          bin={binInfo}
+          isAdmin={userRole === 'admin'}
+          onClose={() => setBinInfo(null)}
+          onDelete={deleteBin}
+          onUpdateStatus={updateBinStatus}
+          onStatusChange={(id, status) => {
+            setAdminBins(prev => prev.map(b => (b._id === id ? { ...b, status } : b)));
+            setBinInfo(prev => (prev && prev._id === id ? { ...prev, status } : prev));
+          }}
+        />
+      )}
+
       {/* ── Circoscrizione statistics popup (right-click on a zone) ── */}
       {statsZone && (() => {
         const s = statsForZone(statsZone);
@@ -1086,6 +1332,43 @@ const styles = StyleSheet.create({
   },
   binCloseTxt: { fontSize: 16, color: '#444', fontWeight: '700' },
   binLabel: { fontSize: 13, fontWeight: '600', color: '#555', marginTop: 12, marginBottom: 6 },
+
+  // Full bin info view
+  infoAddress: { fontSize: 14, color: '#666', marginBottom: 4 },
+  infoSection: { fontSize: 13, fontWeight: '700', color: PRIMARY, marginTop: 16, marginBottom: 8 },
+  infoMuted:   { fontSize: 13, color: '#888', marginTop: 6 },
+  chipRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip:        { backgroundColor: '#f3e5ea', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 6 },
+  chipTxt:     { color: PRIMARY, fontSize: 13, fontWeight: '600' },
+  infoBarBg:   { height: 12, width: '100%', backgroundColor: '#e0e0e0', borderRadius: 6, overflow: 'hidden' },
+  infoBarFill: { height: '100%', borderRadius: 6 },
+  detailRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#f4f4f4', gap: 12,
+  },
+  detailLabel: { fontSize: 13, color: '#888', fontWeight: '600' },
+  detailValue: { fontSize: 14, color: '#222', flex: 1, textAlign: 'right' },
+  infoReportBtn: {
+    marginTop: 18, backgroundColor: '#ff9800', borderRadius: 12, paddingVertical: 13, alignItems: 'center',
+  },
+  infoReportRow:  { flexDirection: 'row', gap: 10, marginTop: 10 },
+  infoReportHalf: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center' },
+  infoSuccess: { marginTop: 18, fontSize: 14, color: '#2E7D32', fontWeight: '600', textAlign: 'center' },
+  infoError:   { fontSize: 13, color: '#cc0000', marginTop: 8 },
+
+  // Admin status selector + delete
+  statusRow: { flexDirection: 'row', gap: 8 },
+  statusBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fff',
+  },
+  statusBtnActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  statusBtnTxt:    { fontSize: 13, fontWeight: '600', color: '#555' },
+  statusBtnTxtActive: { color: '#fff' },
+  binDeleteBtn: {
+    marginTop: 16, backgroundColor: '#d32f2f', borderRadius: 12,
+    paddingVertical: 13, alignItems: 'center',
+  },
   binInput: {
     borderWidth: 1.5, borderColor: '#ddd', borderRadius: 10,
     paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#222',

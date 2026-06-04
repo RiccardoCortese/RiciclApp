@@ -118,4 +118,52 @@ router.post('/bins', authMiddleware, async (req, res) => {
     }
 });
 
+// Stati selezionabili dall'admin (etichette → valore nel DB)
+const ADMIN_STATUSES = ['OK', 'GUASTO', 'MANUTENZIONE'];
+
+// ── PATCH /api/admin/bins/:id/status ─────────────────────────────────────────
+// Aggiorna lo stato di un bidone: Operativo (OK), Guasto (GUASTO),
+// In riparazione (MANUTENZIONE).
+router.patch('/bins/:id/status', authMiddleware, async (req, res) => {
+    try {
+        const { status } = req.body || {};
+        if (!ADMIN_STATUSES.includes(status)) {
+            return res.status(400).json({ message: 'Stato non valido' });
+        }
+        const bin = await Bin.findByIdAndUpdate(
+            req.params.id,
+            { status },
+            { new: true, runValidators: true }
+        );
+        if (!bin) {
+            return res.status(404).json({ message: 'Bidone non trovato' });
+        }
+        res.status(200).json(bin);
+    } catch (error) {
+        if (error.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'ID del bidone non valido' });
+        }
+        console.error('Errore durante l\'aggiornamento dello stato del bidone (admin):', error);
+        res.status(500).json({ message: 'Errore del server' });
+    }
+});
+
+// ── DELETE /api/admin/bins/:id ───────────────────────────────────────────────
+// Elimina definitivamente un bidone dal database.
+router.delete('/bins/:id', authMiddleware, async (req, res) => {
+    try {
+        const deleted = await Bin.findByIdAndDelete(req.params.id);
+        if (!deleted) {
+            return res.status(404).json({ message: 'Bidone non trovato' });
+        }
+        res.status(200).json({ message: 'Bidone eliminato', id: req.params.id });
+    } catch (error) {
+        if (error.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'ID del bidone non valido' });
+        }
+        console.error('Errore durante l\'eliminazione del bidone (admin):', error);
+        res.status(500).json({ message: 'Errore del server' });
+    }
+});
+
 module.exports = router;

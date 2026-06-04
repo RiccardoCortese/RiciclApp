@@ -44,7 +44,7 @@ const binSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["OK", "MANUTENZIONE", "PIENO", "SEGNALATO"],
+      enum: ["OK", "MANUTENZIONE", "PIENO", "SEGNALATO", "GUASTO"],
       default: "OK",
     },
     // Opzionale: un bidone piazzato liberamente sulla mappa può non appartenere
