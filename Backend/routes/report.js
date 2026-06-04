@@ -49,8 +49,6 @@ router.get('/all', async (req, res) => {
                     }
                 });
 
-            console.log('Segnalazioni recuperate dal DB:', reports);
-
             const reportsWithBinInfo = reports.map(report => {
                 const reportData = report._doc || report;
 
@@ -97,7 +95,6 @@ router.put('/update/:reportId', async (req, res) => {
             await Bin.findByIdAndUpdate(report.binId, { status: 'OK' });
             await Report.findByIdAndDelete(reportId);
         } else if (status === 'ACCEPT') {
-            console.log('Report accettato, binId:', report.binId);
             await Bin.findByIdAndUpdate(report.binId, { status: 'MANUTENZIONE' });
         }
 
