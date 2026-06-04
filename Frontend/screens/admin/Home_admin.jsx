@@ -13,6 +13,8 @@ import axios from 'axios';
 import Logo     from '../../src/assets/Riciclapp_Logo.png';
 import WorkImg  from '../../src/assets/Work_in_progess.png';
 import UserDefault from '../../src/assets/Profile_image/User_image.png';
+import AddBinImg      from '../../src/assets/Aggiunta Bin.png';
+import SegnalazioniImg from '../../src/assets/Segnalazioni.png';
 
 // ── Brand color ──────────────────────────────────────────────────────────────
 const PRIMARY = '#C0174D'; // amaranth
@@ -95,7 +97,7 @@ function zoneForCoord(lat, lon) {
 // ── Web map (admin is web-only so we only need this variant) ─────────────────
 function WebMap({
   targetCenter, styleUrl, centers, onCenterClick, onZoneRightClick,
-  placingMode = false, onPlaceClick, pendingCoord = null, adminBins = [],
+  placingMode = false, onPlaceClick, pendingCoord = null, adminBins = [], binColor = '#2E7D32',
 }) {
   const mapRef       = useRef(null);
   const containerRef = useRef(null);
@@ -335,19 +337,19 @@ function WebMap({
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       const types = (bin.wasteTypes?.length ? bin.wasteTypes : [bin.wasteType])
         .filter(Boolean).join(', ');
-      const marker = new maplibreInstance.Marker({ color: '#2E7D32' })
+      const marker = new maplibreInstance.Marker({ color: binColor })
         .setLngLat([lng, lat])
         .addTo(mapRef.current);
       const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(`
         <div style="font-family:Arial,sans-serif;padding:5px;">
-          <h3 style="color:#2E7D32;margin:0 0 4px 0;">${bin.name || 'Bidone'}</h3>
+          <h3 style="color:${binColor};margin:0 0 4px 0;">${bin.name || 'Bidone'}</h3>
           <p style="margin:0;font-size:12px;color:#666;">${bin.address || ''}</p>
-          <p style="margin:4px 0 0 0;font-size:11px;color:#2E7D32;font-weight:bold;">${types}</p>
+          <p style="margin:4px 0 0 0;font-size:11px;color:${binColor};font-weight:bold;">${types}</p>
         </div>`);
       marker.setPopup(popup);
       binMarkersRef.current.push(marker);
     });
-  }, [adminBins, maplibreInstance]);
+  }, [adminBins, maplibreInstance, binColor]);
 
   return (
     <div
@@ -432,6 +434,13 @@ export default function HomeAdminScreen() {
   const [pendingCoord, setPendingCoord] = useState(null);      // {lat,lng} being configured
   const [adminBins,    setAdminBins]    = useState([]);        // bins shown as markers
   const [wasteOptions, setWasteOptions] = useState([]);        // selectable waste types
+  const [userRole,     setUserRole]     = useState(null);      // current user's role
+
+  // Marker color by role: citizen → green, operator → blue, admin → amaranth
+  const binColor =
+    userRole === 'operator' ? '#1565C0' :
+    userRole === 'admin'    ? PRIMARY   :
+    '#2E7D32';
 
   // Popup form state
   const [binName,       setBinName]       = useState('');
@@ -486,6 +495,7 @@ export default function HomeAdminScreen() {
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem('profileAvatarUri').then(uri => setAvatarUri(uri || null));
+      AsyncStorage.getItem('userRole').then(role => setUserRole(role || null));
     }, [])
   );
 
@@ -602,9 +612,27 @@ export default function HomeAdminScreen() {
     setAddrLoading(true);
     try {
       const r = await axios.get(`${API_URL}/osm/reverse?lat=${pendingCoord.lat}&lon=${pendingCoord.lng}`);
-      if (r.data?.display_name) setBinAddress(r.data.display_name);
-    } catch { /* leave the field untouched on failure */ }
-    finally { setAddrLoading(false); }
+      const data = r.data || {};
+      // Prefer the full display name; otherwise compose one from the parts.
+      let address = data.display_name;
+      if (!address && data.address) {
+        const a = data.address;
+        address = [
+          [a.road, a.house_number].filter(Boolean).join(' '),
+          a.city || a.town || a.village,
+          a.postcode,
+        ].filter(Boolean).join(', ');
+      }
+      if (address) {
+        setBinAddress(address);   // write the calculated address into the field
+      } else {
+        Alert.alert('Indirizzo non trovato', 'Non è stato possibile calcolare l\'indirizzo di questo punto.');
+      }
+    } catch {
+      Alert.alert('Errore', 'Impossibile calcolare l\'indirizzo. Riprova.');
+    } finally {
+      setAddrLoading(false);
+    }
   };
 
   // Waste-type dropdown helpers
@@ -671,6 +699,7 @@ export default function HomeAdminScreen() {
         onPlaceClick={handlePlaceClick}
         pendingCoord={pendingCoord}
         adminBins={adminBins}
+        binColor={binColor}
       />
 
       {/* All standard chrome is hidden while in the bin-placing phase */}
@@ -728,11 +757,10 @@ export default function HomeAdminScreen() {
             activeOpacity={0.85}
             onPress={() => { if (i === 1) enterPlacing(); }}
           >
-            {i === 1 ? (
-              <Text style={styles.sideButtonPlus}>＋</Text>
-            ) : (
-              <Image source={WorkImg} style={styles.sideButtonIcon} />
-            )}
+            <Image
+              source={i === 0 ? SegnalazioniImg : i === 1 ? AddBinImg : WorkImg}
+              style={styles.sideButtonIcon}
+            />
           </TouchableOpacity>
         ))}
       </View>
