@@ -93,13 +93,11 @@ router.put('/update/:reportId', async (req, res) => {
             return res.status(404).json({ message: 'Report non trovato' });
         }
 
-        if (status === 'RESOLVED') {
-            await Bin.findByIdAndUpdate(report.binId, { status: 'OK' });
-            await Report.findByIdAndDelete(reportId);
-        } else if (status === 'REJECTED') {
+        if (status === 'RESOLVED' || status === 'REJECTED') {
             await Bin.findByIdAndUpdate(report.binId, { status: 'OK' });
             await Report.findByIdAndDelete(reportId);
         } else if (status === 'ACCEPT') {
+            console.log('Report accettato, binId:', report.binId);
             await Bin.findByIdAndUpdate(report.binId, { status: 'MANUTENZIONE' });
         }
 

@@ -163,6 +163,7 @@ export default function BinScreen({ centerId, onBack }) {
       <TouchableOpacity style={styles.backButtonInline} onPress={() => router.replace('/')}>
         <Text style={styles.backButtonInlineText}>⬅ Torna alla Mappa</Text>
       </TouchableOpacity>
+      
 
       <Text style={styles.title}>{center.name}</Text>
       <Text style={styles.subtitle}>{center.address || 'Nessun indirizzo specificato'}</Text>

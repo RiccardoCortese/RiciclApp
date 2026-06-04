@@ -32,7 +32,7 @@ export default function AdminReportsScreen() {
         try {
             // Invia la decisione al backend per aggiornare lo stato del report
             const response = await axios.put(`${API_URL}/report/update/${reportId}`, {
-                status: action === 'ACCEPT' ? 'RESOLVED' : 'REJECTED'
+                status: action === 'ACCEPT' ? 'ACCEPT' : 'REJECTED'
             });
 
             if (response.status === 200 || response.data.success) {
@@ -153,32 +153,52 @@ export default function AdminReportsScreen() {
 const styles = StyleSheet.create({
     mainWrapper: {
         flex: 1,
-        backgroundColor: '#fff' // Sfondo bianco continuo
+        backgroundColor: '#fff'
     },
     container: {
         flex: 1,
-        width: '100%',
+        width: '100%'
     },
     content: {
         padding: 32,
         paddingTop: 40,
-        width: '100%',
+        width: '100%'
     },
-    centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    backButtonInline: { marginBottom: 20 },
-    backButtonInlineText: { color: '#666', fontSize: 16, fontWeight: '600' },
-    title: { fontSize: 26, fontWeight: 'bold', color: '#111' },
-    subtitle: { fontSize: 15, color: '#666', marginTop: 4 },
-    divider: { height: 1, backgroundColor: '#e0e0e0', marginVertical: 25 },
-
-    // Tab adattato per allungarsi sul display largo
+    centerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    backButtonInline: {
+        marginBottom: 20
+    },
+    backButtonInlineText: {
+        color: '#666',
+        fontSize: 16,
+        fontWeight: '600'
+    },
+    title: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: '#111'
+    },
+    subtitle: {
+        fontSize: 15,
+        color: '#666',
+        marginTop: 4
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#e0e0e0',
+        marginVertical: 25
+    },
     tabContainer: {
         flexDirection: 'row',
         backgroundColor: '#eee',
         borderRadius: 8,
         padding: 4,
         marginTop: 15,
-        maxWidth: 600, 
+        maxWidth: 600
     },
     tabButton: {
         flex: 1,
@@ -190,50 +210,84 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         elevation: 2,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.15,
+        shadowOffset: {
+            width: 0,
+            height: 1
+        },
+        shadowOpacity: 0.15
     },
-    tabButtonText: { fontSize: 14, fontWeight: '600', color: '#666' },
-    activeTabButtonText: { color: '#111', fontWeight: 'bold' },
-
-    // ── STRUTTURA DELLA GRIGLIA ──
+    tabButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#666'
+    },
+    activeTabButtonText: {
+        color: '#111',
+        fontWeight: 'bold'
+    },
     gridContainer: {
         flexDirection: 'row',
-        flexWrap: 'wrap',       
-        justifyContent: 'flex-start', 
-        marginHorizontal: -10,  
+        flexWrap: 'wrap',
+        justifyContent: 'flex-start',
+        marginHorizontal: -10
     },
-
-    // ── CARD IN STILE GRIGLIA ──
     reportCard: {
         backgroundColor: '#fafafa',
         borderRadius: 12,
         padding: 18,
-        margin: 10,             
+        margin: 10,
         width: '31%',
         minWidth: 320,
-
         borderWidth: 1,
         borderColor: '#e0e0e0',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: {
+            width: 0,
+            height: 2
+        },
         shadowOpacity: 0.05,
         shadowRadius: 4,
-        elevation: 1,
+        elevation: 1
     },
-    userCardBorder: { borderLeftWidth: 5, borderLeftColor: '#009933' },
-    operatorCardBorder: { borderLeftWidth: 5, borderLeftColor: '#2196f3' },
-
+    centerNameText: {
+        fontSize: 13,
+        color: '#555',
+        fontWeight: '500',
+        marginBottom: 12
+    },
+    userCardBorder: {
+        borderLeftWidth: 5,
+        borderLeftColor: '#009933'
+    },
+    operatorCardBorder: {
+        borderLeftWidth: 5,
+        borderLeftColor: '#2196f3'
+    },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 8
     },
-    binCodeText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-    userRoleBadge: { fontSize: 12, fontWeight: '600', color: '#777', backgroundColor: '#e8e8e8', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-    reporterName: { fontSize: 13, color: '#666', marginBottom: 12 },
-
+    binCodeText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333'
+    },
+    userRoleBadge: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#777',
+        backgroundColor: '#e8e8e8',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4
+    },
+    reporterName: {
+        fontSize: 13,
+        color: '#666',
+        marginBottom: 12
+    },
     descriptionBox: {
         backgroundColor: '#fff',
         borderWidth: 1,
@@ -241,14 +295,17 @@ const styles = StyleSheet.create({
         padding: 12,
         borderRadius: 8,
         marginBottom: 15,
-        minHeight: 60, // Mantiene le card omogenee in altezza se i testi sono brevi
+        minHeight: 60
     },
-    descriptionText: { fontSize: 14, color: '#444', fontStyle: 'italic' },
-
+    descriptionText: {
+        fontSize: 14,
+        color: '#444',
+        fontStyle: 'italic'
+    },
     actionsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 'auto' // Spinge i bottoni sempre sul fondo della card per simmetria
+        marginTop: 'auto'
     },
     actionButton: {
         flex: 1,
@@ -257,10 +314,31 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginHorizontal: 4
     },
-    rejectButton: { backgroundColor: '#ffebee', borderWidth: 1, borderColor: '#ffc107' },
-    rejectButtonText: { color: '#c62828', fontWeight: '700', fontSize: 14 },
-    acceptButton: { backgroundColor: '#d4edda', borderWidth: 1, borderColor: '#c3e6cb' },
-    acceptButtonText: { color: '#155724', fontWeight: '700', fontSize: 14 },
-
-    noReportsText: { fontStyle: 'italic', color: '#999', textAlign: 'center', marginTop: 40, width: '100%' }
+    rejectButton: {
+        backgroundColor: '#ffebee',
+        borderWidth: 1,
+        borderColor: '#ffc107'
+    },
+    rejectButtonText: {
+        color: '#c62828',
+        fontWeight: '700',
+        fontSize: 14
+    },
+    acceptButton: {
+        backgroundColor: '#d4edda',
+        borderWidth: 1,
+        borderColor: '#c3e6cb'
+    },
+    acceptButtonText: {
+        color: '#155724',
+        fontWeight: '700',
+        fontSize: 14
+    },
+    noReportsText: {
+        fontStyle: 'italic',
+        color: '#999',
+        textAlign: 'center',
+        marginTop: 40,
+        width: '100%'
+    }
 });
