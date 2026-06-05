@@ -250,6 +250,7 @@ Salvato nella collection MongoDB `reports`.
 | binId       | ObjectId | Sì           | Riferimento al bidone segnalato                      |
 | description | String   | Sì           | Descrizione del problema riscontrato                 |
 | status      | String   | Automatico   | Stato della segnalazione                             |
+| assignedTo  | ObjectId | Automatico   | Riferimento all'operatore assegnato (se presente)   |
 | createdAt   | Date     | Automatico   | Timestamp di creazione                               |
 | updatedAt   | Date     | Automatico   | Timestamp ultimo aggiornamento                       |
 
@@ -260,7 +261,8 @@ Salvato nella collection MongoDB `reports`.
 | `PENDING`     | Segnalazione appena creata e in attesa di presa in carico |
 | `IN_PROGRESS` | Segnalazione attualmente in lavorazione                   |
 | `RESOLVED`    | Problema risolto e segnalazione chiusa                    |
-| `REJECTED`    | Segnalazione rifiutata e chiusa                            |
+| `REJECTED`    | Segnalazione rifiutata e chiusa                           |
+| `ASSIGNED`    | Segnalazione assegnata a un operatore specifico           |
 
 ---
 

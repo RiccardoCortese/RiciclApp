@@ -206,6 +206,7 @@ components:
             - IN_PROGRESS
             - RESOLVED
             - REJECTED
+            - ASSIGNED
           example: PENDING
 
         assignedTo:

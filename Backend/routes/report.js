@@ -109,45 +109,34 @@ router.put('/update/:reportId', async (req, res) => {
 router.put('/assign/:reportId', async (req, res) => {
     try {
         const { reportId } = req.params;
-        const { assignedTo } = req.body; // Questo è l'ID dell'operatore inviato dal Picker
+        const { assignedTo } = req.body;
 
-        // 1. Validazione base: controlliamo se l'ID dell'operatore è presente
         if (!assignedTo) {
-            return res.status(400).json({
-                success: false,
-                message: "ID operatore mancante."
-            });
+            return res.status(400).json({ success: false, message: "ID operatore mancante." });
         }
 
-        // 2. Aggiorna il report impostando il campo assignedTo
-        // { new: true } serve a restituire il documento già modificato
+        // Trova il report e aggiorna sia il campo dell'operatore sia lo status
         const updatedReport = await Report.findByIdAndUpdate(
             reportId,
-            { assignedTo: assignedTo },
+            {
+                assignedTo: assignedTo,
+                status: 'ASSIGNED' // Cambiamo lo status in ASSIGNED
+            },
             { new: true }
         );
 
-        // 3. Se la segnalazione non esiste
         if (!updatedReport) {
-            return res.status(404).json({
-                success: false,
-                message: "Segnalazione non trovata."
-            });
+            return res.status(404).json({ success: false, message: "Segnalazione non trovata." });
         }
 
-        // 4. Risposta di successo richiesta dal tuo frontend (response.data.success)
         return res.status(200).json({
             success: true,
             message: "Operatore assegnato con successo.",
             report: updatedReport
         });
-
     } catch (error) {
         console.error("Errore durante l'assegnazione:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Errore interno del server."
-        });
+        return res.status(500).json({ success: false, message: "Errore del server." });
     }
 });
 module.exports = router;
