@@ -132,7 +132,7 @@ async function seed() {
         binCode: "BIN001",
         wasteType: "plastica",
         fillLevel: 75,
-        status: "PARTIALLY_FULL",
+        status: "OK",
         centerId: center1Id,
         sensor: {
           sensorCode: "SENS001",
@@ -158,7 +158,7 @@ async function seed() {
         binCode: "BIN003",
         wasteType: "carta",
         fillLevel: 95,
-        status: "FULL",
+        status: "PIENO",
         centerId: center2Id,
         sensor: {
           sensorCode: "SENS003",

@@ -7,7 +7,12 @@ const MQTT_BROKER = process.env.MQTT_BROKER || "mqtt://localhost:1883";
 const client = mqtt.connect(MQTT_BROKER);
 
 // Lista bidoni
-const bins = [1, 2, 3];
+const NUMBER_OF_BINS = 5;
+
+const bins = Array.from(
+  { length: NUMBER_OF_BINS },
+  (_, i) => i + 1
+);
 
 client.on('connect', () => {
   console.log('Simulatore connesso al broker MQTT');

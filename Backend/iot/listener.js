@@ -53,10 +53,9 @@ mqttClient.on("message", async (topic, message) => {
     }
 
     let status = "OK";
+
     if (fillLevel >= 90) {
-      status = "FULL";
-    } else if (fillLevel >= 60) {
-      status = "PARTIALLY_FULL";
+      status = "PIENO";
     }
 
     await binsCollection.updateOne(
@@ -67,8 +66,7 @@ mqttClient.on("message", async (topic, message) => {
           status: status,
           "sensor.lastUpdate": new Date()
         }
-      },
-      { upsert: true }
+      }
     );
 
     console.log(`Aggiornato ${binCode}: fillLevel=${fillLevel}, status=${status}`);
