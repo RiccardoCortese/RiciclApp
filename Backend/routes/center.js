@@ -15,6 +15,27 @@ router.get('/all', async (req, res) => {
     }
 });
 
+// Rotta per i bidoni "non assegnati" (senza centro di raccolta).
+// Restituisce uno pseudo-centro così che la vista di dettaglio possa gestirli
+// con la stessa interfaccia di un centro reale. Va dichiarata PRIMA di "/:id"
+// per non essere oscurata dalla rotta dinamica.
+router.get('/unassigned', async (req, res) => {
+    try {
+        const bins = await Bin.find({
+            $or: [{ centerId: null }, { centerId: { $exists: false } }],
+        });
+        return res.json({
+            _id: 'unassigned',
+            name: 'Bidoni non assegnati',
+            address: 'Bidoni senza centro di raccolta collegato',
+            bins: bins || [],
+        });
+    } catch (error) {
+        console.error('Errore durante il recupero dei bidoni non assegnati:', error);
+        return res.status(500).json({ message: 'Errore del server' });
+    }
+});
+
 //Rotta per il singolo centro + i suoi bidoni
 router.get('/:id', async (req, res) => {
   try {

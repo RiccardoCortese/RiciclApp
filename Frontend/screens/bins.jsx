@@ -16,6 +16,8 @@ export default function BinScreen({ centerId, onBack }) {
   const [selectedBin, setSelectedBin] = useState(null);
   const [description, setDescription] = useState('');
   const [userId, setUserId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const [sending, setSending] = useState(false);
   
   // Stati per i messaggi di feedback cross-platform
@@ -49,6 +51,8 @@ export default function BinScreen({ centerId, onBack }) {
       } catch (err) {
         setUserId(null);
       }
+      try { setUserRole(await AsyncStorage.getItem('userRole')); }
+      catch { setUserRole(null); }
     };
 
     // Carichiamo l'utente all'avvio
@@ -135,6 +139,54 @@ export default function BinScreen({ centerId, onBack }) {
     setDescription('');
   };
 
+  const isAdmin = userRole === 'admin';
+
+  // Stati selezionabili dall'admin (etichetta mostrata ↔ valore salvato nel DB)
+  const ADMIN_STATUS_OPTIONS = [
+    { label: 'Operativo',      value: 'OK' },
+    { label: 'Guasto',         value: 'GUASTO' },
+    { label: 'In riparazione', value: 'MANUTENZIONE' },
+  ];
+
+  // Admin: cambia lo stato di un bidone
+  const changeBinStatus = async (binId, status) => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const auth = { headers: { Authorization: `Bearer ${token}` } };
+      const r = await axios.patch(`${API_URL}/admin/bins/${binId}/status`, { status }, auth);
+      const updated = r.data?.status || status;
+      setCenter(prev => prev ? {
+        ...prev,
+        bins: (prev.bins || []).map(b => b._id === binId ? { ...b, status: updated } : b),
+      } : prev);
+    } catch (err) {
+      alert('Impossibile aggiornare lo stato del bidone.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  // Admin: elimina un bidone
+  const deleteBin = async (binId) => {
+    if (actionBusy) return;
+    setActionBusy(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const auth = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.delete(`${API_URL}/admin/bins/${binId}`, auth);
+      setCenter(prev => prev ? {
+        ...prev,
+        bins: (prev.bins || []).filter(b => b._id !== binId),
+      } : prev);
+    } catch (err) {
+      alert('Impossibile eliminare il bidone.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -167,7 +219,24 @@ export default function BinScreen({ centerId, onBack }) {
 
       <Text style={styles.title}>{center.name}</Text>
       <Text style={styles.subtitle}>{center.address || 'Nessun indirizzo specificato'}</Text>
-      
+
+      {/* Informazioni del centro (non mostrate per la vista "non assegnati") */}
+      {center._id !== 'unassigned' && (
+        <View style={styles.infoCard}>
+          {center.openingHours ? (
+            <Text style={styles.infoLine}>🕒 {center.openingHours}</Text>
+          ) : null}
+          {center.area ? (
+            <Text style={styles.infoLine}>📍 Quartiere: {center.area}</Text>
+          ) : null}
+          {center.coordinates ? (
+            <Text style={styles.infoLine}>
+              🌐 {Number(center.coordinates.lat).toFixed(5)}, {Number(center.coordinates.lng).toFixed(5)}
+            </Text>
+          ) : null}
+        </View>
+      )}
+
       <View style={styles.divider} />
       
       <Text style={styles.sectionTitle}>Stato di riempimento attuale:</Text>
@@ -177,6 +246,7 @@ export default function BinScreen({ centerId, onBack }) {
           const isAlmostFull = bin.fillLevel > 80;
           const isInMaintenance = bin.status === 'MANUTENZIONE';
           const isReported = bin.status === 'SEGNALATO';
+          const isBroken = bin.status === 'GUASTO';
           const isButtonDisabled = isInMaintenance || isReported; // Disabilita se è in manutenzione o già segnalato
 
           const formattedWasteType = bin.wasteType 
@@ -189,38 +259,70 @@ export default function BinScreen({ centerId, onBack }) {
                 <Text style={styles.binType}>{formattedWasteType} ({bin.binCode || 'Codice non disponibile'})</Text>
                 
                 {/* Il testo sopra la barra cambia in base allo stato */}
-                <Text style={[styles.binPercentage, { color: isInMaintenance ? '#777' : (isReported ? '#ff9800' : (isAlmostFull ? '#cc0000' : '#555')) }]}>
-                  {isInMaintenance 
-                    ? '🔧 In Manutenzione' 
-                    : (isReported ? '⚠️ Segnalato' : `${bin.fillLevel}% ${isAlmostFull ? '⚠️ Quasi Pieno' : ''}`)}
+                <Text style={[styles.binPercentage, { color: isInMaintenance ? '#777' : (isBroken ? '#cc0000' : (isReported ? '#ff9800' : (isAlmostFull ? '#cc0000' : '#555'))) }]}>
+                  {isInMaintenance
+                    ? '🔧 In Manutenzione'
+                    : (isBroken
+                        ? '❌ Guasto'
+                        : (isReported ? '⚠️ Segnalato' : `${bin.fillLevel}% ${isAlmostFull ? '⚠️ Quasi Pieno' : ''}`))}
                 </Text>
               </View>
 
               {/* Barra di avanzamento: diventa grigia SOLO se è in MANUTENZIONE */}
               <View style={styles.progressBarBackground}>
                 <View style={[
-                  styles.progressBarFill, 
-                  { 
-                    width: isInMaintenance ? '100%' : `${bin.fillLevel}%`, 
-                    backgroundColor: isInMaintenance ? '#9e9e9e' : (isAlmostFull ? '#cc0000' : (bin.color || '#009933')) 
+                  styles.progressBarFill,
+                  {
+                    width: isInMaintenance ? '100%' : `${bin.fillLevel}%`,
+                    backgroundColor: isInMaintenance ? '#9e9e9e' : (isAlmostFull ? '#cc0000' : (bin.color || '#009933'))
                   }
                 ]} />
               </View>
 
-              {/* Pulsante di Segnalazione dinamico */}
-              <TouchableOpacity
-                style={[
-                  styles.actionReportButton, 
-                  isButtonDisabled && styles.disabledReportButton,
-                  isReported && styles.reportedReportButton // Colore giallo/arancio tenue se segnalato
-                ]}
-                onPress={() => openReportModal(bin)}
-                disabled={isButtonDisabled}
-              >
-                <Text style={[styles.actionReportButtonText, isButtonDisabled && styles.disabledReportButtonText]}>
-                  {isInMaintenance ? '🔧 In Riparazione' : (isReported ? '⚠️ Segnalato' : '⚠️ Segnala Guasto')}
-                </Text>
-              </TouchableOpacity>
+              {isAdmin ? (
+                /* Controlli admin: cambia stato + elimina */
+                <View style={styles.adminControls}>
+                  <View style={styles.adminStatusRow}>
+                    {ADMIN_STATUS_OPTIONS.map(opt => {
+                      const active = (bin.status || 'OK') === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          style={[styles.adminStatusBtn, active && styles.adminStatusBtnActive]}
+                          onPress={() => changeBinStatus(bin._id, opt.value)}
+                          disabled={actionBusy || active}
+                        >
+                          <Text style={[styles.adminStatusTxt, active && styles.adminStatusTxtActive]}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.adminDeleteBtn}
+                    onPress={() => deleteBin(bin._id)}
+                    disabled={actionBusy}
+                  >
+                    <Text style={styles.adminDeleteTxt}>🗑  Elimina bidone</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                /* Pulsante di Segnalazione dinamico (cittadini/operatori) */
+                <TouchableOpacity
+                  style={[
+                    styles.actionReportButton,
+                    isButtonDisabled && styles.disabledReportButton,
+                    isReported && styles.reportedReportButton // Colore giallo/arancio tenue se segnalato
+                  ]}
+                  onPress={() => openReportModal(bin)}
+                  disabled={isButtonDisabled}
+                >
+                  <Text style={[styles.actionReportButtonText, isButtonDisabled && styles.disabledReportButtonText]}>
+                    {isInMaintenance ? '🔧 In Riparazione' : (isReported ? '⚠️ Segnalato' : '⚠️ Segnala Guasto')}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         })
@@ -252,7 +354,7 @@ export default function BinScreen({ centerId, onBack }) {
               /* INTERFACCIA DI COMPILAZIONE STANDARD */
               <View>
                 <Text style={styles.modalTitle}>
-                  Segnala guasto: {selectedBin?.wasteType.toUpperCase()} ({selectedBin?.binCode})
+                  Segnala guasto: {(selectedBin?.wasteType || 'Rifiuto').toUpperCase()} ({selectedBin?.binCode})
                 </Text>
                 
                 {errorMessage ? <Text style={styles.modalErrorText}>⚠️ {errorMessage}</Text> : null}
@@ -386,6 +488,60 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     marginTop: 20
+  },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eee',
+    padding: 14,
+    marginTop: 14,
+    gap: 4
+  },
+  infoLine: {
+    fontSize: 14,
+    color: '#555'
+  },
+  // ── Admin per-bin controls ──
+  adminControls: {
+    marginTop: 4
+  },
+  adminStatusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8
+  },
+  adminStatusBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#ddd',
+    backgroundColor: '#fff'
+  },
+  adminStatusBtnActive: {
+    backgroundColor: '#009933',
+    borderColor: '#009933'
+  },
+  adminStatusTxt: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555'
+  },
+  adminStatusTxtActive: {
+    color: '#fff'
+  },
+  adminDeleteBtn: {
+    backgroundColor: '#d32f2f',
+    paddingVertical: 9,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  adminDeleteTxt: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14
   },
   actionReportButton: {
     backgroundColor: '#ff9800',

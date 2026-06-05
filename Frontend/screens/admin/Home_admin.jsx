@@ -98,8 +98,7 @@ function zoneForCoord(lat, lon) {
 // ── Web map (admin is web-only so we only need this variant) ─────────────────
 function WebMap({
   targetCenter, styleUrl, centers, onCenterClick, onZoneRightClick,
-  placingMode = false, onPlaceClick, pendingCoord = null, adminBins = [], binColor = '#2E7D32',
-  onBinInfo,
+  placingMode = false, onPlaceClick, pendingCoord = null, adminBins = [], binColor = '#9E9E9E',
 }) {
   const mapRef       = useRef(null);
   const containerRef = useRef(null);
@@ -110,10 +109,6 @@ function WebMap({
   // Keep the latest right-click callback reachable from the once-only map setup
   const onZoneRightClickRef = useRef(onZoneRightClick);
   useEffect(() => { onZoneRightClickRef.current = onZoneRightClick; }, [onZoneRightClick]);
-
-  // Keep the bin "Informazioni bidoni" callback reachable from popup handlers
-  const onBinInfoRef = useRef(onBinInfo);
-  useEffect(() => { onBinInfoRef.current = onBinInfo; }, [onBinInfo]);
 
   // Keep placing-phase state/callbacks reachable from once-only event handlers
   const placingModeRef  = useRef(placingMode);
@@ -249,7 +244,7 @@ function WebMap({
         <div style="font-family:Arial,sans-serif;padding:5px;cursor:pointer;" id="popup-click-${center._id}">
           <h3 style="color:${PRIMARY};margin:0 0 4px 0;text-decoration:underline;">${center.name}</h3>
           <p style="margin:0;font-size:12px;color:#666;">${center.address || ''}</p>
-          <p style="margin:4px 0 0 0;font-size:11px;color:${PRIMARY};font-weight:bold;">👉 Clicca qui per vedere i bidoni</p>
+          <p style="margin:4px 0 0 0;font-size:11px;color:${PRIMARY};font-weight:bold;">👉 Clicca per ottenere maggiori informazioni</p>
         </div>`;
       const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(popupHtml);
       popup.once('open', () => {
@@ -332,46 +327,36 @@ function WebMap({
     }
   }, [pendingCoord, maplibreInstance]);
 
-  // Markers for the bins already placed by the admin (green)
+  // Markers for the bins placed on the map (grey). The popup is intentionally
+  // minimal: only the bin name, the waste types it accepts and the connected
+  // collection center — nothing more.
   useEffect(() => {
     if (!mapRef.current || !maplibreInstance) return;
     binMarkersRef.current.forEach(m => m.remove());
     binMarkersRef.current = [];
+    // Lookup table center id → name so we can show the connected center.
+    const centersById = {};
+    (centers || []).forEach(c => { if (c?._id) centersById[String(c._id)] = c.name; });
     (adminBins || []).forEach(bin => {
       const lat = Number(bin?.coordinates?.lat);
       const lng = Number(bin?.coordinates?.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       const types = (bin.wasteTypes?.length ? bin.wasteTypes : [bin.wasteType])
         .filter(Boolean).join(', ');
+      const centerName = bin.centerId ? (centersById[String(bin.centerId)] || null) : null;
       const marker = new maplibreInstance.Marker({ color: binColor })
         .setLngLat([lng, lat])
         .addTo(mapRef.current);
-      // Basic-info popup + a clickable "Informazioni bidoni" link that opens the
-      // full detail view (mirrors the centers' "Clicca qui per vedere i bidoni").
       const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(`
         <div style="font-family:Arial,sans-serif;padding:5px;min-width:170px;">
-          <h3 style="color:${binColor};margin:0 0 4px 0;">${bin.name || 'Bidone'}</h3>
-          <p style="margin:0;font-size:12px;color:#666;">${bin.address || ''}</p>
-          <p style="margin:4px 0 0 0;font-size:11px;color:${binColor};font-weight:bold;">${types}</p>
-          <p style="margin:8px 0 0 0;font-size:12px;color:${binColor};font-weight:bold;text-decoration:underline;cursor:pointer;" id="bin-info-${bin._id}">🔍 Informazioni bidoni</p>
+          <h3 style="color:#444;margin:0 0 4px 0;">${bin.name || 'Bidone'}</h3>
+          <p style="margin:0;font-size:12px;color:${binColor};font-weight:bold;">${types || '—'}</p>
+          <p style="margin:6px 0 0 0;font-size:12px;color:#666;">🏢 ${centerName || 'Nessun centro collegato'}</p>
         </div>`);
-      popup.on('open', () => {
-        setTimeout(() => {
-          const el = document.getElementById(`bin-info-${bin._id}`);
-          if (el) el.onclick = () => onBinInfoRef.current?.(bin);
-        }, 50);
-      });
       marker.setPopup(popup);
-      // Right-clicking the marker shows the basic-info popup
-      const elMarker = marker.getElement();
-      elMarker.style.cursor = 'pointer';
-      elMarker.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        if (!popup.isOpen()) marker.togglePopup();
-      });
       binMarkersRef.current.push(marker);
     });
-  }, [adminBins, maplibreInstance, binColor]);
+  }, [adminBins, maplibreInstance, binColor, centers]);
 
   return (
     <div
@@ -414,178 +399,6 @@ function WasteDropdown({ value, options, placeholder, onSelect }) {
   );
 }
 
-// ── Full bin information view (opened from "Informazioni bidoni") ─────────────
-// Admin-selectable statuses: label shown ↔ value stored in the DB
-const ADMIN_STATUS_OPTIONS = [
-  { label: 'Operativo',     value: 'OK' },
-  { label: 'Guasto',        value: 'GUASTO' },
-  { label: 'In riparazione', value: 'MANUTENZIONE' },
-];
-
-function BinInfoModal({ bin, onClose, onStatusChange, isAdmin = false, onDelete, onUpdateStatus }) {
-  const [userId, setUserId]           = useState(null);
-  const [showReport, setShowReport]   = useState(false);
-  const [description, setDescription] = useState('');
-  const [sending, setSending]         = useState(false);
-  const [feedback, setFeedback]       = useState('');
-  const [done, setDone]               = useState(false);
-  const [statusBusy, setStatusBusy]   = useState(false);
-  const [deleting, setDeleting]       = useState(false);
-
-  const changeStatus = async (value) => {
-    if (statusBusy || value === bin.status) return;
-    setStatusBusy(true);
-    try { await onUpdateStatus?.(bin._id, value); }
-    catch { Alert.alert('Errore', 'Impossibile aggiornare lo stato del bidone.'); }
-    finally { setStatusBusy(false); }
-  };
-
-  const removeBin = async () => {
-    if (deleting) return;
-    setDeleting(true);
-    try { await onDelete?.(bin._id); }
-    catch { Alert.alert('Errore', 'Impossibile eliminare il bidone.'); setDeleting(false); }
-  };
-
-  useEffect(() => {
-    AsyncStorage.getItem('user').then(s => {
-      try { const u = JSON.parse(s); setUserId(u?.id || u?._id || null); }
-      catch { setUserId(null); }
-    });
-  }, []);
-
-  const types  = (bin.wasteTypes?.length ? bin.wasteTypes : [bin.wasteType]).filter(Boolean);
-  const fill   = Number(bin.fillLevel) || 0;
-  const status = bin.status || 'OK';
-  const isReported = status === 'SEGNALATO';
-  const isMaint    = status === 'MANUTENZIONE';
-  const disabled   = isReported || isMaint;
-  const statusLabel =
-    status === 'GUASTO' ? '❌ Guasto' :
-    isMaint             ? '🔧 In riparazione' :
-    isReported          ? '⚠️ Segnalato' :
-    status === 'PIENO'  ? '🗑️ Pieno' :
-    '✅ Operativo';
-
-  const submitReport = async () => {
-    if (!description.trim()) { setFeedback('Inserisci una descrizione del problema.'); return; }
-    if (!userId)            { setFeedback('Devi effettuare il login per segnalare.'); return; }
-    setSending(true); setFeedback('');
-    try {
-      await axios.post(`${API_URL}/report/create`, {
-        userId, binId: bin._id, description: description.trim(),
-      });
-      setDone(true);
-      onStatusChange?.(bin._id, 'SEGNALATO');
-    } catch {
-      setFeedback('Errore di connessione con il server.');
-    } finally { setSending(false); }
-  };
-
-  return (
-    <View style={[styles.binOverlay, { zIndex: 40 }]}>
-      <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={onClose} />
-      <View style={styles.binCard}>
-        <View style={styles.binHeader}>
-          <Text style={styles.binTitle} numberOfLines={1}>{bin.name || 'Bidone'}</Text>
-          <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={onClose}>
-            <Text style={styles.binCloseTxt}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
-          <Text style={styles.infoAddress}>{bin.address || 'Nessun indirizzo specificato'}</Text>
-
-          <Text style={styles.infoSection}>Tipi di rifiuto</Text>
-          <View style={styles.chipRow}>
-            {types.length
-              ? types.map(t => (<View key={t} style={styles.chip}><Text style={styles.chipTxt}>{t}</Text></View>))
-              : <Text style={styles.infoMuted}>—</Text>}
-          </View>
-
-          <Text style={styles.infoSection}>Riempimento</Text>
-          <View style={styles.infoBarBg}>
-            <View style={[styles.infoBarFill, {
-              width: `${Math.min(100, Math.max(0, fill))}%`,
-              backgroundColor: fill > 80 ? '#cc0000' : '#2E7D32',
-            }]} />
-          </View>
-          <Text style={styles.infoMuted}>{fill}%{fill > 80 ? '  ·  Quasi pieno' : ''}</Text>
-
-          <Text style={styles.infoSection}>Dettagli</Text>
-          {[
-            ['Stato',      statusLabel],
-            ['Codice',     bin.binCode],
-            ['Sensore',    bin.sensor?.sensorCode],
-            ['Batteria',   bin.sensor?.batteryLevel != null ? `${bin.sensor.batteryLevel}%` : null],
-            ['Coordinate', bin.coordinates ? `${Number(bin.coordinates.lat).toFixed(5)}, ${Number(bin.coordinates.lng).toFixed(5)}` : null],
-          ].filter(r => r[1]).map(([k, v]) => (
-            <View key={k} style={styles.detailRow}>
-              <Text style={styles.detailLabel}>{k}</Text>
-              <Text style={styles.detailValue}>{v}</Text>
-            </View>
-          ))}
-
-          {done ? (
-            <Text style={styles.infoSuccess}>✅ Segnalazione inviata. Stato aggiornato.</Text>
-          ) : !showReport ? (
-            <TouchableOpacity
-              style={[styles.infoReportBtn, disabled && styles.binSubmitBtnDisabled]}
-              activeOpacity={disabled ? 1 : 0.85}
-              onPress={() => { if (!disabled) setShowReport(true); }}
-            >
-              <Text style={styles.binSubmitTxt}>{disabled ? statusLabel : '⚠️ Segnala guasto'}</Text>
-            </TouchableOpacity>
-          ) : (
-            <View>
-              {feedback ? <Text style={styles.infoError}>⚠️ {feedback}</Text> : null}
-              <TextInput
-                style={[styles.binInput, { height: 90, textAlignVertical: 'top', marginTop: 8 }]}
-                placeholder="Spiega il problema riscontrato…"
-                placeholderTextColor="#999"
-                multiline
-                value={description}
-                onChangeText={setDescription}
-              />
-              <View style={styles.infoReportRow}>
-                <TouchableOpacity style={[styles.infoReportHalf, { backgroundColor: '#eee' }]} activeOpacity={0.8} onPress={() => setShowReport(false)}>
-                  <Text style={{ color: '#555', fontWeight: '600' }}>Annulla</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.infoReportHalf, { backgroundColor: '#d32f2f' }]} activeOpacity={0.8} onPress={submitReport} disabled={sending}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>{sending ? 'Invio…' : 'Invia'}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* ── Admin-only controls: change status + delete ── */}
-          {isAdmin && (
-            <>
-              <Text style={styles.infoSection}>Stato (admin)</Text>
-              <WasteDropdown
-                value={ADMIN_STATUS_OPTIONS.find(o => o.value === status)?.label || status}
-                options={ADMIN_STATUS_OPTIONS.map(o => o.label)}
-                placeholder="Seleziona uno stato…"
-                onSelect={(label) => {
-                  const opt = ADMIN_STATUS_OPTIONS.find(o => o.label === label);
-                  if (opt) changeStatus(opt.value);
-                }}
-              />
-
-              <TouchableOpacity
-                style={[styles.binDeleteBtn, deleting && styles.binSubmitBtnDisabled]}
-                activeOpacity={deleting ? 1 : 0.85}
-                onPress={removeBin}
-              >
-                <Text style={styles.binSubmitTxt}>{deleting ? 'Eliminazione…' : '🗑  Elimina bidone'}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </ScrollView>
-      </View>
-    </View>
-  );
-}
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function HomeAdminScreen() {
@@ -624,50 +437,45 @@ export default function HomeAdminScreen() {
   const [binStatsByZone, setBinStatsByZone] = useState({});
   const [statsZone,      setStatsZone]      = useState(null);
 
-  // ── Add-bin placing phase ────────────────────────────────────────────────────
+  // ── Add-bin / add-center placing phase ───────────────────────────────────────
   const [placingMode,  setPlacingMode]  = useState(false);     // toolbar btn #2
   const [pendingCoord, setPendingCoord] = useState(null);      // {lat,lng} being configured
+  const [creationType, setCreationType] = useState(null);      // null | 'bin' | 'center'
   const [adminBins,    setAdminBins]    = useState([]);        // bins shown as markers
   const [wasteOptions, setWasteOptions] = useState([]);        // selectable waste types
-  const [userRole,     setUserRole]     = useState(null);      // current user's role
-  const [binInfo,      setBinInfo]      = useState(null);      // bin shown in the full info view
 
-  // Marker color by role: citizen → green, operator → blue, admin → amaranth
-  const binColor =
-    userRole === 'operator' ? '#1565C0' :
-    userRole === 'admin'    ? PRIMARY   :
-    '#2E7D32';
+  // Bins are always shown as grey markers on the map.
+  const binColor = '#9E9E9E';
 
-  // Popup form state
+  // ── Bin popup form state ─────────────────────────────────────────────────────
   const [binName,       setBinName]       = useState('');
   const [binAddress,    setBinAddress]    = useState('');
   const [binWasteTypes, setBinWasteTypes] = useState(['']);    // index 0 = primary
+  const [binCenterId,   setBinCenterId]   = useState('');      // selected center (optional)
   const [addrLoading,   setAddrLoading]   = useState(false);
   const [savingBin,     setSavingBin]     = useState(false);
+
+  // ── Center popup form state ──────────────────────────────────────────────────
+  const [centerName,    setCenterName]    = useState('');
+  const [centerAddress, setCenterAddress] = useState('');
+  const [openH,         setOpenH]         = useState('');      // opening hour   HH
+  const [openM,         setOpenM]         = useState('');      // opening minute MM
+  const [closeH,        setCloseH]        = useState('');      // closing hour   HH
+  const [closeM,        setCloseM]        = useState('');      // closing minute MM
+  const [centerAddrLoading, setCenterAddrLoading] = useState(false);
+  const [savingCenter,  setSavingCenter]  = useState(false);
 
   const resetBinForm = () => {
     setBinName('');
     setBinAddress('');
     setBinWasteTypes(['']);
+    setBinCenterId('');
   };
 
-  // ── Admin-only bin actions (delete + change status) ──────────────────────────
-  const deleteBin = async (binId) => {
-    const token = await AsyncStorage.getItem('token');
-    const auth  = { headers: { Authorization: `Bearer ${token}` } };
-    await axios.delete(`${API_URL}/admin/bins/${binId}`, auth);
-    // Remove from the map (and therefore from the per-zone stats) for everyone
-    setAdminBins(prev => prev.filter(b => b._id !== binId));
-    setBinInfo(null);
-  };
-
-  const updateBinStatus = async (binId, status) => {
-    const token = await AsyncStorage.getItem('token');
-    const auth  = { headers: { Authorization: `Bearer ${token}` } };
-    const r = await axios.patch(`${API_URL}/admin/bins/${binId}/status`, { status }, auth);
-    const updated = r.data?.status || status;
-    setAdminBins(prev => prev.map(b => (b._id === binId ? { ...b, status: updated } : b)));
-    setBinInfo(prev => (prev && prev._id === binId ? { ...prev, status: updated } : prev));
+  const resetCenterForm = () => {
+    setCenterName('');
+    setCenterAddress('');
+    setOpenH(''); setOpenM(''); setCloseH(''); setCloseM('');
   };
 
   const fetchAdminBins = useCallback(async () => {
@@ -680,20 +488,19 @@ export default function HomeAdminScreen() {
   }, []);
 
   // Poll the placed bins so status changes made by an admin are seen live by
-  // everyone else (markers + the open detail view stay in sync).
+  // everyone else (markers stay in sync).
   useEffect(() => {
     const id = setInterval(() => { fetchAdminBins(); }, 15000);
     return () => clearInterval(id);
   }, [fetchAdminBins]);
 
-  // Keep an open bin detail view in sync with the freshly polled data
-  useEffect(() => {
-    if (!binInfo) return;
-    const fresh = adminBins.find(b => b._id === binInfo._id);
-    if (fresh && fresh.status !== binInfo.status) {
-      setBinInfo(prev => (prev ? { ...prev, status: fresh.status } : prev));
-    }
-  }, [adminBins]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Refresh the collection centers (used by the bin marker popups and the
+  // "center in this neighbourhood" dropdown).
+  const fetchCenters = useCallback(() => {
+    axios.get(`${API_URL}/centers/all`)
+      .then(r => setCenters(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setCenters([]));
+  }, []);
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -726,7 +533,6 @@ export default function HomeAdminScreen() {
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem('profileAvatarUri').then(uri => setAvatarUri(uri || null));
-      AsyncStorage.getItem('userRole').then(role => setUserRole(role || null));
     }, [])
   );
 
@@ -825,56 +631,87 @@ export default function HomeAdminScreen() {
   const enterPlacing = () => {
     closeAllCards();
     setPendingCoord(null);
+    setCreationType(null);
     resetBinForm();
+    resetCenterForm();
     setPlacingMode(true);
   };
 
   const cancelPlacing = () => {
     setPlacingMode(false);
     setPendingCoord(null);
+    setCreationType(null);
     resetBinForm();
+    resetCenterForm();
   };
 
-  // Map left-click during placing → open the configuration popup at that point
+  // Map left-click during placing → open the entity-choice dialog at that point
   const handlePlaceClick = useCallback((coord) => {
     setPendingCoord(coord);
-    setBinName('');
-    setBinAddress('');
-    setBinWasteTypes(['']);
+    setCreationType(null);
   }, []);
 
-  // Top-right ✕ of the popup → discard this point, keep selecting a new one
-  const closeBinPopup = () => {
+  // Top-right ✕ of a popup → discard this point, keep selecting a new one
+  const closePopup = () => {
     setPendingCoord(null);
+    setCreationType(null);
     resetBinForm();
+    resetCenterForm();
   };
 
-  // Reverse-geocode the pointed location into an address
+  // Circoscrizione (neighbourhood) of the clicked point + the centers within it
+  const pendingZone = pendingCoord
+    ? zoneForCoord(pendingCoord.lat, pendingCoord.lng)
+    : null;
+  const centersInZone = pendingZone
+    ? centers.filter(c =>
+        c?.coordinates &&
+        zoneForCoord(Number(c.coordinates.lat), Number(c.coordinates.lng)) === pendingZone)
+    : [];
+
+  // Shared reverse-geocode helper → returns a display address or null
+  const reverseGeocode = async (coord) => {
+    const r = await axios.get(`${API_URL}/osm/reverse?lat=${coord.lat}&lon=${coord.lng}`);
+    const data = r.data || {};
+    let address = data.display_name;
+    if (!address && data.address) {
+      const a = data.address;
+      address = [
+        [a.road, a.house_number].filter(Boolean).join(' '),
+        a.city || a.town || a.village,
+        a.postcode,
+      ].filter(Boolean).join(', ');
+    }
+    return address || null;
+  };
+
+  // Reverse-geocode the pointed location into the bin's address field
   const calcAddress = async () => {
     if (!pendingCoord || addrLoading) return;
     setAddrLoading(true);
     try {
-      const r = await axios.get(`${API_URL}/osm/reverse?lat=${pendingCoord.lat}&lon=${pendingCoord.lng}`);
-      const data = r.data || {};
-      // Prefer the full display name; otherwise compose one from the parts.
-      let address = data.display_name;
-      if (!address && data.address) {
-        const a = data.address;
-        address = [
-          [a.road, a.house_number].filter(Boolean).join(' '),
-          a.city || a.town || a.village,
-          a.postcode,
-        ].filter(Boolean).join(', ');
-      }
-      if (address) {
-        setBinAddress(address);   // write the calculated address into the field
-      } else {
-        Alert.alert('Indirizzo non trovato', 'Non è stato possibile calcolare l\'indirizzo di questo punto.');
-      }
+      const address = await reverseGeocode(pendingCoord);
+      if (address) setBinAddress(address);
+      else Alert.alert('Indirizzo non trovato', 'Non è stato possibile calcolare l\'indirizzo di questo punto.');
     } catch {
       Alert.alert('Errore', 'Impossibile calcolare l\'indirizzo. Riprova.');
     } finally {
       setAddrLoading(false);
+    }
+  };
+
+  // Reverse-geocode the pointed location into the center's address field
+  const calcCenterAddress = async () => {
+    if (!pendingCoord || centerAddrLoading) return;
+    setCenterAddrLoading(true);
+    try {
+      const address = await reverseGeocode(pendingCoord);
+      if (address) setCenterAddress(address);
+      else Alert.alert('Indirizzo non trovato', 'Non è stato possibile calcolare l\'indirizzo di questo punto.');
+    } catch {
+      Alert.alert('Errore', 'Impossibile calcolare l\'indirizzo. Riprova.');
+    } finally {
+      setCenterAddrLoading(false);
     }
   };
 
@@ -904,14 +741,58 @@ export default function HomeAdminScreen() {
         address:     binAddress.trim(),
         coordinates: pendingCoord,
         wasteTypes:  binWasteTypes.filter(Boolean),
+        centerId:    binCenterId || null,   // null = no center (status set to GUASTO server-side)
+        area:        pendingZone || undefined,
       }, auth);
-      setPendingCoord(null);   // back to the placing phase
-      resetBinForm();
-      fetchAdminBins();        // refresh the green markers
+      closePopup();            // back to the placing phase, pick a new point
+      fetchAdminBins();        // refresh the grey markers
     } catch {
       Alert.alert('Errore', 'Impossibile aggiungere il bidone. Riprova.');
     } finally {
       setSavingBin(false);
+    }
+  };
+
+  // ── Collection-center creation ───────────────────────────────────────────────
+  const canAddCenter =
+    centerName.trim() !== '' && centerAddress.trim() !== '' && !savingCenter;
+
+  // Build "HH:MM" from the two numeric fields, or null if incomplete/invalid
+  const buildTime = (h, m) => {
+    if (h === '' && m === '') return null;
+    const hh = Number(h), mm = Number(m);
+    if (!Number.isInteger(hh) || hh < 0 || hh > 23) return null;
+    if (!Number.isInteger(mm) || mm < 0 || mm > 59) return null;
+    return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  };
+
+  const addCenter = async () => {
+    if (!canAddCenter) return;
+    setSavingCenter(true);
+    const token = await AsyncStorage.getItem('token');
+    const auth  = { headers: { Authorization: `Bearer ${token}` } };
+
+    // Opening hours: only sent if both times are valid, otherwise the server
+    // applies the schema default.
+    const open  = buildTime(openH, openM);
+    const close = buildTime(closeH, closeM);
+    const openingHours = (open && close) ? `Lun-Dom ${open}-${close}` : undefined;
+
+    try {
+      await axios.post(`${API_URL}/admin/centers`, {
+        name:        centerName.trim(),
+        address:     centerAddress.trim(),
+        area:        pendingZone || 'Altro',
+        coordinates: pendingCoord,
+        openingHours,
+      }, auth);
+      closePopup();        // back to the placing phase, pick a new point
+      fetchCenters();      // new amaranth marker
+      fetchAdminBins();    // auto-assignment may have linked orphan bins
+    } catch {
+      Alert.alert('Errore', 'Impossibile creare il centro di raccolta. Riprova.');
+    } finally {
+      setSavingCenter(false);
     }
   };
 
@@ -943,7 +824,6 @@ export default function HomeAdminScreen() {
         pendingCoord={pendingCoord}
         adminBins={adminBins}
         binColor={binColor}
-        onBinInfo={setBinInfo}
       />
 
       {/* All standard chrome is hidden while in the bin-placing phase */}
@@ -1002,6 +882,7 @@ export default function HomeAdminScreen() {
             onPress={() => {
               if (i === 0) router.push('/report_admin');
               else if (i === 1) enterPlacing();
+              else if (i === 2) router.push('/centers/unassigned/bins');
             }}
           >
             <Image
@@ -1117,14 +998,14 @@ export default function HomeAdminScreen() {
 
       </>)}
 
-      {/* ── Placing phase: hint + cancel + configuration popup ── */}
+      {/* ── Placing phase: hint + cancel + choice dialog + configuration popups ── */}
       {placingMode && (
         <>
           {/* Top hint */}
           {!pendingCoord && (
             <View style={styles.placeHintBox} pointerEvents="none">
               <Text style={styles.placeHintText}>
-                Click sulla mappa per posizionare il bidone · rotella per zoom · tasto centrale per spostarti
+                Click sulla mappa per scegliere dove creare · rotella per zoom · tasto centrale per spostarti
               </Text>
             </View>
           )}
@@ -1136,15 +1017,46 @@ export default function HomeAdminScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Configuration popup */}
-          {pendingCoord && (
+          {/* Step 1 — choose what to create (darkened background) */}
+          {pendingCoord && !creationType && (
+            <View style={styles.binOverlay}>
+              <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={() => {}} />
+              <View style={styles.choiceCard}>
+                <Text style={styles.choiceTitle}>Cosa vuoi creare qui?</Text>
+                <View style={styles.choiceBtnRow}>
+                  <TouchableOpacity
+                    style={styles.choiceBtn}
+                    activeOpacity={0.85}
+                    onPress={() => setCreationType('bin')}
+                  >
+                    <Text style={styles.choiceBtnIcon}>🗑️</Text>
+                    <Text style={styles.choiceBtnTxt}>Cassone</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.choiceBtn}
+                    activeOpacity={0.85}
+                    onPress={() => setCreationType('center')}
+                  >
+                    <Text style={styles.choiceBtnIcon}>🏢</Text>
+                    <Text style={styles.choiceBtnTxt}>Centro di Collezione</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity style={styles.choiceCancel} activeOpacity={0.7} onPress={closePopup}>
+                  <Text style={styles.choiceCancelTxt}>Annulla</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Step 2a — bin configuration popup */}
+          {pendingCoord && creationType === 'bin' && (
             <View style={styles.binOverlay}>
               <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={() => {}} />
               <View style={styles.binCard}>
                 {/* Header */}
                 <View style={styles.binHeader}>
-                  <Text style={styles.binTitle}>Nuovo bidone</Text>
-                  <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={closeBinPopup}>
+                  <Text style={styles.binTitle}>Nuovo cassone</Text>
+                  <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={closePopup}>
                     <Text style={styles.binCloseTxt}>✕</Text>
                   </TouchableOpacity>
                 </View>
@@ -1198,6 +1110,27 @@ export default function HomeAdminScreen() {
                       <Text style={styles.binAddWasteTxt}>＋</Text>
                     </TouchableOpacity>
                   )}
+
+                  {/* Collection center in this neighbourhood (only if any exists) */}
+                  {centersInZone.length > 0 ? (
+                    <>
+                      <Text style={styles.binLabel}>Centro di raccolta ({pendingZone})</Text>
+                      <WasteDropdown
+                        value={centersInZone.find(c => c._id === binCenterId)?.name || ''}
+                        options={centersInZone.map(c => c.name)}
+                        placeholder="Seleziona un centro…"
+                        onSelect={(name) => {
+                          const c = centersInZone.find(x => x.name === name);
+                          setBinCenterId(c?._id || '');
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <Text style={styles.binMuted}>
+                      Nessun centro di raccolta in questo quartiere: il bidone resterà non
+                      assegnato (stato GUASTO) finché non verrà creato un centro qui.
+                    </Text>
+                  )}
                 </ScrollView>
 
                 {/* Add bin button */}
@@ -1206,27 +1139,99 @@ export default function HomeAdminScreen() {
                   activeOpacity={canAddBin ? 0.85 : 1}
                   onPress={addBin}
                 >
-                  <Text style={styles.binSubmitTxt}>{savingBin ? 'Aggiunta…' : 'Aggiungi bidone'}</Text>
+                  <Text style={styles.binSubmitTxt}>{savingBin ? 'Aggiunta…' : 'Aggiungi cassone'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Step 2b — collection center configuration popup */}
+          {pendingCoord && creationType === 'center' && (
+            <View style={styles.binOverlay}>
+              <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={() => {}} />
+              <View style={styles.binCard}>
+                {/* Header */}
+                <View style={styles.binHeader}>
+                  <Text style={styles.binTitle}>Nuovo centro di raccolta</Text>
+                  <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={closePopup}>
+                    <Text style={styles.binCloseTxt}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+                  {/* Name */}
+                  <Text style={styles.binLabel}>Nome del centro</Text>
+                  <TextInput
+                    style={styles.binInput}
+                    placeholder="Es. Centro Raccolta Trento Nord"
+                    placeholderTextColor="#999"
+                    value={centerName}
+                    onChangeText={setCenterName}
+                  />
+
+                  {/* Address + calculate button */}
+                  <Text style={styles.binLabel}>Indirizzo</Text>
+                  <View style={styles.binAddressRow}>
+                    <TextInput
+                      style={[styles.binInput, { flex: 1, marginBottom: 0 }]}
+                      placeholder="Indirizzo del centro"
+                      placeholderTextColor="#999"
+                      value={centerAddress}
+                      onChangeText={setCenterAddress}
+                    />
+                    <TouchableOpacity
+                      style={styles.binCalcBtn}
+                      activeOpacity={0.8}
+                      onPress={calcCenterAddress}
+                      disabled={centerAddrLoading}
+                    >
+                      <Text style={styles.binCalcTxt}>{centerAddrLoading ? '…' : '📍 Calcola'}</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Opening hours (optional → schema default if left empty) */}
+                  <Text style={styles.binLabel}>Orari di apertura (opzionale)</Text>
+                  <View style={styles.timeRow}>
+                    <Text style={styles.timeLabel}>Apertura</Text>
+                    <TextInput
+                      style={styles.timeInput} placeholder="HH" placeholderTextColor="#999"
+                      keyboardType="numeric" maxLength={2} value={openH} onChangeText={setOpenH}
+                    />
+                    <Text style={styles.timeColon}>:</Text>
+                    <TextInput
+                      style={styles.timeInput} placeholder="MM" placeholderTextColor="#999"
+                      keyboardType="numeric" maxLength={2} value={openM} onChangeText={setOpenM}
+                    />
+                  </View>
+                  <View style={styles.timeRow}>
+                    <Text style={styles.timeLabel}>Chiusura</Text>
+                    <TextInput
+                      style={styles.timeInput} placeholder="HH" placeholderTextColor="#999"
+                      keyboardType="numeric" maxLength={2} value={closeH} onChangeText={setCloseH}
+                    />
+                    <Text style={styles.timeColon}>:</Text>
+                    <TextInput
+                      style={styles.timeInput} placeholder="MM" placeholderTextColor="#999"
+                      keyboardType="numeric" maxLength={2} value={closeM} onChangeText={setCloseM}
+                    />
+                  </View>
+                  <Text style={styles.binMuted}>
+                    Quartiere: {pendingZone || 'Altro'} · coordinate e area sono calcolate dal punto scelto.
+                  </Text>
+                </ScrollView>
+
+                {/* Add center button */}
+                <TouchableOpacity
+                  style={[styles.binSubmitBtn, !canAddCenter && styles.binSubmitBtnDisabled]}
+                  activeOpacity={canAddCenter ? 0.85 : 1}
+                  onPress={addCenter}
+                >
+                  <Text style={styles.binSubmitTxt}>{savingCenter ? 'Creazione…' : 'Crea centro'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
         </>
-      )}
-
-      {/* ── Full bin information view ── */}
-      {binInfo && (
-        <BinInfoModal
-          bin={binInfo}
-          isAdmin={userRole === 'admin'}
-          onClose={() => setBinInfo(null)}
-          onDelete={deleteBin}
-          onUpdateStatus={updateBinStatus}
-          onStatusChange={(id, status) => {
-            setAdminBins(prev => prev.map(b => (b._id === id ? { ...b, status } : b)));
-            setBinInfo(prev => (prev && prev._id === id ? { ...prev, status } : prev));
-          }}
-        />
       )}
 
       {/* ── Circoscrizione statistics popup (right-click on a zone) ── */}
@@ -1336,6 +1341,34 @@ const styles = StyleSheet.create({
   },
   binCloseTxt: { fontSize: 16, color: '#444', fontWeight: '700' },
   binLabel: { fontSize: 13, fontWeight: '600', color: '#555', marginTop: 12, marginBottom: 6 },
+  binMuted: { fontSize: 12, color: '#888', marginTop: 12, lineHeight: 18 },
+
+  // ── Entity choice dialog (Cassone / Centro di Collezione) ───────────────────
+  choiceCard: {
+    width: '100%', maxWidth: 440, backgroundColor: '#fff', borderRadius: 18,
+    paddingHorizontal: 22, paddingTop: 20, paddingBottom: 18, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 14, elevation: 14,
+  },
+  choiceTitle: { fontSize: 19, fontWeight: '700', color: PRIMARY, marginBottom: 18 },
+  choiceBtnRow: { flexDirection: 'row', gap: 14, width: '100%' },
+  choiceBtn: {
+    flex: 1, backgroundColor: '#fff', borderWidth: 2.5, borderColor: PRIMARY,
+    borderRadius: 14, paddingVertical: 20, paddingHorizontal: 10, alignItems: 'center',
+  },
+  choiceBtnIcon: { fontSize: 30, marginBottom: 8 },
+  choiceBtnTxt: { fontSize: 15, fontWeight: '700', color: PRIMARY, textAlign: 'center' },
+  choiceCancel: { marginTop: 16, paddingVertical: 8, paddingHorizontal: 18 },
+  choiceCancelTxt: { fontSize: 14, color: '#888', fontWeight: '600' },
+
+  // ── Opening-hours time fields ────────────────────────────────────────────────
+  timeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  timeLabel: { fontSize: 13, color: '#555', fontWeight: '600', width: 80 },
+  timeInput: {
+    borderWidth: 1.5, borderColor: '#ddd', borderRadius: 10, width: 56, textAlign: 'center',
+    paddingHorizontal: 8, paddingVertical: 10, fontSize: 14, color: '#222', outlineStyle: 'none',
+  },
+  timeColon: { fontSize: 18, fontWeight: '700', color: '#555' },
 
   // Full bin info view
   infoAddress: { fontSize: 14, color: '#666', marginBottom: 4 },

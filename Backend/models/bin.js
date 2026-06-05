@@ -36,6 +36,13 @@ const binSchema = new mongoose.Schema(
       lat: { type: Number },
       lng: { type: Number },
     },
+    // Circoscrizione (quartiere) in cui ricade il bidone. Calcolata lato client
+    // dalle coordinate e usata dal server per assegnare i bidoni "orfani" al
+    // primo centro di raccolta creato nello stesso quartiere.
+    area: {
+      type: String,
+      trim: true,
+    },
     fillLevel: {
       type: Number,
       min: 0,
