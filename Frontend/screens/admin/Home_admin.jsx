@@ -994,12 +994,15 @@ export default function HomeAdminScreen() {
 
       {/* ── Left vertical tool bar ── */}
       <View style={[styles.sideBar, { zIndex: 10 }]}>
-        {sideButtons.map((btn) => (
+        {[0, 1, 2].map((i) => (
           <TouchableOpacity
-            key={btn.id}
+            key={i}
             style={styles.sideButton}
             activeOpacity={0.85}
-            onPress={() => { if (i === 1) enterPlacing(); }}
+            onPress={() => {
+              if (i === 0) router.push('/report_admin');
+              else if (i === 1) enterPlacing();
+            }}
           >
             <Image
               source={i === 0 ? SegnalazioniImg : i === 1 ? AddBinImg : WorkImg}
