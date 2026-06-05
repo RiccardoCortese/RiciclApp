@@ -12,6 +12,7 @@ import axios from 'axios';
 
 import Logo     from '../../src/assets/Riciclapp_Logo.png';
 import WorkImg  from '../../src/assets/Work_in_progess.png';
+import admin_report from '../../src/assets/admin_report.png';
 import UserDefault from '../../src/assets/Profile_image/User_image.png';
 import AddBinImg      from '../../src/assets/Aggiunta Bin.png';
 import SegnalazioniImg from '../../src/assets/Segnalazioni.png';
@@ -993,9 +994,9 @@ export default function HomeAdminScreen() {
 
       {/* ── Left vertical tool bar ── */}
       <View style={[styles.sideBar, { zIndex: 10 }]}>
-        {[0, 1, 2, 3, 4].map((i) => (
+        {sideButtons.map((btn) => (
           <TouchableOpacity
-            key={i}
+            key={btn.id}
             style={styles.sideButton}
             activeOpacity={0.85}
             onPress={() => { if (i === 1) enterPlacing(); }}

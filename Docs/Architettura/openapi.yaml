@@ -375,7 +375,89 @@ paths:
                   message:
                     type: string
                     example: Errore interno del server durante la creazione del report
+  /reports/all:
+      get:
+        summary: Recupera tutte le segnalazioni
+        description: Restituisce l'elenco completo delle segnalazioni con informazioni sull'utente, sul bidone e sul centro di raccolta associato.
+        tags:
+          - Reports
 
+        responses:
+          '200':
+            description: Lista delle segnalazioni recuperata con successo
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+
+                    reports:
+                      type: array
+
+          '500':
+            description: Errore interno del server
+
+  /reports/update/{reportId}:
+      put:
+        summary: Aggiorna lo stato di una segnalazione
+        description: |
+          Aggiorna lo stato di una segnalazione.
+
+          Comportamento:
+          - ACCEPT → il bidone passa in MANUTENZIONE
+          - RESOLVED → il bidone torna in OK e il report viene eliminato
+          - REJECTED → il bidone torna in OK e il report viene eliminato
+        tags:
+          - Reports
+
+        parameters:
+          - in: path
+            name: reportId
+            required: true
+            schema:
+              type: string
+            description: ID del report da aggiornare
+
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ACCEPT
+                      - RESOLVED
+                      - REJECTED
+                    example: ACCEPT
+
+        responses:
+          '200':
+            description: Stato aggiornato con successo
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                      example: Stato del report aggiornato con successo
+
+                    report:
+                      $ref: '#/components/schemas/Report'
+
+          '404':
+            description: Report non trovato
+
+          '500':
+            description: Errore interno del server
 
 
 
@@ -635,6 +717,7 @@ components:
             - PENDING
             - IN_PROGRESS
             - RESOLVED
+            - REJECTED
           example: PENDING
 
         createdAt:
