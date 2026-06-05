@@ -1,0 +1,192 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp - ZX API (Barcode Scanner + Disposal Categories)
+  description: >
+    API per la scansione barcode integrata con la categorizzazione dei rifiuti.
+    Riceve un codice a barre scansionato tramite ZXing/expo-camera, recupera
+    i dati del prodotto da Open Food Facts (con timeout di 8 secondi) e
+    restituisce un payload arricchito con le categorie di smaltimento pre-calcolate.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  # Sostituisci con il tuo IP nel file Frontend/src/config.js
+    description: Server Locale (Sviluppo)
+
+tags:
+  - name: ZX
+    description: Scansione barcode con calcolo categorie di smaltimento rifiuti
+
+paths:
+  /zx/scan/{barcode}:
+    get:
+      tags:
+        - ZX
+      summary: Scansiona barcode e ottieni istruzioni di smaltimento
+      description: >
+        Recupera i dati del prodotto da Open Food Facts tramite il barcode fornito,
+        analizza i campi `packaging` e `packaging_tags` e restituisce le categorie
+        di smaltimento corrette per ogni materiale rilevato.
+        La chiamata verso Open Food Facts ha un timeout fisso di 8 secondi (AbortController).
+        Non richiede autenticazione.
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          description: Codice a barre del prodotto (EAN-13, EAN-8, UPC, ecc.)
+          schema:
+            type: string
+            example: "3017620422003"
+      responses:
+        '200':
+          description: Prodotto trovato con categorie di smaltimento calcolate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZXScanResponse'
+        '400':
+          description: Parametro barcode assente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZXErrorResponse'
+              example:
+                error: Barcode obbligatorio
+        '404':
+          description: Prodotto non trovato nel database Open Food Facts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZXErrorResponse'
+              example:
+                status: 0
+                error: Prodotto non trovato
+        '504':
+          description: Timeout — Open Food Facts non ha risposto entro 8 secondi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZXErrorResponse'
+              example:
+                status: 0
+                error: Timeout nella ricerca del prodotto
+        '500':
+          description: Errore generico durante il recupero dei dati
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZXErrorResponse'
+              example:
+                status: 0
+                error: Errore nel recupero dati dal database prodotti
+
+components:
+  schemas:
+    DisposalCategory:
+      type: object
+      description: Categoria di smaltimento per un materiale di imballaggio rilevato
+      properties:
+        label:
+          type: string
+          description: Nome del materiale
+          example: Vetro
+        bin:
+          type: string
+          description: Bidone o contenitore corretto per lo smaltimento
+          example: Campana Verde (Vetro)
+        color:
+          type: string
+          description: Colore esadecimale associato alla categoria (per la UI)
+          example: "#2E7D32"
+        icon:
+          type: string
+          description: Emoji rappresentativa della categoria
+          example: "🫙"
+      required:
+        - label
+        - bin
+        - color
+        - icon
+
+    ZXProductInfo:
+      type: object
+      description: Dati del prodotto estratti da Open Food Facts e normalizzati
+      properties:
+        product_name:
+          type: string
+          nullable: true
+          example: Nutella
+        brands:
+          type: string
+          nullable: true
+          example: Ferrero
+        quantity:
+          type: string
+          nullable: true
+          example: 400 g
+        categories:
+          type: string
+          nullable: true
+          example: "Spreads, Sweet spreads, Hazelnut spreads"
+        countries:
+          type: string
+          nullable: true
+          example: Italy
+        packaging:
+          type: string
+          nullable: true
+          description: Testo libero dei materiali di imballaggio
+          example: "glass, plastic"
+        packaging_tags:
+          type: array
+          items:
+            type: string
+          description: Tag strutturati dei materiali (usati da resolveDisposal)
+          example: ["en:glass", "en:plastic"]
+        ecoscore_grade:
+          type: string
+          nullable: true
+          enum: [a, b, c, d, e]
+          description: Punteggio ambientale del prodotto
+          example: d
+        image_front_small_url:
+          type: string
+          nullable: true
+          format: uri
+          example: "https://images.openfoodfacts.org/images/products/.../front_en.small.jpg"
+
+    ZXScanResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: "1 = prodotto trovato"
+          example: 1
+        barcode:
+          type: string
+          description: Barcode originale ricevuto nella richiesta
+          example: "3017620422003"
+        product:
+          $ref: '#/components/schemas/ZXProductInfo'
+        disposal:
+          type: array
+          description: >
+            Categorie di smaltimento calcolate in base ai materiali di imballaggio.
+            Contiene sempre almeno un elemento (fallback Indifferenziato se nessun
+            materiale è riconosciuto). I duplicati per stesso bidone vengono rimossi.
+          items:
+            $ref: '#/components/schemas/DisposalCategory'
+          minItems: 1
+      required:
+        - status
+        - barcode
+        - product
+        - disposal
+
+    ZXErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 0
+        error:
+          type: string

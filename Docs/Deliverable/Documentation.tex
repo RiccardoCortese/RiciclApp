@@ -1,0 +1,693 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[table]{xcolor}
+\graphicspath{ {./pictures/} } % definisce la cartella predefinita per le immagini
+\usepackage{float}
+\geometry{margin=2.5cm}
+
+\begin{document}
+
+% --- PAGINA 1: COPERTINA ---
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \textbf{RiciclApp} \par}
+    \vspace{1cm}
+    {\Large Deliverable D1 \par}
+    \vspace{3cm}
+    
+    {\large \textbf{Gruppo n°:} 20 \par}
+    \vspace{1.5cm}
+    
+    {\large \textbf{Componenti:} \par}
+    \vspace{0.5cm}
+    \begin{tabular}{rl}
+        \textbf{Studente:} & Binco Francesco (Matricola: 243781) \\
+        \textbf{Studente:} & Cortese Riccardo (Matricola: 244656) \\
+        \textbf{Studente:} & Giovagnetti Lorenzo (Matricola: 247579) \\
+    \end{tabular}
+    
+    \vfill
+    {\large Progetto di Ingegneria del Software - Prof. Sandro Luigi Fiore \par}
+    \vspace{1.5cm}
+    {\large Anno Accademico 2025/2026 \par}
+    \vspace{2cm}
+\end{titlepage}
+
+% --- PAGINA 2: SOMMARIO ---
+\begin{abstract}
+Il presente progetto descrive l'ideazione e la progettazione di un sistema per l'ottimizzazione della raccolta differenziata urbana. 
+
+L'obiettivo principale dell'applicazione è duplice: da un lato, semplificare il conferimento dei rifiuti per il cittadino attraverso strumenti di riconoscimento (scansione barcode) e localizzazione dei punti di raccolta con relativo stato di riempimento; dall'altro, fornire agli enti comunali e alle aziende di raccolta una visione d'insieme in tempo reale dello stato del territorio. 
+
+Grazie ai dati trasmessi dai sensori IoT installati nei bidoni, l'amministratore può monitorare i livelli di riempimento, identificare le zone critiche e pianificare interventi di svuotamento mirati. Questo approccio permette di passare da una raccolta a calendario a una gestione dinamica "on-demand", riducendo i costi operativi e l'impatto ambientale dei mezzi di trasporto. 
+
+Il sistema si avvale di una rete di sensori IoT installati nei bidoni stradali per il monitoraggio in tempo reale dei livelli di riempimento, permettendo agli operatori ecologici di usufruire di percorsi di raccolta ottimizzati. 
+\end{abstract}
+
+
+% --- PAGINA 3: INDICE ---
+\newpage
+\pagenumbering{roman} % Numerazione romana per l'indice
+\tableofcontents
+\newpage
+
+% --- PAGINA 4 E SUCCESSIVE: CONTENUTO ---
+\pagenumbering{arabic} % Torna alla numerazione araba (1, 2, 3...)
+\setcounter{page}{1}   % Ricomincia il conteggio da 1
+
+\section{Obiettivi del progetto}
+\section*{Obiettivi del Progetto}
+
+\begin{enumerate}[label=\textbf{(O\arabic*)}]
+    \item \textbf{Miglioramento della Raccolta differenziata dei rifiuti:}
+    L'obbiettivo di questa applicazione è agevolare il cittadino nella raccolta differenziata, fornedo tramite scansione istantanea dei prodotti tutte le informazioni necessarie per un più     efficente e sostenibile smaltimento dei rifiuti.
+
+    \item \textbf{Dinamizzazione operativa e logistica ``On-Demand'':} 
+    Il sistema punta a dinamizzare il processo di raccolta dei rifiuti, passando da un modello statico come quello a calendario ad uno dinamico basato sull'analisi dei dati in tempo reale.
+    Tramite l'uso di sensori integrati nei punti di raccolta è possibile ottimizzare l'utilizzo delle risorse per il recupero dei rifiuti in base alle specifiche zone.
+    Ciò permetterebbe di migliorare i processi di raccolta, riducendo l'utilizzo dei mezzi che di conseguenza porterebbe ad una riduzione dei costi di manutenzione e del carburante, eliminando ingenti emissioni di $CO_2$.
+
+    \item \textbf{Promozione dell'Economia Circolare:} 
+    Per incentivare il cittadino a partecipare attivamente ad una raccolta differenziata sostenibile ed efficente l'applicazione va a migliorare il sistema trasformandolo in un vero e proprio gioco che premia il cittadino per la sua correttezza nello smaltimento e nella segnalazione tramite punti premio.
+    Questi punti premio possono essere poi utilizzati nelle attività della propria zona, dando supporto alle piccole e medie imprese locali.
+
+    \item \textbf{Digitalizzazione e trasparenza della gestione urbana:} 
+    Alla Pubblica Amministrazione viene fornita una dashboard per l'analisi dei dati in tempo reale. Ciò permette di monitorare lo stato dei vari centri di raccolta dal vivo e consente ai cittadini e agli operatori di segnalare in modo immediato problemi o guasti, consentendo un'efficente organizzazione degli interventi necessari.
+
+    \item \textbf{Miglioramento del decoro urbano e della sostenibilità ambientale:} 
+    L'app contribuisce direttamente alla pulizia urbana e alla prevenzione di criticità igienico-sanitarie, riducendo la permanenza dei rifiuti in strada e del sovraffollamento dei punti di raccolta tramite segnalazioni rapide e geolocalizzate che consentono agli operatori di agire in modo veloce ed efficace. Allo stesso tempo la pulizia delle strade e dei punti di raccolta permette una migliore visitabilità e un miglioramento delle condizioni di vita dei cittadini, mostrando così la vera bellezza che si cela nelle nostre città.
+    
+\end{enumerate}
+
+\section{Attori del sistema}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Actors.png}
+    \caption{Mindnmap attori}
+    \label{fig:placeholder}
+\end{figure}
+
+\subsection{Attori Diretti (Utenti)}
+\begin{itemize}
+    \item \textbf{Utente non registrato:} Accede alle funzionalità base di consultazione, come la visualizzazione della mappa dei centri di raccolta e la scansione dei codici a barre.
+    \item \textbf{Utente registrato:} Accede alla funzionalità di base, accumula punti nel sistema di premiazione e invia segnalazioni geolocalizzate.
+    \item \textbf{Operatore ecologico:} Utente tecnico che si occupa della segnalazione guasti ai bidoni, dell'aggiornamento in tempo reale dello stato di svuotamento e visualizzazione percorsi ottimizzati.
+    \item \textbf{Amministratore di sistema (Admin):} Gestisce il sistema tramite una dashboard dedicata, analizza le statistiche, gestisce i centri di raccolta e il catalogo premi.
+\end{itemize}
+
+\subsection{Attori Secondari (Sistemi Esterni)}
+\begin{itemize}
+    \item \textbf{Sensori Bidoni:} Dispositivi hardware IoT che inviano periodicamente dati sullo stato di riempimento e sul livello della batteria.
+    \item \textbf{Partner commerciali:} Entità esterne integrate nel sistema di premiazione accettando i punti accumulati dagli utenti in cambio di sconti o servizi.
+    \item \textbf{Servizi Terzi (API):} Sistemi esterni per la fornitura di mappe cartografiche, database per il riconoscimento dei materiali tramite codici a barre e calcolo per il percorso ottimale della raccolta.
+\end{itemize}
+
+\newpage
+
+\section{Requisiti funzionali per attore}
+
+Il sistema deve soddisfare i seguenti requisiti, organizzati in base alle interazioni specifiche di ogni attore coinvolto.
+
+\subsection{Utente Non Registrato }
+\begin{enumerate}[label=\textbf{(RF\arabic*)}]
+    \item Il sistema deve permettere di visualizzare sulla mappa la posizione dei centri di raccolta e dei bidoni stradali pubblici più vicini e il  relativo stato di riempimento.
+    \item Il sistema deve fornire l'accesso alle informazioni su orari, indirizzi e tipologie di rifiuti accettati dai centri di raccolta.
+    \item Il sistema deve permettere la scansione del codice a barre di un prodotto per visualizzare le istruzioni di smaltimento.
+    \item Il sistema deve consentire la ricerca testuale nel database dei rifiuti per identificare il corretto smaltimento dell'oggetto in alternativa della scansione del codice a barre.
+\end{enumerate}
+
+\subsection{Utente Registrato}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve permettere all'utente di registrarsi e gestire un profilo personale tramite email.
+    \item Il sistema deve consentire l'invio di segnalazioni geolocalizzate includendo foto e descrizione del problema.
+    \item Il sistema deve calcolare e accreditare punti bonus all'utente per ogni segnalazione validata o scansione effettuata.
+    \item Il sistema deve permettere la visualizzazione di una lista delle segnalazioni inviate e del loro stato attuale (es. ``In attesa'', ``In corso'', ``Risolta'').
+    \item Il sistema deve consentire la generazione di codici sconto o voucher digitali riscattabili nel catalogo premi.
+    \item Il sistema deve permettere la ricezione di notifiche push per avvisi di servizio o conferme di avvenuta risoluzione di una segnalazione.
+\end{enumerate}
+
+\subsection{Operatore Ecologico}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve visualizzare sulla mappa dell'operatore un percorso ottimizzato generato in base ai dati di riempimento dei bidoni.
+    \item L'interfaccia deve consentire all'operatore di cambiare lo stato di una segnalazione cittadina una volta risolto il problema.
+    \item Il sistema deve permettere all'operatore di segnalare danni strutturali ai bidoni o malfunzionamenti dei sensori.
+    \item Il sistema deve consentire la validazione manuale dello svuotamento di un bidone per resettare il contatore di riempimento nel database.
+\end{enumerate}
+
+\subsection{Amministratore di Sistema (Admin)}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item La dashboard deve fornire una vista d'insieme (Heatmap) per monitorare i livelli di riempimento di tutti i sensori sul territorio.
+    \item Il sistema deve permettere l'inserimento, la modifica e la rimozione di prodotti e regole di smaltimento dal database centrale.
+    \item Il sistema deve gestire le anagrafiche dei partner commerciali e la disponibilità dei premi nel catalogo.
+    \item Il sistema deve generare report analitici sulle zone della città con maggiore criticità (abbandoni frequenti o bidoni sempre pieni) [opzionale].
+\end{enumerate}
+
+\subsection{Sensori}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item I sensori IoT devono inviare periodicamente dati relativi alla capacità residua e allo stato di carica della batteria.
+\end{enumerate}
+
+\subsection{Servizi terzi (API)}
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve interfacciarsi con API cartografiche esterne per il calcolo in tempo reale dei tempi di percorrenza.
+\end{enumerate}
+
+\subsection{Partner Commerciali }
+\begin{enumerate}[label=\textbf{(RF\arabic*)}, resume]
+    \item Il sistema deve permettere all'esercente di validare i coupon presentati dai cittadini tramite la scansione di un QR Code o l'inserimento di un codice univoco.
+    \item Il sistema deve consentire all'attività commerciale di caricare e aggiornare le proprie offerte o sconti all'interno del catalogo premi dell'applicazione.
+\end{enumerate}
+
+\section{Requisiti Non Funzionali}
+
+I requisiti non funzionali descrivono i vincoli qualitativi del sistema e gli standard che devono essere garantiti per il corretto funzionamento dell'infrastruttura.
+
+\begin{enumerate}[label=\textbf{(RNF\arabic*)}]
+    \item \textbf{Usabilità (User Experience):} L'interfaccia utente deve essere intuitiva e accessibile, permettendo a un cittadino di completare la scansione di un prodotto in poche interazioni.
+    \item \textbf{Prestazioni (Tempo di risposta):} Il sistema deve processare la scansione del codice a barre e restituire le informazioni sullo smaltimento in tempi brevi.
+    \item \textbf{Disponibilità (Availability):} Il backend del sistema e la dashboard per il Comune devono essere operativi in modo continuo.
+    \item \textbf{Sicurezza (Protezione Dati):} Tutte le comunicazioni tra l'applicazione mobile, i sensori IoT e il server devono essere criptate.
+    \item \textbf{Scalabilità:} L'architettura deve essere in grado di gestire un aumento del carico di utenti senza degradazione delle prestazioni.
+    \item \textbf{Localizzazione:} Il sistema deve supportare la localizzazione geografica dinamica per mostrare solo le regole di smaltimento valide nella regione in cui si trova l'utente.
+    \item \textbf{Gestione della persistenza (Last Known Value):} In caso di perdita temporanea della connettività dei sensori IoT o del dispositivo mobile, il sistema deve garantire la continuità del servizio visualizzando l'ultimo stato di riempimento validamente registrato, segnalando esplicitamente all'utente l'orario dell'ultimo aggiornamento del dato.
+    \item \textbf{Compatibilità:} L'applicazione mobile deve essere compatibile con le versioni più recenti dei sistemi operativi Android e iOS.
+    \item \textbf{Manutenibilità:} Il codice deve essere documentato seguendo gli standard del linguaggio scelto e organizzato in microservizi per facilitare futuri aggiornamenti dei singoli moduli (es. modulo premi, modulo mappe).
+    \item \textbf{Rispetto della Privacy (GDPR):} Il sistema non deve memorizzare i dati di posizione GPS in modo persistente se non strettamente necessario per la gestione delle segnalazioni, garantendo l'anonimato degli utenti non registrati.
+\end{enumerate}
+
+\section{Analisi SWOT}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{7cm}|p{7cm}|}
+\hline
+\cellcolor[HTML]{33a139} \textcolor{white}{\textbf{Punti di Forza (Strengths)}} & \cellcolor[HTML]{5196d6}\textcolor{white}{\textbf{Punti di Debolezza (Weaknesses)}} \\ \hline
+\begin{itemize}
+    \item Monitoraggio IoT in tempo reale
+    \item Miglioramento del decoro urbano
+    \item Promozione dell'economia circolare
+    \item Ottimizzazione del processo di raccolta dei rifiuti
+\end{itemize}
+
+ & 
+
+\begin{itemize}
+    \item Costo iniziale dell'hardware
+    \item Dipendenza dalla manutenzione fisica dei sensori
+    \item Dipendenza da database esterni per l'identificazione dei prodotti
+
+\end{itemize}  \\ \hline
+
+\cellcolor[HTML]{7948ab}\textcolor{white}{\textbf{Opportunità (Opportunities)}} 
+
+& 
+
+\cellcolor[HTML]{d68258}\textcolor{white}{\textbf{Minacce (Threats)}} \\ \hline
+
+\begin{itemize}
+    \item Riduzione impatto ambientale
+    \item Monioraggio dei bisogni cittadini
+\end{itemize}
+& 
+
+\begin{itemize}
+    \item Vandalismo sui sensori
+    \item Errori nei dati provenienti da API di terze parti 
+    \item Applicazioni già esistenti 
+\end{itemize}
+\\ \hline
+\end{tabular}
+\caption{Matrice SWOT del sistema di gestione rifiuti.}
+\end{table}
+
+
+\section{Use case diagram e casi d'uso}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{Use_Case_Diagram.jpg}
+    \caption{Use case Diagram}
+    \label{fig:UCD placeholder}
+\end{figure}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC1 \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento \\ \hline
+\textbf{Descrizione} & L'utente prova la funzione di identificazione delle informazioni di smaltimento \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} &
+\begin{enumerate}[label=\arabic*.]
+    \item Fotocamera disponibile 
+    \item Permesso concesso
+    \item Connessione internet attiva
+\end{enumerate}
+\\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'utente apre l'app e attiva la modalità scanner.
+    \item L'utente seleziona la modalità di riconoscimento del prodotto.
+    \begin{enumerate}[label=\arabic*.]
+        \item Scansione del codice a barre.
+        \item Inserimento manuale del codice del prodotto.
+    \end{enumerate}
+    \item Il sistema acquisisce e convalida il codice.
+    \item Il sistema rintraccia il prodotto nel database.
+    \item Il sistema restituisce le informazioni relative all'utente.
+    \item Il sistema premia l'utente per aver effettuato la scansione conferendo dei punti.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\textbf{Flow alternativi} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}
+    \item Codice a barre non leggibile.
+    \item Codice inserito non valido.
+    \item Prodotto non trovato nel database.
+    
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC1.1 \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento: Codice a barre non leggibile \\ \hline
+\textbf{Descrizione} & Il codice a barre risulta illeggibile \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Codice a barre non riconosciuto \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Durante la scansione il codice non risulta leggibile.
+    \item Il sistema segnala l'errore e chiede all'utente di ripetere la scansione.
+    \item L'utente riprova.
+    \item Il flusso riprende dal punto 3 del Main Flow.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Le informazioni di smaltimento sono presentate all'utente \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC1.2 \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento: Codice inserito non valido \\ \hline
+\textbf{Descrizione} & Il codice inserito manualmente non risulta corretto \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Codice inserito non valido \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'utente inserisce un codice invalido.
+    \item Il sistema segnala l'errore e chiede all'utente di reinserire il codice.
+    \item L'utente fornisce nuovamente il codice.
+    \item Il flusso riprende dal punto 3 del Main Flow.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Le informazioni di smaltimento sono presentate all'utente \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC1.3 \\ \hline
+\textbf{Nome} & Acquisizione informazioni di smaltimento: Prodotto non trovato nel database \\ \hline
+\textbf{Descrizione} & Il sistema non trova una corrispondenza nel database per il prodotto scansionato \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Prodotto non trovato nel database \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema non trova una corrispondenza nel database del prodotto richiesto.
+    \item Il sistema notifica l'utente.
+    \item Il sistema propone all'utente di riprovare o inserire un altro codice.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC2 \\ \hline
+\textbf{Nome} & Segnalazione bidone pieno \\ \hline
+\textbf{Descrizione} & L'utente segnala al sistema che un bidone è pieno \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item Connessione a internet attiva
+    \item Geolocalizzazione attiva
+    \item Mappa dei punti di raccolta disponibile
+\end{enumerate}
+\\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'utente apre l'app.
+    \item Il sistema mostra la mappa dei punti di raccolta.
+    \item Il sistema localizza la posizione dell'utente.
+    \item L'utente cerca e seleziona il punto più vicino.
+    \item L'utente raggiunge il luogo di smaltimento e trova il bidone pieno.
+    \item L'utente segnala al sistema lo stato di pienezza del bidone, ricevendo dei punti di ringraziamento una volta risolta la segnalazione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & 
+\begin{enumerate}[label=\arabic*.]
+    \item Lo stato del bidone è aggiornato
+    \item La segnalazione viene registrata
+\end{enumerate}
+\\ \hline
+\textbf{Flow alternativi} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}[label=\arabic*.]
+    \item Sistema di geolocalizzazione non disponibile
+    \item Errore nell'invio della segnalazione
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC2.1 \\ \hline
+\textbf{Nome} & Segnalazione bidone pieno: Sistema di geolocalizzazione non disponibile \\ \hline
+\textbf{Descrizione} & Il sistema non riesce ad individuare la posizione dell'utente \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Sistema di geolocalizzazione non disponibile \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema non riesce a determinare la posizione dell'utente.
+    \item Il sistema notifica l'utente.
+    \item L'utente sceglie se
+    \begin{enumerate}[label=\arabic*.]
+        \item Attivare la geolocalizzazione.
+        \item Selezionare manualmente il punto di smaltimento.
+    \end{enumerate} 
+    \item Il flusso riprende dal punto 4 del Main flow.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC2.2 \\ \hline
+\textbf{Nome} & Segnalazione bidone pieno: Errore nell'invio della segnalazione \\ \hline
+\textbf{Descrizione} & Il sistema non riesce ad inviare la segnalazione dell'utente \\ \hline
+\textbf{Attori primari} & Utente \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} &  
+\begin{enumerate}[label=\arabic*.]
+    \item Connessione assente o instabile
+    \item Errore di comunicazione nel sistema
+\end{enumerate}
+\\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema tenta di inviare la segnalazione e non va a buon fine.
+    \item Il sistema notifica l'utente.
+    \item Il sistema salva temporaneamente la segnalazione per un invio successivo.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & La segnalazione viene salvata per un invio successivo \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni \\ \hline
+\textbf{Descrizione} & Operatore ecologico segnala lo svuotamento di un bidone \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore è autenticato nel sistema
+    \item Il sistema dispone del percorso assegnato
+    \item Il bidone è identificato e presente nel sistema
+\end{enumerate}
+\\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema fornisce il percorso personalizzato.
+    \item L'operatore ecologico segue il percorso personalizzato fornito.
+    \item L'operatore ecologico raggiunge il punto di raccolta.
+    \item L'operatore svuota il bidone.
+    \item L'operatore conferma al sistema l'avvenuta operazione.
+    \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore ecologico.
+    \item Il sistema aggiorna lo stato del bidone.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Lo stato del bidone è aggiornato \\ \hline
+\textbf{Flow alternativi} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}[label=\arabic*.]
+    \item Bidone già vuoto
+    \item Incoerenza sensori
+    \item Errore invio conferma
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3.1 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni: Bidone già vuoto \\ \hline
+\textbf{Descrizione} & L'operatore trova il bidone già vuoto quando passa per la raccolta \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Il bidone risulta già vuoto\\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore raggiunge il punto di raccolta.
+    \item L'operatore trova il bidone già vuoto.
+    \item L'operatore segnala l'anomalia al sistema.
+    \item Il sistema registra la segnalazione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & La segnalazione viene registrata \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3.2 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni: Incoerenza sensori \\ \hline
+\textbf{Descrizione} & I sensori riportano dati sbagliati \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema, Sensori \\ \hline
+\textbf{Condizioni a priori} & I dati forniti dai sensori non coincidono con l'azione dell'operatore \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore svuota il bidone.
+    \item I sensori indicano che il bidone è ancora pieno.
+    \item Il sistema rileva l'anomalia e la segnala all'operatore.
+    \item L'operatore conferma lo stato.
+    \item Il sistema aggiorna lo stato del bidone.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Lo stato del bidone è aggiornato dopo la verifica \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC3.3 \\ \hline
+\textbf{Nome} & Aggiornamento svuotamento bidoni: Errore invio conferma \\ \hline
+\textbf{Descrizione} & Il sistema non riesce a registrare l'avvenuta operazione di svuotamento \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Errore di comunicazione con il server \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore conferma l'avvenuta operazione al sistema.
+    \item Il sistema non riesce a registrare l'operazione.
+    \item Il sistema notifica l'errore.
+    \item Il sistema salva i dati per un invio successivo.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & I dati sono salvati per un invio successivo \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC4 \\ \hline
+\textbf{Nome} & Segnalazione guasto \\ \hline
+\textbf{Descrizione} & Operatore ecologico segnala un guasto di un bidone \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore è autenticato nel sistema
+    \item Il sistema fornisce il percorso personalizzato
+    \item Il bidone è identificato e presente nel sistema
+\end{enumerate} 
+\\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore ecologico segue il percorso personalizzato fornito.
+    \item L'operatore ecologico raggiunge un bidone e verifica il suo stato.
+    \item Il sistema riceve lo stato da parte dei sensori e la conferma dell'operatore ecologico.
+    \item Se viene rilevato un eventuale malfunzionamento.
+    \begin{enumerate}[label=\arabic*.]
+        \item L'operatore segnala il guasto al sistema.
+        \item Il sistema registra la segnalazione e richiede una manutenzione.
+    \end{enumerate}
+    \item Altrimenti il sistema aggiorna lo stato del bidone.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & 
+\begin{enumerate}[label=\arabic*.]
+    \item La segnalazione viene registrata
+    \item L'eventuale sensore malfunzionante dovrà essere sostituito o controllato
+\end{enumerate} 
+\\ \hline
+\textbf{Flow alternativi} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}[label=\arabic*.]
+    \item Errore di comunicazione
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC4.1 \\ \hline
+\textbf{Nome} & Segnalazione guasto: Errore di comunicazione \\ \hline
+\textbf{Descrizione} & Il sistema non riesce a registrare l'avvenuta operazione di svuotamento \\ \hline
+\textbf{Attori primari} & Operatore ecologico \\ \hline
+\textbf{Attori secondari} & Sistema \\ \hline
+\textbf{Condizioni a priori} & Errore di comunicazione con il server \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore conferma l'avvenuta operazione al sistema.
+    \item Il sistema non riesce a registrare l'operazione.
+    \item Il sistema notifica l'errore.
+    \item Il sistema salva i dati per un invio successivo.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & I dati sono salvati per un invio successivo \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC5 \\ \hline
+\textbf{Nome} & Gestione segnalazioni\\ \hline
+\textbf{Descrizione} & Admin gestisce le segnalazioni ricevute \\ \hline
+\textbf{Attori primari} & Admin \\ \hline
+\textbf{Attori secondari} & Utente, Operatore ecologico \\ \hline
+\textbf{Condizioni a priori} & 
+\begin{enumerate}[label=\arabic*.]
+    \item Il sistema riceve correttamente le segnalazioni
+    \item Il bidone è identificato e presente nel sistema
+\end{enumerate} 
+\\ \hline
+\textbf{Main flow} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item Se l'admin riceve una segnalazione da un operatore:
+    \begin{enumerate}[label=\arabic*.]
+        \item Vedere UC5.1
+    \end{enumerate}
+    \item Altrimenti:
+    \begin{enumerate}[label=\arabic*.]
+        \item Vedere UC5.2
+    \end{enumerate}
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Nessuna \\ \hline
+\textbf{Flow alternativi} &
+\begin{minipage}[t]{\linewidth}
+\begin{enumerate}[label=\arabic*.]
+    \item Segnalazione da operatore
+    \item Segnalazione da utente
+\end{enumerate}
+\end{minipage} \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC5.1 \\ \hline
+\textbf{Nome} & Gestione segnalazioni: Segnalazione da operatore \\ \hline
+\textbf{Descrizione} & L'admin gestisce una segnalazione inviata da un operatore \\ \hline
+\textbf{Attori primari} & Admin \\ \hline
+\textbf{Attori secondari} & Operatore ecologico, Sistema \\ \hline
+\textbf{Condizioni a priori} & La segnalazione viene inviata da un operatore \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'operatore ecologico segue il percorso personalizzato fornito.
+    \item L'operatore ecologico raggiunge un bidone e lo trova vuoto.
+    \item L'operatore lo segnala al sistema.
+    \item L'admin riceve lo stato da parte dei sensori e la segnalazione dell'operatore ecologico al sistema.
+    \item Il sistema aggiorna lo stato del bidone.
+    \item L'operatore ecologico controlla lo stato dei sensori, segnalando un eventuale malfunzionamento.
+    \item L'admin emette un mandato di sostituzione o verifica del sensore malfunzionante, segnalando lo stato di riparazione del sensore agli utenti fino a ultimata sostituzione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & Lo stato del bidone e del sensore viene aggiornato nel sistema e notificato agli utenti. \\ \hline
+\end{longtable}
+
+
+\begin{longtable}{|l|p{10cm}|} \hline
+\textbf{ID} & UC5.2 \\ \hline
+\textbf{Nome} & Gestione segnalazioni: Segnalazione da utente \\ \hline
+\textbf{Descrizione} & L'admin gestisce una segnalazione inviata da un utente \\ \hline
+\textbf{Attori primari} & Admin \\ \hline
+\textbf{Attori secondari} & Utente, Sistema \\ \hline
+\textbf{Condizioni a priori} & La segnalazione viene inviata da un utente \\ \hline
+\textbf{Flow alternativo} &
+\begin{minipage}[t]{\linewidth} 
+\begin{enumerate}[label=\arabic*.]
+    \item L'utente segnala una discrepanza tra lo stato indicato e lo stato reale del bidone.
+    \item L'admin riceve lo stato da parte dei sensori e la segnalazione dell'utente al sistema.
+    \item Il sistema aggiorna lo stato del bidone.
+    \item L'admin richiede ad un operatore di verificare lo stato del bidone.
+    \item L'utente riceve dei punti di ringraziamento una volta risolta la segnalazione.
+\end{enumerate}
+\end{minipage} \\ \hline
+\textbf{Condizione postume} & La segnalazione viene registrata e i sensori controllati \\ \hline
+\end{longtable}
+
+\newpage
+
+\section{Diagramma BPMN}
+
+Di seguito vengono riportati i diagrammi BPMN relativi al processo di acquisizione delle informazioni di smaltimento di un prodotto tramite scansione di codice a barre [\textbf{UC1}] e il processo della gestione delle segnalazioni da parte dell'utente registrato [\textbf{UC5.2}]
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Scansione_prodotto_BPMN}
+    \caption{Grafico BPMN: Acquisizione informazioni di smaltimeto}
+    \label{fig:Scansione placeholder}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Segnalazione_BPMN}
+    \caption{Grafico BPMN: Gestione delle segnalazioni}
+    \label{fig:Segnalazione placeholder}
+\end{figure}
+
+
+\end{document}

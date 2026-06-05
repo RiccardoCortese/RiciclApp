@@ -1,121 +1,82 @@
-# Simulatore Sensori IoT - RiciclApp
+# RiciclApp
 
-## Descrizione
+Il presente progetto descrive l'ideazione e la progettazione di un sistema per l'ottimizzazione della raccolta differenziata urbana.
+L'obiettivo principale dell'applicazione è duplice: da un lato, semplificare il conferimento dei rifiuti per il cittadino attraverso strumenti di riconoscimento (scansione barcode) e localizzazione dei punti di raccolta con relativo stato di riempimento; dall'altro, fornire agli enti comunali e alle aziende di raccolta una visione d'insieme in tempo reale dello stato del territorio.
+Grazie ai dati trasmessi dai sensori IoT installati nei bidoni, l'amministratore può monitorare i livelli di riempimento, identificare le zone critiche e pianificare interventi di svuotamento mirati. Questo approccio permette di passare da una raccolta a calendario a una gestione dinamica "on-demand", riducendo i costi operativi e l'impatto ambientale dei mezzi di trasporto.
+Il sistema si avvale di una rete di sensori IoT installati nei bidoni stradali per il monitoraggio in tempo reale dei livelli di riempimento, permettendo agli operatori ecologici di usufruire di percorsi di raccolta ottimizzati.
 
-Questo modulo implementa una simulazione di sensori IoT per i bidoni intelligenti del progetto RiciclApp. 
-Il sistema simula il comportamento di sensori installati sui bidoni, inviando periodicamente dati relativi al livello di riempimento tramite protocollo MQTT. 
-Un listener MQTT riceve i messaggi pubblicati dal simulatore e aggiorna automaticamente i dati presenti nel database MongoDB.
+## Architettura del sistema
 
----
+```
+Backend (Node.js / Express)  ──► App mobile (React Native / Expo)
+      │
+MongoDB Atlas
+```
 
-# Architettura del sistema
+- Il **backend** espone le API REST, gestisce l'autenticazione e persiste i dati su **MongoDB Atlas**.
+- Il **frontend** mobile consente ai cittadini di scansionare barcode, visualizzare la mappa dei punti di raccolta e il loro stato, e ricevere indicazioni sul corretto smaltimento.
+- Gli **amministratori** accedono a una vista d'insieme in tempo reale per pianificare le raccolte.
 
-simulator.js->MQTT Broker->listener.js->MongoDB (collection bins)
+## Strumenti utilizzati
 
-## Componenti
+Oltre agli strumenti base discussi e analizzati durante il corso:
 
-Il file simulator.js simula i sensori IoT dei bidoni. Il simulatore genera livelli di riempimento casuali, 
-determina automaticamente lo stato del bidone e pubblica periodicamente messaggi MQTT contenenti le informazioni aggiornate.
+- **Node.js** — runtime per il backend
+- **MongoDB Atlas** — database cloud
 
-Ogni bidone simulato invia:
+Il gruppo ha fatto uso di strumenti aggiuntivi tra cui:
 
-livello di riempimento (fillLevel);
-stato (status);
-timestamp di aggiornamento.
-listener.js
+- **React Native** — framework per il front-end mobile
+- **Expo (SDK 54)** — toolchain per sviluppo e testing in ambiente web e nativo su Android
+- **JWT + bcryptjs** — autenticazione e hashing delle password
+- **Nodemailer** — invio email di verifica e notifica
 
-Il file listener.js riceve i messaggi MQTT e aggiorna MongoDB. Il listener si sottoscrive ai topic MQTT, 
-interpreta i messaggi ricevuti e aggiorna automaticamente la collection bins nel database.
+## Prerequisiti
 
--Tecnologie utilizzate
-Node.js
-MongoDB
-MQTT
-MQTT.js
-Dotenv
-Mongoose
-Requisiti
+- **Node.js** v18 o superiore
+- **npm** v9 o superiore
+- Un cluster **MongoDB Atlas** (o istanza locale di MongoDB)
+- Un broker **MQTT** raggiungibile dal backend
+- **Expo Go** sul dispositivo mobile (per testare su Android), oppure un browser per la versione web
 
-# Come usare
+## Variabili d'ambiente
 
-Prima dell’esecuzione è necessario avere installato:
+Prima di avviare il backend, creare il file `Backend/.env` a partire dall'esempio seguente:
 
-Node.js
-MongoDB
-un broker MQTT (ad esempio Mosquitto)
-Installazione
-
--Entrare nella cartella iot:
-
-cd iot
-
--Installare le dipendenze:
-
-npm install
-Configurazione
-
--Creare un file .env nella cartella iot.
-
-Esempio di configurazione:
-
-MONGO_URI=your_mongodb_connection_string
+```env
+PORT=3000
+MONGO_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/
 DB_NAME=riciclapp
-MQTT_BROKER=mqtt://localhost:1883
-Avvio del sistema
-Avvio listener MQTT
-npm run listener
+JWT_SECRET=una_stringa_segreta_lunga_e_casuale
+EMAIL=tuamail@gmail.com
+PASSWORD_EMAIL=tua_app_password_gmail
+```
 
-Il listener si connette al broker MQTT, riceve i dati inviati dal simulatore e aggiorna automaticamente MongoDB.
+> **Nota:** `PASSWORD_EMAIL` deve essere una *App Password* di Google, non la password dell'account. Abilitare la verifica in due passaggi sull'account Gmail e generare una App Password dalle impostazioni di sicurezza.
 
-## Avvio simulatore
+## Note per testare l'applicazione
 
--Aprire un secondo terminale ed eseguire:
+### Backend
 
-npm run simulator
+```bash
+cd Backend
+npm install
+node server.js
+```
 
-Il simulatore inizierà a pubblicare dati casuali relativi ai bidoni intelligenti.
 
-Struttura dei messaggi MQTT
-Topic
-bins/<id_bidone>
+### Frontend
 
-Esempio:
+```bash
+cd Frontend
+npm install
+npx expo start
+```
 
-bins/1
-Payload JSON
+Una volta avviato Expo, scegliere la piattaforma:
 
-Esempio di messaggio MQTT:
+- Premere **`w`** per aprire la versione **web** nel browser
+- Scansionare il **QR code** con l'app **Expo Go** per testare su **Android**
 
-{
-  "fillLevel": 72,
-  "status": "medium"
-}
-Aggiornamenti database
-
-Il listener aggiorna automaticamente i seguenti campi nella collection bins:
-
-fillLevel
-status
-sensor.lastUpdate
-Stati del bidone
-
-Gli stati vengono determinati automaticamente in base al livello di riempimento:
-
-Fill Level	Stato
-0 - 39	low
-40 - 79	medium
-80 - 100	full
-
-# Obiettivo del modulo
-
-Questo modulo permette di simulare:
-
-raccolta dati da sensori IoT;
-comunicazione tramite protocollo MQTT;
-aggiornamento realtime del database.
-
-L’obiettivo è rappresentare il comportamento di bidoni intelligenti in un contesto smart city.
-
-# Note
-
-Il simulatore genera dati casuali esclusivamente a scopo di testing e sviluppo.
+### Limitazioni note
+- La versione web non supporta la scansione barcode via fotocamera (funzionalità disponibile solo su Android nativo).

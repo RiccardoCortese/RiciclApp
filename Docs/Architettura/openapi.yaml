@@ -1,0 +1,733 @@
+openapi: 3.0.0
+info:
+  title: RiciclApp
+  description: Documentazione delle API per il progetto RiciclApp.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000/api  
+    description: Server Locale (Sviluppo)
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrazione nuovo utente
+      description: >
+        Registra un nuovo utente nel sistema, genera un codice di verifica
+        e invia una email per la conferma dell'account.
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+
+              required:
+                - username
+                - email
+                - password
+
+              properties:
+                username:
+                  type: string
+                  example: Mario Rossi
+
+                email:
+                  type: string
+                  format: email
+                  example: mario.rossi@gmail.com
+
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                  example: password123
+
+      responses:
+        '201':
+          description: Utente registrato con successo
+
+        '400':
+          description: Dati non validi o utente già registrato
+ 
+        '500':
+          description: Errore interno del server
+         
+  
+  /auth/verify_email:
+    post:
+      tags:
+        - Auth
+      summary: Verifica email utente
+      description: Verifica il codice inviato via email e attiva l'account utente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: mario.rossi@gmail.com
+                code:
+                  type: string
+                  example: "123456"
+
+      responses:
+        '200':
+          description: Email verificata con successo
+
+        '400':
+          description: Codice errato
+
+        '404':
+          description: Utente non trovato
+
+        '500':
+          description: Errore interno del server
+  /user/delete:
+    delete:
+      tags:
+        - User
+      summary: Elimina l'account dell'utente autenticato
+      description: |
+        Elimina l'account dell'utente autenticato tramite token JWT.
+        Dopo l'eliminazione viene inviata una mail di conferma.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account eliminato con successo
+
+        '404':
+          description: Utente non trovato
+
+        '500':
+          description: Errore interno del server
+  
+  /center/all:
+    get:
+      tags:
+        - Centers
+      summary: Recupera tutti i centri di raccolta
+      description: Restituisce la lista completa dei centri di raccolta presenti nel database.
+      responses:
+        '200':
+          description: Lista dei centri recuperata con successo
+
+        '500':
+          description: Errore interno del server
+
+  /center/{id}:
+    get:
+      tags:
+        - Centers
+      summary: Recupera un centro di raccolta con i suoi bidoni
+      description: Restituisce i dettagli di un centro di raccolta specifico insieme ai bidoni associati.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del centro di raccolta
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Centro di raccolta recuperato con successo
+
+        '400':
+          description: ID del centro non valido
+
+        '404':
+          description: Centro di raccolta non trovato
+
+        '500':
+          description: Errore interno del server
+
+  /off/product/{barcode}:
+    get:
+      tags:
+        - OFF
+      summary: Recupera dati prodotto tramite barcode
+      description: >
+        Invia una richiesta proxy a `https://world.openfoodfacts.org/api/v0/product/{barcode}.json`
+        e restituisce il payload originale al frontend. Non richiede autenticazione.
+        Per la versione con categorie di smaltimento pre-calcolate, usare `GET /api/zx/scan/{barcode}`.
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          description: Codice a barre del prodotto (EAN-13, EAN-8, UPC, ecc.)
+          schema:
+            type: string
+            example: "3017620422003"
+      responses:
+        '200':
+          description: Prodotto trovato — payload originale di Open Food Facts
+
+        '400':
+          description: Parametro barcode assente
+
+        '404':
+          description: Prodotto non trovato nel database Open Food Facts
+
+        '500':
+          description: Errore di rete o risposta non valida da Open Food Facts
+
+  /ofm/config:
+    get:
+      tags:
+        - OFM
+      summary: Recupera la configurazione della mappa
+      description: >
+        Restituisce i parametri di inizializzazione per la mappa interattiva:
+        URL dello stile vettoriale OpenFreeMap, coordinate del centro iniziale
+        (Trento, Italia) e livello di zoom. Non richiede autenticazione.
+      responses:
+        '200':
+          description: Configurazione mappa restituita con successo
+  
+  /osm/search:
+    get:
+      tags:
+        - OSM
+      summary: Ricerca per testo (geocoding diretto)
+      description: >
+        Delega la ricerca al geocoder Nominatim di OpenStreetMap tramite
+        `https://nominatim.openstreetmap.org/search`. Restituisce un array di
+        luoghi corrispondenti alla stringa di ricerca, ordinati per rilevanza.
+        Non richiede autenticazione.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Stringa di ricerca libera (indirizzo, luogo, punto di interesse)
+          schema:
+            type: string
+            example: "Piazza Dante, Trento"
+        - name: limit
+          in: query
+          required: false
+          description: Numero massimo di risultati (default 5)
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 50
+            example: 5
+      responses:
+        '200':
+          description: Lista di risultati Nominatim
+
+        '400':
+          description: Parametro q assente
+
+        '500':
+          description: Errore di rete o risposta non valida da Nominatim
+
+  /osm/reverse:
+    get:
+      tags:
+        - OSM
+      summary: Geocoding inverso (coordinate → indirizzo)
+      description: >
+        Converte una coppia di coordinate geografiche in un indirizzo leggibile
+        delegando la richiesta a `https://nominatim.openstreetmap.org/reverse`.
+        Non richiede autenticazione.
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          description: Latitudine in gradi decimali
+          schema:
+            type: number
+            format: double
+            example: 46.0679
+        - name: lon
+          in: query
+          required: true
+          description: Longitudine in gradi decimali
+          schema:
+            type: number
+            format: double
+            example: 11.1211
+      responses:
+        '200':
+          description: Indirizzo corrispondente alle coordinate fornite
+        '400':
+          description: Parametri lat o lon assenti
+        '500':
+          description: Errore di rete o risposta non valida da Nominatim
+
+  /zx/scan/{barcode}:
+    get:
+      tags:
+        - ZX
+      summary: Scansiona barcode e ottieni istruzioni di smaltimento
+      description: >
+        Recupera i dati del prodotto da Open Food Facts tramite il barcode fornito,
+        analizza i campi `packaging` e `packaging_tags` e restituisce le categorie
+        di smaltimento corrette per ogni materiale rilevato.
+        La chiamata verso Open Food Facts ha un timeout fisso di 8 secondi (AbortController).
+        Non richiede autenticazione.
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          description: Codice a barre del prodotto (EAN-13, EAN-8, UPC, ecc.)
+          schema:
+            type: string
+            example: "3017620422003"
+      responses:
+        '200':
+          description: Prodotto trovato con categorie di smaltimento calcolate
+
+        '400':
+          description: Parametro barcode assente
+
+        '404':
+          description: Prodotto non trovato nel database Open Food Facts
+
+        '504':
+          description: Timeout — Open Food Facts non ha risposto entro 8 secondi
+        '500':
+          description: Errore generico durante il recupero dei dati
+  /reports/create:
+    post:
+      summary: Crea un nuovo report
+      description: Crea una segnalazione associata a un bidone e imposta lo stato del bidone a "SEGNALATO".
+      tags:
+        - Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - binId
+                - description
+              properties:
+                userId:
+                  type: string
+                  description: ID dell'utente che crea la segnalazione
+                  example: "683a7e4f9b12c8a12345678"
+                binId:
+                  type: string
+                  description: ID del bidone segnalato
+                  example: "683a7e4f9b12c8a87654321"
+                description:
+                  type: string
+                  description: Descrizione del problema
+                  example: "Il bidone è danneggiato e non si chiude."
+      responses:
+        '201':
+          description: Report creato con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Report creato con successo
+                  report:
+                    $ref: '#/components/schemas/Report'
+
+        '400':
+          description: Descrizione mancante o non valida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: La descrizione è obbligatoria
+
+        '404':
+          description: Bidone non trovato
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Bidone non trovato
+
+        '500':
+          description: Errore interno del server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Errore interno del server durante la creazione del report
+  /reports/all:
+      get:
+        summary: Recupera tutte le segnalazioni
+        description: Restituisce l'elenco completo delle segnalazioni con informazioni sull'utente, sul bidone e sul centro di raccolta associato.
+        tags:
+          - Reports
+
+        responses:
+          '200':
+            description: Lista delle segnalazioni recuperata con successo
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    success:
+                      type: boolean
+                      example: true
+
+                    reports:
+                      type: array
+
+          '500':
+            description: Errore interno del server
+
+  /reports/update/{reportId}:
+      put:
+        summary: Aggiorna lo stato di una segnalazione
+        description: |
+          Aggiorna lo stato di una segnalazione.
+
+          Comportamento:
+          - ACCEPT → il bidone passa in MANUTENZIONE
+          - RESOLVED → il bidone torna in OK e il report viene eliminato
+          - REJECTED → il bidone torna in OK e il report viene eliminato
+        tags:
+          - Reports
+
+        parameters:
+          - in: path
+            name: reportId
+            required: true
+            schema:
+              type: string
+            description: ID del report da aggiornare
+
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                      - ACCEPT
+                      - RESOLVED
+                      - REJECTED
+                    example: ACCEPT
+
+        responses:
+          '200':
+            description: Stato aggiornato con successo
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                      example: Stato del report aggiornato con successo
+
+                    report:
+                      $ref: '#/components/schemas/Report'
+
+          '404':
+            description: Report non trovato
+
+          '500':
+            description: Errore interno del server
+
+
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665ba1cd2f9f6c001234abcd
+
+        name:
+          type: string
+          example: Mario Rossi
+          description: Nome completo dell'utente
+
+        email:
+          type: string
+          format: email
+          example: mario.rossi@example.com
+          description: Email dell'utente
+
+        passwordHash:
+          type: string
+          example: $2b$10$abcdefghilmnopqrstuv
+          description: Password criptata dell'utente
+
+        role:
+          type: string
+          enum:
+            - registered_user
+            - operator
+            - admin
+          example: registered_user
+          description: Ruolo dell'utente nel sistema
+
+        points:
+          type: number
+          example: 120
+          description: Punti accumulati dall'utente
+
+        employeeCode:
+          type: string
+          nullable: true
+          example: EMP001
+          description: Codice identificativo dell'operatore
+
+        assignedRouteId:
+          type: string
+          nullable: true
+          example: 665bc2222f9f6c001239999
+          description: ID della route assegnata all'operatore
+
+        accessLevel:
+          type: number
+          nullable: true
+          example: 2
+          description: Livello di accesso dell'utente
+
+        isVerified:
+          type: boolean
+          example: true
+          description: Stato di verifica dell'account
+
+        verificationToken:
+          type: string
+          nullable: true
+          example: verify_token_123456
+          description: Token per la verifica email
+
+        passwordResetToken:
+          type: string
+          nullable: true
+          example: reset_token_abcdef
+          description: Token per il reset della password
+
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:00:00.000Z
+
+      required:
+        - name
+        - email
+        - passwordHash
+
+    Bin:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665b90ad2f9f6c0012349999
+
+        binCode:
+          type: string
+          example: BIN001
+          description: Codice univoco del bidone
+
+        wasteType:
+          type: string
+          enum:
+            - carta
+            - plastica
+            - vetro
+            - umido
+            - indifferenziato
+            - olio esausto
+          example: plastica
+
+        fillLevel:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 75
+          description: Percentuale di riempimento del bidone
+
+        status:
+          type: string
+          enum:
+            - OK
+            - MANUTENZIONE
+            - PIENO
+            - SEGNALATO
+          example: OK
+
+        centerId:
+          type: string
+          example: 665b8f5d2f9f6c0012345678
+          description: ID del centro di raccolta associato
+
+        sensor:
+          type: object
+          properties:
+            sensorCode:
+              type: string
+              example: SENS123
+
+            batteryLevel:
+              type: number
+              minimum: 0
+              maximum: 100
+              example: 87
+
+            lastUpdate:
+              type: string
+              format: date-time
+              example: 2026-05-16T10:30:00.000Z
+
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:00:00.000Z
+
+        updatedAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T10:30:00.000Z
+
+      required:
+        - binCode
+        - wasteType
+        - fillLevel
+        - status
+        - centerId
+        - sensor
+    Center:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 665b8f5d2f9f6c0012345678
+
+        name:
+          type: string
+          example: Centro Raccolta Milano Nord
+          description: Nome del centro di raccolta
+
+        address:
+          type: string
+          example: Via Roma 10
+          description: Indirizzo del centro
+
+        area:
+          type: string
+          example: Milano Nord
+          description: Area geografica del centro di raccolta
+
+        openingHours:
+          type: string
+          example: Lun-Ven 8:00-18:00, Sab 9:00-13:00, Dom chiuso
+          description: Orari di apertura del centro
+
+        coordinates:
+          type: object
+          properties:
+            lat:
+              type: number
+              format: double
+              example: 45.4642
+
+            lng:
+              type: number
+              format: double
+              example: 9.1900
+
+        createdAt:
+          type: string
+          format: date-time
+          example: 2026-05-16T09:00:00.000Z
+
+      required:
+        - name
+        - address
+        - area
+        - coordinates
+    Report:
+      type: object
+      required:
+        - userId
+        - binId
+        - description
+        - status
+      properties:
+        _id:
+          type: string
+          description: ID univoco del report
+          example: "683a7e4f9b12c8a99999999"
+
+        userId:
+          type: string
+          description: ID dell'utente che ha creato la segnalazione
+          example: "683a7e4f9b12c8a12345678"
+
+        binId:
+          type: string
+          description: ID del bidone segnalato
+          example: "683a7e4f9b12c8a87654321"
+
+        description:
+          type: string
+          description: Descrizione del problema riscontrato
+          example: "Il bidone è danneggiato e non si chiude."
+
+        status:
+          type: string
+          description: Stato della segnalazione
+          enum:
+            - PENDING
+            - IN_PROGRESS
+            - RESOLVED
+            - REJECTED
+          example: PENDING
+
+        createdAt:
+          type: string
+          format: date-time
+          description: Data di creazione del report
+          example: "2025-06-01T12:34:56.000Z"
+
+        updatedAt:
+          type: string
+          format: date-time
+          description: Data dell'ultima modifica del report
+          example: "2025-06-01T12:34:56.000Z"
