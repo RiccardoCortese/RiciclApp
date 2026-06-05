@@ -21,6 +21,11 @@ const reportSchema = new mongoose.Schema(
       type: String,
       enum: ['PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'], 
       default: 'PENDING'
+    },
+    assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User', 
+      default: null 
     }
   },
   {

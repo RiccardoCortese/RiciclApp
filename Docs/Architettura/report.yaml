@@ -208,6 +208,12 @@ components:
             - REJECTED
           example: PENDING
 
+        assignedTo:
+          type: string
+          nullable: true
+          description: Operatore assegnato alla gestione della segnalazione
+          example: "683a7e4f9b12c8a55555555"
+
         createdAt:
           type: string
           format: date-time
