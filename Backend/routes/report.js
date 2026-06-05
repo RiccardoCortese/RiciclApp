@@ -2,6 +2,7 @@ const expess = require('express');
 const router = expess.Router();
 const Report = require('../models/reports');
 const Bin = require('../models/bin');
+const User = require('../models/user');
 
 //POST per creare un nuovo report
 router.post('/create', async (req, res) => {
@@ -63,11 +64,9 @@ router.get('/all', async (req, res) => {
             return res.status(200).json({ success: true, reports: reportsWithBinInfo });
 
         } catch (error) {
-            console.error('Errore nel controller report/all:', error);
-
-            return res.status(500).json({
-                success: false,
-                message: 'Errore interno del server durante il recupero delle segnalazioni.',
+            console.error("Errore update report:", error);
+            res.status(500).json({
+                message: 'Errore interno del server durante l\'aggiornamento dello stato del report',
                 error: error.message
             });
         }
@@ -85,20 +84,33 @@ router.put('/update/:reportId', async (req, res) => {
         const { reportId } = req.params;
         const { status } = req.body;
 
-        const report = await Report.findByIdAndUpdate(reportId, { status }, { new: true });
+        const report = await Report.findById(reportId);
 
         if (!report) {
             return res.status(404).json({ message: 'Report non trovato' });
         }
 
+        const previousStatus = report.status;
+
+        report.status = status;
+        await report.save();
+
         if (status === 'RESOLVED' || status === 'REJECTED') {
             await Bin.findByIdAndUpdate(report.binId, { status: 'OK' });
             await Report.findByIdAndDelete(reportId);
-        } else if (status === 'ACCEPT') {
-            await Bin.findByIdAndUpdate(report.binId, { status: 'MANUTENZIONE' });
-        }
+        } else if (status === 'IN_PROGRESS') {
+            console.log("Entrato nel blocco ACCEPT");
 
-        
+            await Bin.findByIdAndUpdate(report.binId, { status: 'MANUTENZIONE' });
+            console.log("Bidone aggiornato");
+
+            if (previousStatus !== 'IN_PROGRESS') {
+                await User.findByIdAndUpdate(report.userId, {
+                    $inc: { points: 10 }
+                });
+                console.log("Punti utente aggiornati");
+            }
+        }
 
         res.status(200).json({ message: 'Stato del report aggiornato con successo', report });
     } catch (error) {

@@ -32,7 +32,7 @@ export default function AdminReportsScreen() {
         try {
             // Invia la decisione al backend per aggiornare lo stato del report
             const response = await axios.put(`${API_URL}/report/update/${reportId}`, {
-                status: action === 'ACCEPT' ? 'ACCEPT' : 'REJECTED'
+                status: action === 'ACCEPT' ? 'IN_PROGRESS' : 'REJECTED'
             });
 
             if (response.status === 200 || response.data.success) {
