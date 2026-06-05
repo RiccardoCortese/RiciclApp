@@ -396,10 +396,10 @@ export default function HomeAdminScreen() {
 
   //button per la side bar a sinistra 
   const sideButtons = [
-  { id: 0, icon: WorkImg},
+    //  REPORT ADMIN
+  { id: 0, icon: admin_report, label: 'Segnalazioni', onPress: () => router.push('/report_admin') }, 
   { id: 1, icon: WorkImg},
-  //  REPORT ADMIN
-  { id: 2, icon: admin_report, label: 'Segnalazioni', onPress: () => router.push('/report_admin') }, 
+  { id: 2, icon: WorkImg },
   { id: 3, icon: WorkImg},
   { id: 4, icon: WorkImg},
 ];

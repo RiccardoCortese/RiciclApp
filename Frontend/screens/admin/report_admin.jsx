@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API_URL } from '../../src/config';
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker'; //picker per l'assegnazione dell'operatore
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AdminReportsScreen() {
     const [reports, setReports] = useState([]);
@@ -18,11 +19,20 @@ export default function AdminReportsScreen() {
             // Recupero tutte le segnalazioni
             const reportsRes = await axios.get(`${API_URL}/report/all`);
             setReports(reportsRes.data.reports || reportsRes.data || []);
+            console.log("Segnalazioni recuperate:", reportsRes.data.reports || reportsRes.data || []);
             
-            // Recupero tutti gli utenti per filtrare solo gli operatori
-            const usersRes = await axios.get(`${API_URL}/user/all`);
+            // Recupero token per autenticazione -> SOLO ADMIN PUO' VEDERE GLI OPERATORI DISPONIBILI PER ASSEGNARLI ALLE SEGNALAZIONI APPROVATE
+            const token = await AsyncStorage.getItem('token');
+
+            const usersRes = await axios.get(`${API_URL}/user/all`, {
+                headers: {
+                    Authorization: `Bearer ${token}` // Configurazione standard per authMiddleware
+                }
+            });
+
             const allUsers = usersRes.data.users || usersRes.data || [];
             const onlyOperators = allUsers.filter(u => u.role === 'operator');
+            console.log("Operatori recuperati:", onlyOperators);
             setOperators(onlyOperators);
 
         } catch (err) {
