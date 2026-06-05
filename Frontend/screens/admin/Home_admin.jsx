@@ -16,6 +16,7 @@ import admin_report from '../../src/assets/admin_report.png';
 import UserDefault from '../../src/assets/Profile_image/User_image.png';
 import AddBinImg      from '../../src/assets/Aggiunta Bin.png';
 import SegnalazioniImg from '../../src/assets/Segnalazioni.png';
+import ProblemBin from '../../src/assets/Bin_non_assegnati.png';
 
 // ── Brand color ──────────────────────────────────────────────────────────────
 const PRIMARY = '#C0174D'; // amaranth
@@ -886,7 +887,7 @@ export default function HomeAdminScreen() {
             }}
           >
             <Image
-              source={i === 0 ? SegnalazioniImg : i === 1 ? AddBinImg : WorkImg}
+              source={i === 0 ? SegnalazioniImg : i === 1 ? AddBinImg : i === 2 ? ProblemBin : WorkImg}
               style={styles.sideButtonIcon}
             />
           </TouchableOpacity>
