@@ -234,11 +234,18 @@ export default function HomeOperatorScreen() {
       // Recupero delle segnalazioni reali filtrate per stato "accept"
       axios.get(`${API_URL}/report/all`)
         .then(r => {
+          const currentIdOperatore = AsyncStorage.getItem('profileId');
           const allReports = Array.isArray(r.data?.reports) ? r.data.reports : [];
           // Filtro mantenendo solo quelle con status 'ACCEPT' 
           console.log("Segnalazioni recuperate:", allReports);
-          const acceptedReports = allReports.filter(s => s.status === 'ACCEPT');
-          setSegnalazioni(acceptedReports);
+          const assignedReports = allReports.filter(s => {
+            // Gestiamo sia il caso in cui assignedTo sia un ID stringa, sia un oggetto popolato
+            const operatorIdInReport = s.assignedTo?._id || s.assignedTo;
+
+            return s.status === 'ASSIGNED' && operatorIdInReport === currentOperatorId;
+          });
+          setSegnalazioni(assignedReports);
+
         })
         .catch(err => {
           console.error("Errore nel recupero delle segnalazioni:", err);
