@@ -994,7 +994,7 @@ export default function HomeAdminScreen() {
 
       {/* ── Left vertical tool bar ── */}
       <View style={[styles.sideBar, { zIndex: 10 }]}>
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2, 3, 4].map((i) => (
           <TouchableOpacity
             key={i}
             style={styles.sideButton}
