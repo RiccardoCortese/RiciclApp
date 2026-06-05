@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import axios from 'axios';
 import { API_URL } from '../../src/config';
 import { useRouter } from 'expo-router';
-import { Picker } from '@react-native-picker/picker'; //picker per l'assegnazione dell'operatore
+import { Picker } from '@react-native-picker/picker'; // Importazione del Picker per la selezione dell'operatore
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AdminReportsScreen() {
     const [reports, setReports] = useState([]);
-    const [operators, setOperators] = useState([]); // Stato per salvare gli operatori disponibili
+    const [operators, setOperators] = useState([]); // Stato per memorizzare gli operatori disponibili
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('registered_user');
     const router = useRouter();
@@ -16,23 +16,20 @@ export default function AdminReportsScreen() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Recupero tutte le segnalazioni
+            // Recupera tutte le segnalazioni
             const reportsRes = await axios.get(`${API_URL}/report/all`);
             setReports(reportsRes.data.reports || reportsRes.data || []);
-            console.log("Segnalazioni recuperate:", reportsRes.data.reports || reportsRes.data || []);
-            
-            // Recupero token per autenticazione -> SOLO ADMIN PUO' VEDERE GLI OPERATORI DISPONIBILI PER ASSEGNARLI ALLE SEGNALAZIONI APPROVATE
+
+            // Recupera tutti gli utenti per filtrare solo gli operatori -> SOLO ADMIN PUO' VEDERE GLI OPERATORI DISPONIBILI PER L'ASSEGNAZIONE
             const token = await AsyncStorage.getItem('token');
 
             const usersRes = await axios.get(`${API_URL}/user/all`, {
-                headers: {
-                    Authorization: `Bearer ${token}` // Configurazione standard per authMiddleware
-                }
+                headers: { 
+                    Authorization: `Bearer ${token}` }
             });
 
             const allUsers = usersRes.data.users || usersRes.data || [];
             const onlyOperators = allUsers.filter(u => u.role === 'operator');
-            console.log("Operatori recuperati:", onlyOperators);
             setOperators(onlyOperators);
 
         } catch (err) {
@@ -55,7 +52,7 @@ export default function AdminReportsScreen() {
 
             if (response.status === 200 || response.data.success) {
                 setReports(prevReports =>
-                    prevReports.map(r => r._id === reportId ? { ...r, status: nextStatus } : r) // Aggiorna lo stato locale per riflettere l'azione avvenuta
+                    prevReports.map(r => r._id === reportId ? { ...r, status: nextStatus } : r)
                 );
                 alert(`Segnalazione ${action === 'ACCEPT' ? 'accettata' : 'rifiutata'} con successo.`);
             } else {
@@ -71,16 +68,17 @@ export default function AdminReportsScreen() {
     const handleAssignOperator = async (reportId, operatorId) => {
         if (!operatorId) return;
         try {
-            // Invio della richiesta di assegnazione al backend
+            // Effettua la chiamata al backend per assegnare l'operatore alla segnalazione
             const response = await axios.put(`${API_URL}/report/assign/${reportId}`, {
-                assignedTo: operatorId 
+                assignedTo: operatorId
             });
 
             if (response.status === 200 || response.data.success) {
+                // Aggiorna lo stato locale modificando sia assignedTo che lo status in 'ASSIGNED'
                 setReports(prevReports =>
-                    prevReports.map(r => r._id === reportId ? { ...r, assignedTo: operatorId } : r)
+                    prevReports.map(r => r._id === reportId ? { ...r, assignedTo: operatorId, status: 'ASSIGNED' } : r)
                 );
-                alert("Operatore assegnato con successo alla segnalazione!");
+                alert("Operatore assegnato con successo! La segnalazione è stata spostata nelle 'Assegnate'.");
             } else {
                 alert("Impossibile assegnare l'operatore.");
             }
@@ -90,13 +88,15 @@ export default function AdminReportsScreen() {
         }
     };
 
-    // Logica di filtraggio per le Tab
+    // Filtra le segnalazioni in base alla tab attiva e allo status delle varie tab (pending, approved, assigned)
     const filteredReports = reports.filter(report => {
         if (activeTab === 'segnalazioni_approvate') {
             return report.status === 'ACCEPT';
         }
-        // Nelle prime due tab mostriamo solo quelle pendenti (non ancora accettate o rifiutate)
-        const isPending = report.status !== 'ACCEPT' && report.status !== 'REJECTED';
+        if (activeTab === 'segnalazioni_assegnate') {
+            return report.status === 'ASSIGNED';
+        }
+        const isPending = report.status !== 'ACCEPT' && report.status !== 'REJECTED' && report.status !== 'ASSIGNED';
         const userRole = report.userId?.role || 'registered_user';
         return isPending && userRole === activeTab;
     });
@@ -120,14 +120,14 @@ export default function AdminReportsScreen() {
                 <Text style={styles.title}>Pannello Amministratore</Text>
                 <Text style={styles.subtitle}>Gestione e approvazione segnalazioni guasti</Text>
 
-                {/* ── TAB DI SEPARAZIONE ── */}
+                {/* ── TAB DI SEPARAZIONE AGGIORNATA CON 4 PULSANTI ── */}
                 <View style={styles.tabContainer}>
                     <TouchableOpacity
                         style={[styles.tabButton, activeTab === 'registered_user' && styles.activeTabButton]}
                         onPress={() => setActiveTab('registered_user')}
                     >
                         <Text style={[styles.tabButtonText, activeTab === 'registered_user' && styles.activeTabButtonText]}>
-                            👤 Report Cittadini ({reports.filter(r => r.status !== 'ACCEPT' && r.status !== 'REJECTED' && (r.userId?.role || 'registered_user') === 'registered_user').length})
+                            👤 Report Cittadini ({reports.filter(r => r.status !== 'ACCEPT' && r.status !== 'REJECTED' && r.status !== 'ASSIGNED' && (r.userId?.role || 'registered_user') === 'registered_user').length})
                         </Text>
                     </TouchableOpacity>
 
@@ -136,7 +136,7 @@ export default function AdminReportsScreen() {
                         onPress={() => setActiveTab('operator')}
                     >
                         <Text style={[styles.tabButtonText, activeTab === 'operator' && styles.activeTabButtonText]}>
-                            🛠️ Report Operatori ({reports.filter(r => r.status !== 'ACCEPT' && r.status !== 'REJECTED' && r.userId?.role === 'operator').length})
+                            🛠️ Report Operatori ({reports.filter(r => r.status !== 'ACCEPT' && r.status !== 'REJECTED' && r.status !== 'ASSIGNED' && r.userId?.role === 'operator').length})
                         </Text>
                     </TouchableOpacity>
 
@@ -146,6 +146,15 @@ export default function AdminReportsScreen() {
                     >
                         <Text style={[styles.tabButtonText, activeTab === 'segnalazioni_approvate' && styles.activeTabButtonText]}>
                             ✅ Approvate ({reports.filter(r => r.status === 'ACCEPT').length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'segnalazioni_assegnate' && styles.activeTabButton]}
+                        onPress={() => setActiveTab('segnalazioni_assegnate')}
+                    >
+                        <Text style={[styles.tabButtonText, activeTab === 'segnalazioni_assegnate' && styles.activeTabButtonText]}>
+                            🏃 Assegnate ({reports.filter(r => r.status === 'ASSIGNED').length})
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -158,9 +167,11 @@ export default function AdminReportsScreen() {
                         {filteredReports.map((report) => (
                             <View key={report._id} style={[
                                 styles.reportCard,
-                                activeTab === 'segnalazioni_approvate'
-                                    ? styles.approvedCardBorder
-                                    : (report.userId?.role === 'operator' ? styles.operatorCardBorder : styles.userCardBorder)
+                                activeTab === 'segnalazioni_assegnate'
+                                    ? styles.assignedCardBorder
+                                    : activeTab === 'segnalazioni_approvate'
+                                        ? styles.approvedCardBorder
+                                        : (report.userId?.role === 'operator' ? styles.operatorCardBorder : styles.userCardBorder)
                             ]}>
 
                                 <View style={styles.cardHeader}>
@@ -179,14 +190,23 @@ export default function AdminReportsScreen() {
                                     <Text style={styles.descriptionText}>"{report.description}"</Text>
                                 </View>
 
-                                {/* ── LOGICA DINAMICA DELLE AZIONI IN BASE ALLA TAB ── */}
-                                {activeTab === 'segnalazioni_approvate' ? (
-                                    // Vista per la Tab Approvate: Assegnazione Operatore
+                                {/* ── GESTIONE DINAMICA DEL CONTENUTO DELLE CARD IN BASE ALLA TAB ── */}
+                                {activeTab === 'segnalazioni_assegnate' ? (
+                                    // Vista per la nuova Tab Assegnate: Mostra a chi è in carico
+                                    <View style={styles.assignmentBox}>
+                                        <Text style={styles.assignmentLabel}>👷 Operatore incaricato:</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1565c0' }}>
+                                            {operators.find(op => op._id === report.assignedTo)?.name || report.assignedOperator?.name || 'Operatore Assegnato'}
+                                        </Text>
+                                        <Text style={styles.assignedStatus}>Status: Scansione presa in carico</Text>
+                                    </View>
+                                ) : activeTab === 'segnalazioni_approvate' ? (
+                                    // Vista per la Tab Approvate: Picker per effettuare l'assegnazione
                                     <View style={styles.assignmentBox}>
                                         <Text style={styles.assignmentLabel}>👷 Assegna a un Operatore:</Text>
                                         <View style={styles.pickerWrapper}>
                                             <Picker
-                                                selectedValue={report.assignedTo || report.assignedOperator?._id || ''}
+                                                selectedValue={report.assignedTo || ''}
                                                 style={styles.pickerStyle}
                                                 onValueChange={(itemValue) => handleAssignOperator(report._id, itemValue)}
                                             >
@@ -196,9 +216,6 @@ export default function AdminReportsScreen() {
                                                 ))}
                                             </Picker>
                                         </View>
-                                        {(report.assignedTo || report.assignedOperator) && (
-                                            <Text style={styles.assignedStatus}>Status: Scansione presa in carico</Text>
-                                        )}
                                     </View>
                                 ) : (
                                     <View style={styles.actionsRow}>
