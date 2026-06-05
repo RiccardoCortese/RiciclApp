@@ -140,6 +140,7 @@ export default function BinScreen({ centerId, onBack }) {
   };
 
   const isAdmin = userRole === 'admin';
+  const isOperator = userRole === 'operator'; // operatore: sola lettura, nessuna modifica
 
   // Stati selezionabili dall'admin (etichetta mostrata ↔ valore salvato nel DB)
   const ADMIN_STATUS_OPTIONS = [
@@ -307,8 +308,11 @@ export default function BinScreen({ centerId, onBack }) {
                     <Text style={styles.adminDeleteTxt}>🗑  Elimina bidone</Text>
                   </TouchableOpacity>
                 </View>
+              ) : isOperator ? (
+                /* L'operatore può solo visualizzare, nessuna azione */
+                null
               ) : (
-                /* Pulsante di Segnalazione dinamico (cittadini/operatori) */
+                /* Pulsante di Segnalazione dinamico (cittadini) */
                 <TouchableOpacity
                   style={[
                     styles.actionReportButton,

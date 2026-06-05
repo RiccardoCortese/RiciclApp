@@ -36,6 +36,22 @@ router.get('/unassigned', async (req, res) => {
     }
 });
 
+// Tutti i bidoni piazzati sulla mappa (con coordinate valide). Pubblico: serve
+// a mostrare i bidoni anche sulle mappe di cittadini e operatori, non solo admin.
+// Va dichiarata PRIMA di "/:id" per non essere oscurata dalla rotta dinamica.
+router.get('/bins', async (req, res) => {
+    try {
+        const bins = await Bin.find({
+            'coordinates.lat': { $ne: null },
+            'coordinates.lng': { $ne: null },
+        }).lean();
+        return res.json(bins);
+    } catch (error) {
+        console.error('Errore durante il recupero dei bidoni (mappa):', error);
+        return res.status(500).json({ message: 'Errore del server' });
+    }
+});
+
 //Rotta per il singolo centro + i suoi bidoni
 router.get('/:id', async (req, res) => {
   try {

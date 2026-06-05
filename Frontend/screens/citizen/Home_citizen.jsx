@@ -18,13 +18,17 @@ const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 };
 const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
+// Grey colour used for the bin markers shown on the map.
+const BIN_GREY = '#9E9E9E';
+
 // ------- Web map -------
-function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
+function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
   const [maplibreInstance, setMaplibreInstance] = useState(null);
   const markersRef = useRef([]);
+  const binMarkersRef = useRef([]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -98,6 +102,33 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
     });
   }, [centers, maplibreInstance]);
 
+  // Grey bin markers with a minimal banner: name, waste types, connected center.
+  useEffect(() => {
+    if (!mapRef.current || !maplibreInstance) return;
+    binMarkersRef.current.forEach(m => m.remove());
+    binMarkersRef.current = [];
+    const centersById = {};
+    (centers || []).forEach(c => { if (c?._id) centersById[String(c._id)] = c.name; });
+    (bins || []).forEach(bin => {
+      const lat = Number(bin?.coordinates?.lat);
+      const lng = Number(bin?.coordinates?.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const types = (bin.wasteTypes?.length ? bin.wasteTypes : [bin.wasteType]).filter(Boolean).join(', ');
+      const centerName = bin.centerId ? (centersById[String(bin.centerId)] || null) : null;
+      const marker = new maplibreInstance.Marker({ color: BIN_GREY })
+        .setLngLat([lng, lat])
+        .addTo(mapRef.current);
+      const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(`
+        <div style="font-family:Arial,sans-serif;padding:5px;min-width:170px;">
+          <h3 style="color:#444;margin:0 0 4px 0;">${bin.name || 'Bidone'}</h3>
+          <p style="margin:0;font-size:12px;color:${BIN_GREY};font-weight:bold;">${types || '—'}</p>
+          <p style="margin:6px 0 0 0;font-size:12px;color:#666;">🏢 ${centerName || 'Nessun centro collegato'}</p>
+        </div>`);
+      marker.setPopup(popup);
+      binMarkersRef.current.push(marker);
+    });
+  }, [bins, centers, maplibreInstance]);
+
   return (
     <div
       ref={containerRef}
@@ -107,7 +138,7 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
 }
 
 // ---- Native map -----
-function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
+function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
@@ -172,6 +203,9 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
     });
 
     const centers = ${JSON.stringify(centers || [])};
+    const bins = ${JSON.stringify(bins || [])};
+    const centersById = {};
+    centers.forEach(c => { if (c && c._id) centersById[String(c._id)] = c.name; });
 
     map.on('load', () => {
       centers.forEach((center, index) => {
@@ -201,6 +235,24 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
           .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
           .addTo(map);
       });
+
+      // Grey bin markers with a minimal info popup (view only)
+      bins.forEach((bin) => {
+        if (!bin.coordinates || !bin.coordinates.lng || !bin.coordinates.lat) return;
+        const types = ((bin.wasteTypes && bin.wasteTypes.length) ? bin.wasteTypes : [bin.wasteType]).filter(Boolean).join(', ');
+        const centerName = bin.centerId ? (centersById[String(bin.centerId)] || null) : null;
+        const popup = new maplibregl.Popup({ offset: 25 }).setHTML(
+          '<div style="font-family:Arial,sans-serif;padding:5px;min-width:160px;">'
+          + '<h3 style="color:#444;margin:0 0 4px 0;">' + (bin.name || 'Bidone') + '</h3>'
+          + '<p style="margin:0;font-size:12px;color:#9E9E9E;font-weight:bold;">' + (types || '—') + '</p>'
+          + '<p style="margin:6px 0 0 0;font-size:12px;color:#666;">🏢 ' + (centerName || 'Nessun centro collegato') + '</p>'
+          + '</div>'
+        );
+        new maplibregl.Marker({ color: '#9E9E9E' })
+          .setLngLat([Number(bin.coordinates.lng), Number(bin.coordinates.lat)])
+          .setPopup(popup)
+          .addTo(map);
+      });
     });
 
     document.addEventListener('message', function(e) {
@@ -216,7 +268,7 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   return (
     <WebView
       ref={webViewRef}
-      key={`map-centers-${centers.length}`}
+      key={`map-centers-${centers.length}-bins-${bins.length}`}
       source={{ html: mapHtml }}
       style={{ flex: 1 }}
       javaScriptEnabled
@@ -240,6 +292,7 @@ export default function HomeCitizenScreen() {
   const [avatarUri, setAvatarUri] = useState(null);
   const [showInfoCard, setShowInfoCard] = useState(false);
   const [centers, setCenters] = useState([]);
+  const [bins, setBins] = useState([]);
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -253,6 +306,12 @@ export default function HomeCitizenScreen() {
         setCenters(Array.isArray(response.data) ? response.data : []);
       })
       .catch(() => setCenters([]));
+
+    axios.get(`${API_URL}/centers/bins`)
+      .then((response) => {
+        setBins(Array.isArray(response.data) ? response.data : []);
+      })
+      .catch(() => setBins([]));
   }, []);
 
   useFocusEffect(
@@ -298,12 +357,14 @@ export default function HomeCitizenScreen() {
           targetCenter={mapCenter}
           styleUrl={mapStyleUrl}
           centers={centers}
+          bins={bins}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       ) : (
         <NativeMap
           targetCenter={mapCenter}
           styleUrl={mapStyleUrl}
           centers={centers}
+          bins={bins}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
 
