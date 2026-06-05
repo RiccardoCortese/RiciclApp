@@ -78,5 +78,50 @@ Una volta avviato Expo, scegliere la piattaforma:
 - Premere **`w`** per aprire la versione **web** nel browser
 - Scansionare il **QR code** con l'app **Expo Go** per testare su **Android**
 
+### Simulazione sensori IoT (opzionale)
+
+Il progetto include un modulo opzionale di simulazione IoT che permette di simulare sensori installati sui bidoni intelligenti.
+
+Per utilizzare la simulazione è necessario avviare separatamente:
+
+#### Listener MQTT
+
+Aprire un nuovo terminale:
+
+```bash
+cd Backend
+npm run listener
+```
+
+Il listener riceve i dati MQTT provenienti dai sensori simulati e aggiorna automaticamente MongoDB.
+
+#### Simulatore sensori
+
+Aprire un secondo terminale:
+
+```bash
+cd Backend
+npm run simulator
+```
+
+Il simulatore genera periodicamente livelli di riempimento casuali per i bidoni e invia tali informazioni tramite MQTT.
+
+#### Flusso simulazione
+
+```text
+Simulatore sensori
+        ↓
+       MQTT
+        ↓
+     Listener
+        ↓
+     MongoDB
+        ↓
+ Backend / Frontend
+```
+
+> Nota: backend, listener e simulatore devono essere eseguiti separatamente.
+
+
 ### Limitazioni note
 - La versione web non supporta la scansione barcode via fotocamera (funzionalità disponibile solo su Android nativo).
