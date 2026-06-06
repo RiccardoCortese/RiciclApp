@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Image, Platform, StyleSheet,
+  ActivityIndicator, Alert, Image, Platform, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -58,22 +58,9 @@ function eventsToFeatureCollection(events) {
   };
 }
 
-// HTML shown in the click popup of an event circle (citizen — read only).
-function eventPopupHtml(e) {
-  const types = (e.wasteTypes || []).join(', ') || '—';
-  return `
-    <div style="font-family:Arial,sans-serif;padding:6px;min-width:200px;">
-      <h3 style="color:#222;margin:0 0 6px 0;">${e.name || 'Evento'}</h3>
-      <p style="margin:2px 0;font-size:12px;color:#666;">📅 Inizio: <b>${formatEventDateTime(e.startDate)}</b></p>
-      <p style="margin:2px 0;font-size:12px;color:#666;">🏁 Fine: <b>${formatEventDateTime(e.endDate)}</b></p>
-      <p style="margin:2px 0;font-size:12px;color:#666;">📏 Raggio: <b>${e.radius} m</b></p>
-      <p style="margin:2px 0;font-size:12px;color:#666;">♻️ Rifiuti potenziati: <b>${types}</b></p>
-      <p style="margin:6px 0 0 0;font-size:13px;color:#C0174D;font-weight:bold;">⚡ Punti x${e.boost} nell'area</p>
-    </div>`;
-}
 
 // ------- Web map -------
-function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick }) {
+function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick, onEventClick }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
@@ -83,9 +70,11 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
   const binMarkersRef = useRef([]);
   const eventLabelsRef = useRef([]);
 
-  // Keep the latest events reachable from the once-only click handler.
+  // Keep the latest events + click callback reachable from once-only handlers.
   const eventsRef = useRef(events);
   useEffect(() => { eventsRef.current = events; }, [events]);
+  const onEventClickRef = useRef(onEventClick);
+  useEffect(() => { onEventClickRef.current = onEventClick; }, [onEventClick]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -120,12 +109,11 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
           id: 'events-line', type: 'line', source: 'events',
           paint: { 'line-color': EVENT_OUTLINE, 'line-width': 2 },
         });
-        // Click an event circle → show its characteristics (read only).
+        // Click an event circle → open the characteristics modal (with join btn).
         map.on('click', 'events-fill', (e) => {
           if (!e.features.length) return;
           const ev = eventsRef.current.find(x => String(x._id) === String(e.features[0].properties.id));
-          if (!ev) return;
-          new maplibregl.Popup({ offset: 8 }).setLngLat(e.lngLat).setHTML(eventPopupHtml(ev)).addTo(map);
+          if (ev) onEventClickRef.current?.(ev);
         });
         map.on('mouseenter', 'events-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', 'events-fill', () => { map.getCanvas().style.cursor = ''; });
@@ -240,7 +228,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
 }
 
 // ---- Native map -----
-function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick }) {
+function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick, onEventClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
@@ -266,6 +254,9 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'centerClicked' && data.center) {
         onCenterClick(data.center);
+      } else if (data.type === 'eventClicked' && data.id) {
+        const ev = (events || []).find(x => String(x._id) === String(data.id));
+        if (ev) onEventClick?.(ev);
       }
     } catch (error) {
       console.error("Errore nel ricevere il messaggio dalla WebView:", error);
@@ -348,22 +339,14 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
         new maplibregl.Marker({ element: el }).setLngLat([Number(e.coordinates.lng), Number(e.coordinates.lat)]).addTo(map);
       });
 
-      const eventsById = {};
-      events.forEach(e => { if (e && e._id) eventsById[String(e._id)] = e; });
+      // Click an event circle → notify React Native to open the modal (with the
+      // "Partecipa" button). The webview cannot perform the authenticated join.
       map.on('click', 'events-fill', (ev) => {
         if (!ev.features.length) return;
-        const e = eventsById[String(ev.features[0].properties.id)];
-        if (!e) return;
-        const types = ((e.wasteTypes && e.wasteTypes.length) ? e.wasteTypes : []).join(', ') || '—';
-        const html = '<div style="font-family:Arial,sans-serif;padding:6px;min-width:190px;">'
-          + '<h3 style="color:#222;margin:0 0 6px 0;">' + (e.name || 'Evento') + '</h3>'
-          + '<p style="margin:2px 0;font-size:12px;color:#666;">📅 Inizio: <b>' + fmtDate(e.startDate) + '</b></p>'
-          + '<p style="margin:2px 0;font-size:12px;color:#666;">🏁 Fine: <b>' + fmtDate(e.endDate) + '</b></p>'
-          + '<p style="margin:2px 0;font-size:12px;color:#666;">📏 Raggio: <b>' + e.radius + ' m</b></p>'
-          + '<p style="margin:2px 0;font-size:12px;color:#666;">♻️ ' + types + '</p>'
-          + '<p style="margin:6px 0 0 0;font-size:13px;color:#C0174D;font-weight:bold;">⚡ Punti x' + e.boost + ' nell\\'area</p>'
-          + '</div>';
-        new maplibregl.Popup({ offset: 8 }).setLngLat(ev.lngLat).setHTML(html).addTo(map);
+        const id = String(ev.features[0].properties.id);
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'eventClicked', id: id }));
+        }
       });
 
       centers.forEach((center, index) => {
@@ -452,6 +435,15 @@ export default function HomeCitizenScreen() {
   const [centers, setCenters] = useState([]);
   const [bins, setBins] = useState([]);
   const [events, setEvents] = useState([]);
+  const [viewingEvent, setViewingEvent] = useState(null); // event shown in the modal
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [joining, setJoining] = useState(false);
+
+  const fetchEvents = useCallback(() => {
+    axios.get(`${API_URL}/events/all`)
+      .then((response) => setEvents(Array.isArray(response.data) ? response.data : []))
+      .catch(() => setEvents([]));
+  }, []);
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -473,12 +465,46 @@ export default function HomeCitizenScreen() {
       .catch(() => setBins([]));
 
     // Recycling events (visible read-only to citizens).
-    axios.get(`${API_URL}/events/all`)
-      .then((response) => {
-        setEvents(Array.isArray(response.data) ? response.data : []);
-      })
-      .catch(() => setEvents([]));
-  }, []);
+    fetchEvents();
+
+    // Current user id, used to tell whether the citizen already joined an event.
+    AsyncStorage.getItem('user').then((stored) => {
+      try {
+        const u = stored ? JSON.parse(stored) : null;
+        setCurrentUserId(u?.id || u?._id || null);
+      } catch { setCurrentUserId(null); }
+    });
+  }, [fetchEvents]);
+
+  // Whether the current citizen is already a participant of the given event.
+  const isJoined = (ev) =>
+    !!currentUserId && (ev?.participants || []).some((p) => String(p) === String(currentUserId));
+
+  // Join the currently-viewed event → unlocks its point boost on matching scans.
+  const joinEvent = async () => {
+    if (!viewingEvent || joining) return;
+    if (isJoined(viewingEvent)) return;
+    setJoining(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const { data } = await axios.post(
+        `${API_URL}/events/${viewingEvent._id}/join`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (data?.event) {
+        setViewingEvent(data.event);              // reflect joined state in the modal
+        setEvents((prev) => prev.map((e) => (String(e._id) === String(data.event._id) ? data.event : e)));
+      } else {
+        fetchEvents();
+      }
+      Alert.alert('Iscrizione effettuata', `Ora ricevi i punti x${viewingEvent.boost} sui rifiuti potenziati di questo evento.`);
+    } catch (e) {
+      Alert.alert('Errore', e?.response?.data?.message || 'Impossibile iscriversi all\'evento. Riprova.');
+    } finally {
+      setJoining(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -525,6 +551,7 @@ export default function HomeCitizenScreen() {
           centers={centers}
           bins={bins}
           events={events}
+          onEventClick={(ev) => setViewingEvent(ev)}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       ) : (
         <NativeMap
@@ -533,6 +560,7 @@ export default function HomeCitizenScreen() {
           centers={centers}
           bins={bins}
           events={events}
+          onEventClick={(ev) => setViewingEvent(ev)}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
 
@@ -617,6 +645,56 @@ export default function HomeCitizenScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── Event characteristics modal (click on an event) + join button ── */}
+      {viewingEvent && (
+        <View style={styles.eventOverlay}>
+          <TouchableOpacity style={styles.eventBackdrop} activeOpacity={1} onPress={() => setViewingEvent(null)} />
+          <View style={styles.eventCard}>
+            <View style={styles.eventHeader}>
+              <Text style={styles.eventTitle} numberOfLines={1}>{viewingEvent.name}</Text>
+              <TouchableOpacity style={styles.eventCloseBtn} activeOpacity={0.7} onPress={() => setViewingEvent(null)}>
+                <Text style={styles.eventCloseTxt}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Inizio</Text>
+              <Text style={styles.eventValue}>{formatEventDateTime(viewingEvent.startDate)}</Text>
+            </View>
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Fine</Text>
+              <Text style={styles.eventValue}>{formatEventDateTime(viewingEvent.endDate)}</Text>
+            </View>
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Raggio</Text>
+              <Text style={styles.eventValue}>{viewingEvent.radius} m</Text>
+            </View>
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Rifiuti potenziati</Text>
+              <Text style={styles.eventValue}>{(viewingEvent.wasteTypes || []).join(', ') || '—'}</Text>
+            </View>
+            <View style={styles.eventBoostBanner}>
+              <Text style={styles.eventBoostTxt}>⚡ Punti x{viewingEvent.boost} sui rifiuti potenziati</Text>
+            </View>
+
+            {/* Join the event → grants the boost on matching scans */}
+            {isJoined(viewingEvent) ? (
+              <View style={[styles.joinBtn, styles.joinedBtn]}>
+                <Text style={styles.joinedTxt}>✓ Sei iscritto a questo evento</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.joinBtn, joining && styles.joinBtnDisabled]}
+                activeOpacity={joining ? 1 : 0.85}
+                onPress={joinEvent}
+              >
+                <Text style={styles.joinTxt}>{joining ? 'Iscrizione…' : 'Partecipa all\'evento'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
       <StatusBar style="auto" />
     </View>
   );
@@ -624,6 +702,50 @@ export default function HomeCitizenScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative' },
+
+  // ── Event characteristics modal ─────────────────────────────────────────────
+  eventOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', zIndex: 40,
+  },
+  eventBackdrop: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  eventCard: {
+    width: '90%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 18,
+    paddingHorizontal: 22, paddingTop: 16, paddingBottom: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 14, elevation: 14,
+  },
+  eventHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8,
+  },
+  eventTitle: { fontSize: 20, fontWeight: '700', color: '#1a1a1a', flex: 1 },
+  eventCloseBtn: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f2f2f2', marginLeft: 8,
+  },
+  eventCloseTxt: { fontSize: 16, color: '#444', fontWeight: '700' },
+  eventRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#f4f4f4', gap: 12,
+  },
+  eventLabel: { fontSize: 13, color: '#888', fontWeight: '600' },
+  eventValue: { fontSize: 14, color: '#222', flex: 1, textAlign: 'right' },
+  eventBoostBanner: {
+    marginTop: 14, backgroundColor: '#FFF8E1', borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#FFEB3B', paddingVertical: 10, alignItems: 'center',
+  },
+  eventBoostTxt: { fontSize: 14, fontWeight: '800', color: '#C0174D' },
+  joinBtn: {
+    marginTop: 16, backgroundColor: '#009933', borderRadius: 12, paddingVertical: 14, alignItems: 'center',
+  },
+  joinBtnDisabled: { backgroundColor: '#9bd3ad' },
+  joinTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  joinedBtn: { backgroundColor: '#e8f5e9', borderWidth: 1.5, borderColor: '#009933' },
+  joinedTxt: { color: '#2e7d32', fontSize: 15, fontWeight: '700' },
+
   mapPlaceholder: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#d0e8c0', alignItems: 'center', justifyContent: 'center',

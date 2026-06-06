@@ -34,6 +34,14 @@ const EVENT_BOOSTS  = [2, 3, 5, 10];          // selectable point multipliers
 const EVENT_FILL    = '#FFEB3B';              // translucent yellow circle fill
 const EVENT_OUTLINE = '#000000';              // black circle outline
 
+// "gg/mm/aaaa hh:mm" — compact Italian date-time for event popups.
+function formatEventDateTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Build a GeoJSON polygon approximating a circle of `radiusMeters` around
 // (lat,lng). Used to draw the event area on the map (a true metric circle,
 // unlike maplibre's pixel-based circle layer).
@@ -84,6 +92,17 @@ function buildDayOptions() {
 
 function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
   const ref = useRef(null);
+  // Latest callback + index reachable from the once-bound DOM listeners.
+  const onIndexChangeRef = useRef(onIndexChange);
+  useEffect(() => { onIndexChangeRef.current = onIndexChange; }, [onIndexChange]);
+  const indexRef = useRef(index);
+  useEffect(() => { indexRef.current = index; }, [index]);
+
+  // Underlying scrollable DOM node (admin is web-only, so this always resolves).
+  const getNode = () => {
+    const r = ref.current;
+    return r && typeof r.getScrollableNode === 'function' ? r.getScrollableNode() : null;
+  };
 
   useEffect(() => {
     // Align the initially-selected row with the centre highlight.
@@ -94,11 +113,63 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const settle = (e) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const i = Math.max(0, Math.min(data.length - 1, Math.round(y / SCROLL_ITEM_H)));
-    if (i !== index) onIndexChange(i);
-  };
+  // Web: right-mouse-button drag to scrub the column, plus an auto-stabilizer
+  // that snaps to the closest option whenever scrolling settles (wheel, drag or
+  // touchpad) so a date is never left between two options.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const node = getNode();
+    if (!node) return;
+
+    const clampIndex = (i) => Math.max(0, Math.min(data.length - 1, i));
+    const snap = () => {
+      const i = clampIndex(Math.round(node.scrollTop / SCROLL_ITEM_H));
+      const target = i * SCROLL_ITEM_H;
+      if (Math.abs(node.scrollTop - target) > 0.5) node.scrollTo({ top: target, behavior: 'smooth' });
+      if (i !== indexRef.current) onIndexChangeRef.current?.(i);
+    };
+
+    let dragging = false, startY = 0, startTop = 0;
+    const onContextMenu = (e) => { e.preventDefault(); }; // free the right button for dragging
+    const onMouseDown = (e) => {
+      if (e.button !== 2) return;            // right button only
+      dragging = true;
+      startY = e.clientY; startTop = node.scrollTop;
+      e.preventDefault();
+    };
+    const onMouseMove = (e) => {
+      if (!dragging) return;
+      node.scrollTop = startTop - (e.clientY - startY);
+    };
+    const onMouseUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      snap();
+    };
+
+    // Auto-stabilize a short moment after wheel / touchpad scrolling stops.
+    let settleTimer = null;
+    const onScroll = () => {
+      if (dragging) return;
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(snap, 120);
+    };
+
+    node.addEventListener('contextmenu', onContextMenu);
+    node.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    node.addEventListener('scroll', onScroll);
+    return () => {
+      clearTimeout(settleTimer);
+      node.removeEventListener('contextmenu', onContextMenu);
+      node.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      node.removeEventListener('scroll', onScroll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length]);
 
   return (
     <View style={{ width, height: SCROLL_ITEM_H * 5 }}>
@@ -108,8 +179,6 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
         snapToInterval={SCROLL_ITEM_H}
         decelerationRate="fast"
         nestedScrollEnabled
-        onMomentumScrollEnd={settle}
-        onScrollEndDrag={settle}
         contentContainerStyle={{ paddingVertical: SCROLL_ITEM_H * 2 }}
       >
         {data.map((item, i) => (
@@ -241,7 +310,7 @@ function zoneForCoord(lat, lon) {
 
 // ── Web map (admin is web-only so we only need this variant) ─────────────────
 function WebMap({
-  targetCenter, styleUrl, centers, onCenterClick, onZoneRightClick,
+  targetCenter, styleUrl, centers, onCenterClick, onZoneClick,
   placingMode = false, onPlaceClick, pendingCoord = null, adminBins = [], binColor = '#9E9E9E',
   events = [], eventPlacing = false, onEventPlaceClick, onEventRightClick, onEventClick, previewCircle = null,
 }) {
@@ -252,9 +321,9 @@ function WebMap({
   const [mapReady, setMapReady] = useState(false);
   const markersRef   = useRef([]);
 
-  // Keep the latest right-click callback reachable from the once-only map setup
-  const onZoneRightClickRef = useRef(onZoneRightClick);
-  useEffect(() => { onZoneRightClickRef.current = onZoneRightClick; }, [onZoneRightClick]);
+  // Keep the latest zone-click callback reachable from the once-only map setup
+  const onZoneClickRef = useRef(onZoneClick);
+  useEffect(() => { onZoneClickRef.current = onZoneClick; }, [onZoneClick]);
 
   // Keep placing-phase state/callbacks reachable from once-only event handlers
   const placingModeRef  = useRef(placingMode);
@@ -365,12 +434,15 @@ function WebMap({
           labelPopup.remove();
         });
 
-        // Right-click a zone → open its statistics popup
-        map.on('contextmenu', 'circ-fill', (e) => {
+        // Left-click a neighbourhood → open its statistics popup, but ONLY when
+        // there is nothing else on it: if an event circle sits under the cursor
+        // the event takes over (handled by the events-fill click below).
+        map.on('click', 'circ-fill', (e) => {
           if (!e.features.length) return;
-          e.preventDefault?.();                  // suppress the maplibre default
-          e.originalEvent?.preventDefault?.();   // suppress the browser context menu
-          onZoneRightClickRef.current?.(e.features[0].properties.name);
+          if (placingModeRef.current || eventPlacingRef.current) return;
+          const evHit = map.queryRenderedFeatures(e.point, { layers: ['events-fill'] });
+          if (evHit.length) return;            // an event is here → show the event, not the zone
+          onZoneClickRef.current?.(e.features[0].properties.name);
         });
 
         // ── Recycling events: translucent yellow circle + black outline ───────
@@ -1265,7 +1337,7 @@ export default function HomeAdminScreen() {
         styleUrl={mapStyleUrl}
         centers={centers}
         onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)}
-        onZoneRightClick={(name) => setStatsZone(name)}
+        onZoneClick={(name) => setStatsZone(name)}
         placingMode={placingMode}
         onPlaceClick={handlePlaceClick}
         pendingCoord={pendingCoord || (eventMode ? eventCenter : null)}
@@ -1275,6 +1347,10 @@ export default function HomeAdminScreen() {
         eventPlacing={eventMode}
         onEventPlaceClick={handleEventPlaceClick}
         onEventRightClick={openEditEvent}
+        onEventClick={(id) => {
+          const ev = events.find(e => String(e._id) === String(id));
+          if (ev) setViewingEvent(ev);
+        }}
         previewCircle={eventCenter && evRadiusNum > 0
           ? { lat: eventCenter.lat, lng: eventCenter.lng, radius: evRadiusNum }
           : null}
@@ -1807,7 +1883,43 @@ export default function HomeAdminScreen() {
         </View>
       )}
 
-      {/* ── Circoscrizione statistics popup (right-click on a zone) ── */}
+      {/* ── Event characteristics (admin left-click on an event, read-only) ── */}
+      {viewingEvent && (
+        <View style={styles.binOverlay}>
+          <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={() => setViewingEvent(null)} />
+          <View style={styles.binCard}>
+            <View style={styles.binHeader}>
+              <Text style={styles.binTitle} numberOfLines={1}>{viewingEvent.name}</Text>
+              <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={() => setViewingEvent(null)}>
+                <Text style={styles.binCloseTxt}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Inizio</Text>
+              <Text style={styles.detailValue}>{formatEventDateTime(viewingEvent.startDate)}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Fine</Text>
+              <Text style={styles.detailValue}>{formatEventDateTime(viewingEvent.endDate)}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Raggio</Text>
+              <Text style={styles.detailValue}>{viewingEvent.radius} m</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Boost punti</Text>
+              <Text style={[styles.detailValue, { color: PRIMARY, fontWeight: '800' }]}>x{viewingEvent.boost}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Rifiuti potenziati</Text>
+              <Text style={styles.detailValue}>{(viewingEvent.wasteTypes || []).join(', ') || '—'}</Text>
+            </View>
+            <Text style={styles.binMuted}>Click destro sull'evento per modificarne i parametri.</Text>
+          </View>
+        </View>
+      )}
+
+      {/* ── Circoscrizione statistics popup (left-click on a zone) ── */}
       {statsZone && (() => {
         const s = statsForZone(statsZone);
         const leftColumn = [

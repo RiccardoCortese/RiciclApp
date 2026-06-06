@@ -124,4 +124,29 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ── POST /api/events/:id/join  (cittadino autenticato) ───────────────────────
+// Iscrive l'utente corrente all'evento: da quel momento, scansionando un rifiuto
+// di un tipo potenziato mentre l'evento è attivo, riceve i punti col boost.
+router.post('/:id/join', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: 'Utente non autenticato' });
+
+    const event = await RecyclingEvent.findByIdAndUpdate(
+      req.params.id,
+      { $addToSet: { participants: userId } }, // niente duplicati
+      { new: true }
+    );
+    if (!event) return res.status(404).json({ message: 'Evento non trovato' });
+
+    return res.status(200).json({ message: 'Iscrizione effettuata', event });
+  } catch (error) {
+    if (error.kind === 'ObjectId') {
+      return res.status(400).json({ message: 'ID dell\'evento non valido' });
+    }
+    console.error('Errore durante l\'iscrizione all\'evento:', error);
+    return res.status(500).json({ message: 'Errore del server' });
+  }
+});
+
 module.exports = router;

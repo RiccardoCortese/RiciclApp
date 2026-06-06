@@ -51,6 +51,14 @@ const eventSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Cittadini iscritti all'evento. Solo i partecipanti ricevono il boost dei
+    // punti quando scansionano un rifiuto di un tipo potenziato (vedi ZX_API).
+    participants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,
