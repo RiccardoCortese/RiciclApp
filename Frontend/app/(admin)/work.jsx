@@ -1,4 +1,4 @@
-import WorkInProgressAdmin from '../../screens/admin/WorkInProgress';
+import EventManagementAdmin from '../../screens/admin/Event_management';
 export default function Page() {
-  return <WorkInProgressAdmin />;
+  return <EventManagementAdmin />;
 }

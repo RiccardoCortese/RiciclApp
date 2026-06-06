@@ -21,14 +21,71 @@ const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 // Grey colour used for the bin markers shown on the map.
 const BIN_GREY = '#9E9E9E';
 
+// Recycling-event circle colours (shared look with the admin map).
+const EVENT_FILL    = '#FFEB3B';
+const EVENT_OUTLINE = '#000000';
+
+// "gg/mm/aaaa hh:mm" — compact Italian date-time for event popups.
+function formatEventDateTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// GeoJSON polygon approximating a metric circle around (lat,lng).
+function circlePolygon(lat, lng, radiusMeters, steps = 64) {
+  const coords = [];
+  const latR = radiusMeters / 111320;
+  const lngR = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+    coords.push([lng + lngR * Math.cos(a), lat + latR * Math.sin(a)]);
+  }
+  return { type: 'Polygon', coordinates: [coords] };
+}
+
+function eventsToFeatureCollection(events) {
+  return {
+    type: 'FeatureCollection',
+    features: (events || [])
+      .filter(e => Number.isFinite(Number(e?.coordinates?.lat)) && Number.isFinite(Number(e?.coordinates?.lng)))
+      .map(e => ({
+        type: 'Feature',
+        properties: { id: String(e._id), name: e.name || '' },
+        geometry: circlePolygon(Number(e.coordinates.lat), Number(e.coordinates.lng), Number(e.radius) || 0),
+      })),
+  };
+}
+
+// HTML shown in the click popup of an event circle (citizen — read only).
+function eventPopupHtml(e) {
+  const types = (e.wasteTypes || []).join(', ') || '—';
+  return `
+    <div style="font-family:Arial,sans-serif;padding:6px;min-width:200px;">
+      <h3 style="color:#222;margin:0 0 6px 0;">${e.name || 'Evento'}</h3>
+      <p style="margin:2px 0;font-size:12px;color:#666;">📅 Inizio: <b>${formatEventDateTime(e.startDate)}</b></p>
+      <p style="margin:2px 0;font-size:12px;color:#666;">🏁 Fine: <b>${formatEventDateTime(e.endDate)}</b></p>
+      <p style="margin:2px 0;font-size:12px;color:#666;">📏 Raggio: <b>${e.radius} m</b></p>
+      <p style="margin:2px 0;font-size:12px;color:#666;">♻️ Rifiuti potenziati: <b>${types}</b></p>
+      <p style="margin:6px 0 0 0;font-size:13px;color:#C0174D;font-weight:bold;">⚡ Punti x${e.boost} nell'area</p>
+    </div>`;
+}
+
 // ------- Web map -------
-function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
+function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
   const [maplibreInstance, setMaplibreInstance] = useState(null);
+  const [mapReady, setMapReady] = useState(false);
   const markersRef = useRef([]);
   const binMarkersRef = useRef([]);
+  const eventLabelsRef = useRef([]);
+
+  // Keep the latest events reachable from the once-only click handler.
+  const eventsRef = useRef(events);
+  useEffect(() => { eventsRef.current = events; }, [events]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -51,6 +108,29 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
         attributionControl: true,
       });
       mapRef.current = map;
+
+      map.on('load', () => {
+        // Recycling-event circles: translucent yellow fill + black outline.
+        map.addSource('events', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+          id: 'events-fill', type: 'fill', source: 'events',
+          paint: { 'fill-color': EVENT_FILL, 'fill-opacity': 0.35 },
+        });
+        map.addLayer({
+          id: 'events-line', type: 'line', source: 'events',
+          paint: { 'line-color': EVENT_OUTLINE, 'line-width': 2 },
+        });
+        // Click an event circle → show its characteristics (read only).
+        map.on('click', 'events-fill', (e) => {
+          if (!e.features.length) return;
+          const ev = eventsRef.current.find(x => String(x._id) === String(e.features[0].properties.id));
+          if (!ev) return;
+          new maplibregl.Popup({ offset: 8 }).setLngLat(e.lngLat).setHTML(eventPopupHtml(ev)).addTo(map);
+        });
+        map.on('mouseenter', 'events-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'events-fill', () => { map.getCanvas().style.cursor = ''; });
+        setMapReady(true);
+      });
     });
 
     return () => {
@@ -59,6 +139,28 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
       if (document.head.contains(link)) document.head.removeChild(link);
     };
   }, [style]);
+
+  // Draw the event circles + a centred name label per event.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !maplibreInstance) return;
+    map.getSource('events')?.setData(eventsToFeatureCollection(events));
+
+    eventLabelsRef.current.forEach(m => m.remove());
+    eventLabelsRef.current = [];
+    (events || []).forEach((e) => {
+      const lat = Number(e?.coordinates?.lat);
+      const lng = Number(e?.coordinates?.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const el = document.createElement('div');
+      el.textContent = e.name || '';
+      el.style.cssText =
+        'font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#000;' +
+        'text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;';
+      const marker = new maplibreInstance.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+      eventLabelsRef.current.push(marker);
+    });
+  }, [events, mapReady, maplibreInstance]);
 
   useEffect(() => {
     if (!targetCenter || !mapRef.current) return;
@@ -138,7 +240,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
 }
 
 // ---- Native map -----
-function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
+function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
@@ -204,10 +306,66 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
 
     const centers = ${JSON.stringify(centers || [])};
     const bins = ${JSON.stringify(bins || [])};
+    const events = ${JSON.stringify(events || [])};
     const centersById = {};
     centers.forEach(c => { if (c && c._id) centersById[String(c._id)] = c.name; });
 
+    function circlePolygon(lat, lng, radiusMeters, steps) {
+      steps = steps || 64;
+      const coords = [];
+      const latR = radiusMeters / 111320;
+      const lngR = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180));
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * 2 * Math.PI;
+        coords.push([lng + lngR * Math.cos(a), lat + latR * Math.sin(a)]);
+      }
+      return { type: 'Polygon', coordinates: [coords] };
+    }
+    function fmtDate(v) {
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return '—';
+      const p = (n) => String(n).padStart(2, '0');
+      return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
     map.on('load', () => {
+      // Recycling-event circles + centred name labels + click popups.
+      const eventFeatures = events
+        .filter(e => e && e.coordinates && e.coordinates.lat != null && e.coordinates.lng != null)
+        .map(e => ({ type: 'Feature', properties: { id: String(e._id) },
+          geometry: circlePolygon(Number(e.coordinates.lat), Number(e.coordinates.lng), Number(e.radius) || 0) }));
+      map.addSource('events', { type: 'geojson', data: { type: 'FeatureCollection', features: eventFeatures } });
+      map.addLayer({ id: 'events-fill', type: 'fill', source: 'events',
+        paint: { 'fill-color': '${EVENT_FILL}', 'fill-opacity': 0.35 } });
+      map.addLayer({ id: 'events-line', type: 'line', source: 'events',
+        paint: { 'line-color': '${EVENT_OUTLINE}', 'line-width': 2 } });
+
+      events.forEach((e) => {
+        if (!e || !e.coordinates || e.coordinates.lat == null || e.coordinates.lng == null) return;
+        const el = document.createElement('div');
+        el.textContent = e.name || '';
+        el.style.cssText = 'font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#000;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;';
+        new maplibregl.Marker({ element: el }).setLngLat([Number(e.coordinates.lng), Number(e.coordinates.lat)]).addTo(map);
+      });
+
+      const eventsById = {};
+      events.forEach(e => { if (e && e._id) eventsById[String(e._id)] = e; });
+      map.on('click', 'events-fill', (ev) => {
+        if (!ev.features.length) return;
+        const e = eventsById[String(ev.features[0].properties.id)];
+        if (!e) return;
+        const types = ((e.wasteTypes && e.wasteTypes.length) ? e.wasteTypes : []).join(', ') || '—';
+        const html = '<div style="font-family:Arial,sans-serif;padding:6px;min-width:190px;">'
+          + '<h3 style="color:#222;margin:0 0 6px 0;">' + (e.name || 'Evento') + '</h3>'
+          + '<p style="margin:2px 0;font-size:12px;color:#666;">📅 Inizio: <b>' + fmtDate(e.startDate) + '</b></p>'
+          + '<p style="margin:2px 0;font-size:12px;color:#666;">🏁 Fine: <b>' + fmtDate(e.endDate) + '</b></p>'
+          + '<p style="margin:2px 0;font-size:12px;color:#666;">📏 Raggio: <b>' + e.radius + ' m</b></p>'
+          + '<p style="margin:2px 0;font-size:12px;color:#666;">♻️ ' + types + '</p>'
+          + '<p style="margin:6px 0 0 0;font-size:13px;color:#C0174D;font-weight:bold;">⚡ Punti x' + e.boost + ' nell\\'area</p>'
+          + '</div>';
+        new maplibregl.Popup({ offset: 8 }).setLngLat(ev.lngLat).setHTML(html).addTo(map);
+      });
+
       centers.forEach((center, index) => {
         if (!center.coordinates || !center.coordinates.lng || !center.coordinates.lat) return;
 
@@ -268,7 +426,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
   return (
     <WebView
       ref={webViewRef}
-      key={`map-centers-${centers.length}-bins-${bins.length}`}
+      key={`map-centers-${centers.length}-bins-${bins.length}-events-${events.length}`}
       source={{ html: mapHtml }}
       style={{ flex: 1 }}
       javaScriptEnabled
@@ -293,6 +451,7 @@ export default function HomeCitizenScreen() {
   const [showInfoCard, setShowInfoCard] = useState(false);
   const [centers, setCenters] = useState([]);
   const [bins, setBins] = useState([]);
+  const [events, setEvents] = useState([]);
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -312,6 +471,13 @@ export default function HomeCitizenScreen() {
         setBins(Array.isArray(response.data) ? response.data : []);
       })
       .catch(() => setBins([]));
+
+    // Recycling events (visible read-only to citizens).
+    axios.get(`${API_URL}/events/all`)
+      .then((response) => {
+        setEvents(Array.isArray(response.data) ? response.data : []);
+      })
+      .catch(() => setEvents([]));
   }, []);
 
   useFocusEffect(
@@ -358,6 +524,7 @@ export default function HomeCitizenScreen() {
           styleUrl={mapStyleUrl}
           centers={centers}
           bins={bins}
+          events={events}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       ) : (
         <NativeMap
@@ -365,6 +532,7 @@ export default function HomeCitizenScreen() {
           styleUrl={mapStyleUrl}
           centers={centers}
           bins={bins}
+          events={events}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
 
