@@ -4,7 +4,7 @@ import {
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../../src/config';
@@ -17,6 +17,7 @@ import UserDefault from '../../src/assets/Profile_image/User_image.png';
 import AddBinImg      from '../../src/assets/Aggiunta Bin.png';
 import SegnalazioniImg from '../../src/assets/Segnalazioni.png';
 import ProblemBin from '../../src/assets/Bin_non_assegnati.png';
+import EventImg from '../../src/assets/Evento_raccolta.png';
 
 // ── Brand color ──────────────────────────────────────────────────────────────
 const PRIMARY = '#C0174D'; // amaranth
@@ -27,6 +28,218 @@ const MENU_MAX_HEIGHT = Dimensions.get('window').height / 2 - 69;
 const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 };
 const DEFAULT_ZOOM   = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
+
+// ── Recycling event constants ────────────────────────────────────────────────
+const EVENT_BOOSTS  = [2, 3, 5, 10];          // selectable point multipliers
+const EVENT_FILL    = '#FFEB3B';              // translucent yellow circle fill
+const EVENT_OUTLINE = '#000000';              // black circle outline
+
+// "gg/mm/aaaa hh:mm" — compact Italian date-time for event popups.
+function formatEventDateTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Build a GeoJSON polygon approximating a circle of `radiusMeters` around
+// (lat,lng). Used to draw the event area on the map (a true metric circle,
+// unlike maplibre's pixel-based circle layer).
+function circlePolygon(lat, lng, radiusMeters, steps = 64) {
+  const coords = [];
+  const latR = radiusMeters / 111320;                                  // metres → degrees lat
+  const lngR = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180)); // …degrees lng
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+    coords.push([lng + lngR * Math.cos(a), lat + latR * Math.sin(a)]);
+  }
+  return { type: 'Polygon', coordinates: [coords] };
+}
+
+// FeatureCollection of circle polygons for a list of events (id + name kept as
+// properties so the map can react to clicks and label each circle).
+function eventsToFeatureCollection(events) {
+  return {
+    type: 'FeatureCollection',
+    features: (events || [])
+      .filter(e => Number.isFinite(Number(e?.coordinates?.lat)) && Number.isFinite(Number(e?.coordinates?.lng)))
+      .map(e => ({
+        type: 'Feature',
+        properties: { id: String(e._id), name: e.name || '' },
+        geometry: circlePolygon(Number(e.coordinates.lat), Number(e.coordinates.lng), Number(e.radius) || 0),
+      })),
+  };
+}
+
+// ── Date-time scroller ───────────────────────────────────────────────────────
+// Three snapping columns (day · hour · minute) used to pick the start and end
+// of an event. `value` is a Date; `onChange` receives the recomposed Date.
+const SCROLL_ITEM_H = 36;
+const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+
+// Days available for selection: from yesterday to one year ahead (midnight).
+function buildDayOptions() {
+  const days = [];
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  for (let i = -1; i <= 365; i++) {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
+  const ref = useRef(null);
+  // Latest callback + index reachable from the once-bound DOM listeners.
+  const onIndexChangeRef = useRef(onIndexChange);
+  useEffect(() => { onIndexChangeRef.current = onIndexChange; }, [onIndexChange]);
+  const indexRef = useRef(index);
+  useEffect(() => { indexRef.current = index; }, [index]);
+
+  // Underlying scrollable DOM node (admin is web-only, so this always resolves).
+  const getNode = () => {
+    const r = ref.current;
+    return r && typeof r.getScrollableNode === 'function' ? r.getScrollableNode() : null;
+  };
+
+  useEffect(() => {
+    // Align the initially-selected row with the centre highlight.
+    const t = setTimeout(() => {
+      ref.current?.scrollTo({ y: index * SCROLL_ITEM_H, animated: false });
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Web: left-mouse-button drag to scrub the column, plus an auto-stabilizer
+  // that snaps to the closest option whenever scrolling settles (wheel, drag or
+  // touchpad) so a date is never left between two options.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const node = getNode();
+    if (!node) return;
+
+    node.style.cursor = 'grab'; // hint that the column can be dragged
+
+    const clampIndex = (i) => Math.max(0, Math.min(data.length - 1, i));
+    const snap = () => {
+      const i = clampIndex(Math.round(node.scrollTop / SCROLL_ITEM_H));
+      const target = i * SCROLL_ITEM_H;
+      if (Math.abs(node.scrollTop - target) > 0.5) node.scrollTo({ top: target, behavior: 'smooth' });
+      if (i !== indexRef.current) onIndexChangeRef.current?.(i);
+    };
+
+    let dragging = false, startY = 0, startTop = 0;
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return;             // left button only
+      dragging = true;
+      startY = e.clientY; startTop = node.scrollTop;
+      node.style.cursor = 'grabbing';
+      e.preventDefault();                     // avoid text selection while dragging
+    };
+    const onMouseMove = (e) => {
+      if (!dragging) return;
+      node.scrollTop = startTop - (e.clientY - startY);
+    };
+    const onMouseUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      node.style.cursor = 'grab';
+      snap();
+    };
+
+    // Auto-stabilize a short moment after wheel / touchpad scrolling stops.
+    let settleTimer = null;
+    const onScroll = () => {
+      if (dragging) return;
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(snap, 120);
+    };
+
+    node.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    node.addEventListener('scroll', onScroll);
+    return () => {
+      clearTimeout(settleTimer);
+      node.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      node.removeEventListener('scroll', onScroll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length]);
+
+  return (
+    <View style={{ width, height: SCROLL_ITEM_H * 5 }}>
+      <ScrollView
+        ref={ref}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={SCROLL_ITEM_H}
+        decelerationRate="fast"
+        nestedScrollEnabled
+        contentContainerStyle={{ paddingVertical: SCROLL_ITEM_H * 2 }}
+      >
+        {data.map((item, i) => (
+          <View key={i} style={styles.scrollItem}>
+            <Text style={[styles.scrollItemTxt, i === index && styles.scrollItemTxtActive]} numberOfLines={1}>
+              {renderLabel(item)}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function DateTimeScroller({ value, onChange }) {
+  const days = useRef(buildDayOptions()).current;
+
+  // Derive the current column indices from the Date value.
+  const dayIndex = (() => {
+    const v = new Date(value); v.setHours(0, 0, 0, 0);
+    const idx = days.findIndex(d => d.getTime() === v.getTime());
+    return idx >= 0 ? idx : 1; // default to "today" (base + 1)
+  })();
+  const hour   = value.getHours();
+  const minute = value.getMinutes();
+
+  const compose = (di, h, m) => {
+    const d = new Date(days[di]);
+    d.setHours(h, m, 0, 0);
+    onChange(d);
+  };
+
+  return (
+    <View style={styles.scrollPicker}>
+      <View style={styles.scrollHighlight} pointerEvents="none" />
+      <ScrollColumn
+        data={days}
+        index={dayIndex}
+        width={120}
+        onIndexChange={(i) => compose(i, hour, minute)}
+        renderLabel={(d) => `${WEEKDAYS[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`}
+      />
+      <ScrollColumn
+        data={Array.from({ length: 24 }, (_, i) => i)}
+        index={hour}
+        width={50}
+        onIndexChange={(h) => compose(dayIndex, h, minute)}
+        renderLabel={(h) => String(h).padStart(2, '0')}
+      />
+      <Text style={styles.scrollColon}>:</Text>
+      <ScrollColumn
+        data={Array.from({ length: 60 }, (_, i) => i)}
+        index={minute}
+        width={50}
+        onIndexChange={(m) => compose(dayIndex, hour, m)}
+        renderLabel={(m) => String(m).padStart(2, '0')}
+      />
+    </View>
+  );
+}
 
 // ── Circoscrizioni di Trento ──────────────────────────────────────────────────
 // Boundary polygons sourced from OpenStreetMap (admin_level=10 relations of the
@@ -98,18 +311,20 @@ function zoneForCoord(lat, lon) {
 
 // ── Web map (admin is web-only so we only need this variant) ─────────────────
 function WebMap({
-  targetCenter, styleUrl, centers, onCenterClick, onZoneRightClick,
+  targetCenter, styleUrl, centers, onCenterClick, onZoneClick,
   placingMode = false, onPlaceClick, pendingCoord = null, adminBins = [], binColor = '#9E9E9E',
+  events = [], eventPlacing = false, onEventPlaceClick, onEventRightClick, onEventClick, previewCircle = null,
 }) {
   const mapRef       = useRef(null);
   const containerRef = useRef(null);
   const style        = styleUrl || OFM_STYLE_FALLBACK;
   const [maplibreInstance, setMaplibreInstance] = useState(null);
+  const [mapReady, setMapReady] = useState(false);
   const markersRef   = useRef([]);
 
-  // Keep the latest right-click callback reachable from the once-only map setup
-  const onZoneRightClickRef = useRef(onZoneRightClick);
-  useEffect(() => { onZoneRightClickRef.current = onZoneRightClick; }, [onZoneRightClick]);
+  // Keep the latest zone-click callback reachable from the once-only map setup
+  const onZoneClickRef = useRef(onZoneClick);
+  useEffect(() => { onZoneClickRef.current = onZoneClick; }, [onZoneClick]);
 
   // Keep placing-phase state/callbacks reachable from once-only event handlers
   const placingModeRef  = useRef(placingMode);
@@ -117,8 +332,19 @@ function WebMap({
   const onPlaceClickRef = useRef(onPlaceClick);
   useEffect(() => { onPlaceClickRef.current = onPlaceClick; }, [onPlaceClick]);
 
-  const pendingMarkerRef = useRef(null);
-  const binMarkersRef    = useRef([]);
+  // Event placing / click callbacks reachable from once-only event handlers
+  const eventPlacingRef     = useRef(eventPlacing);
+  useEffect(() => { eventPlacingRef.current = eventPlacing; }, [eventPlacing]);
+  const onEventPlaceClickRef = useRef(onEventPlaceClick);
+  useEffect(() => { onEventPlaceClickRef.current = onEventPlaceClick; }, [onEventPlaceClick]);
+  const onEventRightClickRef = useRef(onEventRightClick);
+  useEffect(() => { onEventRightClickRef.current = onEventRightClick; }, [onEventRightClick]);
+  const onEventClickRef      = useRef(onEventClick);
+  useEffect(() => { onEventClickRef.current = onEventClick; }, [onEventClick]);
+
+  const pendingMarkerRef    = useRef(null);
+  const binMarkersRef       = useRef([]);
+  const eventLabelsRef      = useRef([]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -209,13 +435,60 @@ function WebMap({
           labelPopup.remove();
         });
 
-        // Right-click a zone → open its statistics popup
-        map.on('contextmenu', 'circ-fill', (e) => {
+        // Left-click a neighbourhood → open its statistics popup, but ONLY when
+        // there is nothing else on it: if an event circle sits under the cursor
+        // the event takes over (handled by the events-fill click below).
+        map.on('click', 'circ-fill', (e) => {
           if (!e.features.length) return;
-          e.preventDefault?.();                  // suppress the maplibre default
-          e.originalEvent?.preventDefault?.();   // suppress the browser context menu
-          onZoneRightClickRef.current?.(e.features[0].properties.name);
+          if (placingModeRef.current || eventPlacingRef.current) return;
+          const evHit = map.queryRenderedFeatures(e.point, { layers: ['events-fill'] });
+          if (evHit.length) return;            // an event is here → show the event, not the zone
+          onZoneClickRef.current?.(e.features[0].properties.name);
         });
+
+        // ── Recycling events: translucent yellow circle + black outline ───────
+        map.addSource('events', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+          id: 'events-fill', type: 'fill', source: 'events',
+          paint: { 'fill-color': EVENT_FILL, 'fill-opacity': 0.35 },
+        });
+        map.addLayer({
+          id: 'events-line', type: 'line', source: 'events',
+          paint: { 'line-color': EVENT_OUTLINE, 'line-width': 2 },
+        });
+        // Preview circle while configuring a new/edited event (no fill clicks).
+        map.addSource('event-preview', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+          id: 'event-preview-fill', type: 'fill', source: 'event-preview',
+          paint: { 'fill-color': EVENT_FILL, 'fill-opacity': 0.30 },
+        });
+        map.addLayer({
+          id: 'event-preview-line', type: 'line', source: 'event-preview',
+          paint: { 'line-color': EVENT_OUTLINE, 'line-width': 2, 'line-dasharray': [2, 1] },
+        });
+
+        // Admin: right-click an event circle → modify it (not while placing).
+        map.on('contextmenu', 'events-fill', (e) => {
+          if (!e.features.length) return;
+          if (placingModeRef.current || eventPlacingRef.current) return;
+          e.preventDefault?.();
+          e.originalEvent?.preventDefault?.();
+          onEventRightClickRef.current?.(e.features[0].properties.id);
+        });
+        // Citizen (and generic): left-click an event circle → view its details.
+        map.on('click', 'events-fill', (e) => {
+          if (!e.features.length) return;
+          if (placingModeRef.current || eventPlacingRef.current) return; // placing takes priority
+          onEventClickRef.current?.(e.features[0].properties.id);
+        });
+        map.on('mouseenter', 'events-fill', () => {
+          if (!placingModeRef.current && !eventPlacingRef.current) map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', 'events-fill', () => {
+          if (!placingModeRef.current && !eventPlacingRef.current) map.getCanvas().style.cursor = '';
+        });
+
+        setMapReady(true);
       });
     });
 
@@ -264,18 +537,22 @@ function WebMap({
     const map = mapRef.current;
     if (!map || !maplibreInstance) return;
 
-    // Left click → notify the parent with the clicked coordinate (placing only)
+    // Left click → notify the parent with the clicked coordinate. The bin/center
+    // placing phase and the event-creation phase share the same gesture; the
+    // active mode decides which callback fires.
     const placeHandler = (e) => {
-      if (!placingModeRef.current) return;
-      onPlaceClickRef.current?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      const coord = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      if (placingModeRef.current) onPlaceClickRef.current?.(coord);
+      else if (eventPlacingRef.current) onEventPlaceClickRef.current?.(coord);
     };
 
     // Middle-mouse-button drag panning (the default left-drag pan is disabled
     // while placing so a left click registers as a placement instead)
+    const isPlacing = () => placingModeRef.current || eventPlacingRef.current;
     let panning = false, lastX = 0, lastY = 0;
     const canvas = map.getCanvas();
     const onMouseDown = (e) => {
-      if (!placingModeRef.current || e.button !== 1) return;
+      if (!isPlacing() || e.button !== 1) return;
       panning = true; lastX = e.clientX; lastY = e.clientY;
       e.preventDefault();
     };
@@ -287,7 +564,7 @@ function WebMap({
     };
     const onMouseUp = () => { panning = false; };
     // Suppress the browser middle-click autoscroll while placing
-    const onAux = (e) => { if (placingModeRef.current && e.button === 1) e.preventDefault(); };
+    const onAux = (e) => { if (isPlacing() && e.button === 1) e.preventDefault(); };
 
     map.on('click', placeHandler);
     canvas.addEventListener('mousedown', onMouseDown);
@@ -305,17 +582,62 @@ function WebMap({
   }, [maplibreInstance]);
 
   // Toggle the native left-drag pan + cursor when entering/leaving placing mode
+  // (bin/center placing OR event creation both use the left-click-to-place gesture)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !maplibreInstance) return;
-    if (placingMode) {
+    if (placingMode || eventPlacing) {
       map.dragPan.disable();
       map.getCanvas().style.cursor = 'crosshair';
     } else {
       map.dragPan.enable();
       map.getCanvas().style.cursor = '';
     }
-  }, [placingMode, maplibreInstance]);
+  }, [placingMode, eventPlacing, maplibreInstance]);
+
+  // ── Draw the recycling-event circles + a centred name label per event ────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !maplibreInstance) return;
+    map.getSource('events')?.setData(eventsToFeatureCollection(events));
+
+    // Name labels: a styled marker pinned at each event's centre.
+    eventLabelsRef.current.forEach(m => m.remove());
+    eventLabelsRef.current = [];
+    (events || []).forEach((e) => {
+      const lat = Number(e?.coordinates?.lat);
+      const lng = Number(e?.coordinates?.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const el = document.createElement('div');
+      el.textContent = e.name || '';
+      el.style.cssText =
+        'font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#000;' +
+        'text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;';
+      const marker = new maplibreInstance.Marker({ element: el })
+        .setLngLat([lng, lat])
+        .addTo(map);
+      eventLabelsRef.current.push(marker);
+    });
+  }, [events, mapReady, maplibreInstance]);
+
+  // Live preview circle while configuring a new/edited event.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !maplibreInstance) return;
+    const src = map.getSource('event-preview');
+    if (!src) return;
+    if (previewCircle && Number(previewCircle.radius) > 0) {
+      src.setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature', properties: {},
+          geometry: circlePolygon(previewCircle.lat, previewCircle.lng, Number(previewCircle.radius)),
+        }],
+      });
+    } else {
+      src.setData({ type: 'FeatureCollection', features: [] });
+    }
+  }, [previewCircle, mapReady, maplibreInstance]);
 
   // Marker for the coordinate currently being configured in the popup
   useEffect(() => {
@@ -466,6 +788,39 @@ export default function HomeAdminScreen() {
   const [centerAddrLoading, setCenterAddrLoading] = useState(false);
   const [savingCenter,  setSavingCenter]  = useState(false);
 
+  // ── Recycling-event state ────────────────────────────────────────────────────
+  const { mode } = useLocalSearchParams();      // 'createEvent' arrives from Event_management
+  const [events,         setEvents]        = useState([]);     // all events (circles on the map)
+  const [eventMode,      setEventMode]     = useState(false);  // creation map mode (chrome hidden)
+  const [eventCenter,    setEventCenter]   = useState(null);   // {lat,lng} chosen for a new event
+  const [editingEventId, setEditingEventId] = useState(null);  // non-null while modifying an event
+  const [viewingEvent,   setViewingEvent]  = useState(null);   // event object shown read-only
+  const [savingEvent,    setSavingEvent]   = useState(false);
+
+  // Event form fields
+  const [evName,       setEvName]       = useState('');
+  const [evRadius,     setEvRadius]     = useState('');      // metres, as text
+  const [evWasteTypes, setEvWasteTypes] = useState(['']);    // boosted waste types
+  const [evBoost,      setEvBoost]      = useState(null);    // 2 | 3 | 5 | 10
+  const [evStart,      setEvStart]      = useState(null);    // Date
+  const [evEnd,        setEvEnd]        = useState(null);    // Date
+
+  const resetEventForm = () => {
+    setEvName('');
+    setEvRadius('');
+    setEvWasteTypes(['']);
+    setEvBoost(null);
+    setEvStart(null);
+    setEvEnd(null);
+    setEditingEventId(null);
+  };
+
+  const fetchEvents = useCallback(() => {
+    axios.get(`${API_URL}/events/all`)
+      .then(r => setEvents(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setEvents([]));
+  }, []);
+
   const resetBinForm = () => {
     setBinName('');
     setBinAddress('');
@@ -537,6 +892,26 @@ export default function HomeAdminScreen() {
     }, [])
   );
 
+  // Load the recycling events and keep them in sync (circles on the map).
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useEffect(() => {
+    const id = setInterval(() => { fetchEvents(); }, 15000);
+    return () => clearInterval(id);
+  }, [fetchEvents]);
+
+  // Entering from "Crea nuovo evento di raccolta" starts the event-creation map
+  // mode (chrome hidden). The query param is consumed once.
+  useEffect(() => {
+    if (mode === 'createEvent') {
+      closeAllCards();
+      resetEventForm();
+      setEventCenter(null);
+      setEventMode(true);
+      router.setParams({ mode: undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
   // Once centers are known, fetch each center's bins and aggregate them by the
   // circoscrizione the center falls into (point-in-polygon on its coordinates).
   useEffect(() => {
@@ -595,29 +970,54 @@ export default function HomeAdminScreen() {
     };
   };
 
+  // Only events that have not ended are drawn on the map / searchable. Concluded
+  // events disappear from the map (still listed in the management screen).
+  const activeEvents = events.filter((e) => +new Date(e.endDate) > Date.now());
+
+  // Unified searchable elements: collection centers, bins and (active) events.
+  const buildSearchItems = () => {
+    const items = [];
+    (centers || []).forEach((c) => {
+      const lat = Number(c?.coordinates?.lat), lng = Number(c?.coordinates?.lng);
+      if (c?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `c_${c._id}`, type: 'center', name: c.name, lat, lng, subtitle: c.address || 'Centro di raccolta' });
+    });
+    (adminBins || []).forEach((b) => {
+      const lat = Number(b?.coordinates?.lat), lng = Number(b?.coordinates?.lng);
+      if (b?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `b_${b._id}`, type: 'bin', name: b.name, lat, lng, subtitle: b.address || 'Bidone' });
+    });
+    (activeEvents || []).forEach((e) => {
+      const lat = Number(e?.coordinates?.lat), lng = Number(e?.coordinates?.lng);
+      if (e?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `e_${e._id}`, type: 'event', name: e.name, lat, lng, subtitle: 'Evento di raccolta' });
+    });
+    return items;
+  };
+  const searchTypeIcon = (type) => (type === 'center' ? '📍' : type === 'bin' ? '🗑️' : '🎪');
+
   const handleQueryChange = (text) => {
     setSearchQuery(text);
     setSelectedCenter(null);
     setSearchError(false);
     const q = text.trim().toLowerCase();
     if (!q) { setSearchResults([]); return; }
-    setSearchResults(centers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 5));
+    setSearchResults(buildSearchItems().filter(it => it.name.toLowerCase().includes(q)).slice(0, 6));
   };
 
-  const selectCenter = (center) => {
-    setSearchQuery(center.name);
-    setSelectedCenter(center);
+  const selectResult = (item) => {
+    setSearchQuery(item.name);
+    setSelectedCenter(item);
     setSearchResults([]);
   };
 
   const handleSearch = () => {
     setSearchResults([]);
     setSearchError(false);
-    const target = selectedCenter || centers.find(
-      c => c.name.toLowerCase() === searchQuery.trim().toLowerCase()
-    );
-    if (target?.coordinates) {
-      setMapCenter([target.coordinates.lat, target.coordinates.lng]);
+    const q = searchQuery.trim().toLowerCase();
+    const target = selectedCenter || buildSearchItems().find(it => it.name.toLowerCase() === q);
+    if (target) {
+      setMapCenter([target.lat, target.lng]);
     } else {
       setSearchError(true);
       setTimeout(() => setSearchError(false), 2500);
@@ -658,6 +1058,141 @@ export default function HomeAdminScreen() {
     setCreationType(null);
     resetBinForm();
     resetCenterForm();
+  };
+
+  // ── Recycling-event handlers ─────────────────────────────────────────────────
+  // ✕ during event creation → abort and return to the management screen.
+  const cancelEventCreation = () => {
+    setEventMode(false);
+    setEventCenter(null);
+    resetEventForm();
+    router.replace('/work');
+  };
+
+  // Left-click on the map while creating → set the centre and open the popup.
+  // Seed sensible default times (now → +1h) the first time the popup opens.
+  const handleEventPlaceClick = useCallback((coord) => {
+    setEventCenter(coord);
+    setEvStart(prev => {
+      if (prev) return prev;
+      const s = new Date(); s.setSeconds(0, 0);
+      return s;
+    });
+    setEvEnd(prev => {
+      if (prev) return prev;
+      const e = new Date(); e.setSeconds(0, 0); e.setHours(e.getHours() + 1);
+      return e;
+    });
+  }, []);
+
+  // Admin right-click on an existing event circle → open it for modification.
+  const openEditEvent = useCallback((id) => {
+    const ev = events.find(e => String(e._id) === String(id));
+    if (!ev) return;
+    setViewingEvent(null);
+    setEditingEventId(String(ev._id));
+    setEvName(ev.name || '');
+    setEvRadius(String(ev.radius ?? ''));
+    setEvWasteTypes(ev.wasteTypes?.length ? [...ev.wasteTypes] : ['']);
+    setEvBoost(ev.boost ?? null);
+    setEvStart(ev.startDate ? new Date(ev.startDate) : null);
+    setEvEnd(ev.endDate ? new Date(ev.endDate) : null);
+    setEventCenter({ lat: Number(ev.coordinates.lat), lng: Number(ev.coordinates.lng) });
+  }, [events]);
+
+  // ✕ of the event popup. During creation we keep the map mode and let the admin
+  // pick a new point; while editing we just close.
+  const closeEventPopup = () => {
+    if (editingEventId) {
+      setEventCenter(null);
+      resetEventForm();
+    } else {
+      setEventCenter(null);
+      resetEventForm();
+    }
+  };
+
+  // Circoscrizione of the event centre (stored as `area`, like bins/centers).
+  const eventZone = eventCenter ? zoneForCoord(eventCenter.lat, eventCenter.lng) : null;
+
+  // Waste-type slots for the event (mirrors the bin waste-type picker).
+  const setEvWasteAt = (i, value) =>
+    setEvWasteTypes(prev => prev.map((v, idx) => (idx === i ? value : v)));
+  const addEvWasteSlot = () =>
+    setEvWasteTypes(prev => (prev.length < wasteOptions.length ? [...prev, ''] : prev));
+  const optionsForEvSlot = (i) =>
+    wasteOptions.filter(opt => !evWasteTypes.some((v, idx) => idx !== i && v === opt));
+  const canAddMoreEvWaste =
+    evWasteTypes.length < wasteOptions.length && evWasteTypes.every(Boolean);
+
+  const evRadiusNum = Number(evRadius);
+  const canSaveEvent =
+    evName.trim() !== '' &&
+    Number.isFinite(evRadiusNum) && evRadiusNum > 0 &&
+    !!evWasteTypes[0] &&
+    EVENT_BOOSTS.includes(evBoost) &&
+    evStart instanceof Date && !Number.isNaN(evStart.getTime()) &&
+    evEnd instanceof Date && !Number.isNaN(evEnd.getTime()) &&
+    evEnd.getTime() > evStart.getTime() &&
+    !savingEvent;
+
+  const saveEvent = async () => {
+    if (!canSaveEvent || !eventCenter) {
+      if (evStart && evEnd && evEnd.getTime() <= evStart.getTime()) {
+        Alert.alert('Date non valide', 'La fine dell\'evento deve essere successiva all\'inizio.');
+      }
+      return;
+    }
+    setSavingEvent(true);
+    const token = await AsyncStorage.getItem('token');
+    const auth  = { headers: { Authorization: `Bearer ${token}` } };
+    const payload = {
+      name:        evName.trim(),
+      coordinates: eventCenter,
+      radius:      evRadiusNum,
+      wasteTypes:  evWasteTypes.filter(Boolean),
+      boost:       evBoost,
+      startDate:   evStart.toISOString(),
+      endDate:     evEnd.toISOString(),
+      area:        eventZone || undefined,
+    };
+    try {
+      if (editingEventId) {
+        await axios.patch(`${API_URL}/events/${editingEventId}`, payload, auth);
+        await fetchEvents();
+        setEventCenter(null);
+        resetEventForm();
+      } else {
+        await axios.post(`${API_URL}/events`, payload, auth);
+        await fetchEvents();
+        // Creation complete → leave the creation mode and return to the home map.
+        setEventMode(false);
+        setEventCenter(null);
+        resetEventForm();
+        router.replace('/(admin)');
+      }
+    } catch (e) {
+      Alert.alert('Errore', e?.response?.data?.message || 'Impossibile salvare l\'evento. Riprova.');
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  const deleteEvent = async () => {
+    if (!editingEventId) return;
+    setSavingEvent(true);
+    const token = await AsyncStorage.getItem('token');
+    const auth  = { headers: { Authorization: `Bearer ${token}` } };
+    try {
+      await axios.delete(`${API_URL}/events/${editingEventId}`, auth);
+      await fetchEvents();
+      setEventCenter(null);
+      resetEventForm();
+    } catch {
+      Alert.alert('Errore', 'Impossibile eliminare l\'evento. Riprova.');
+    } finally {
+      setSavingEvent(false);
+    }
   };
 
   // Circoscrizione (neighbourhood) of the clicked point + the centers within it
@@ -828,16 +1363,27 @@ export default function HomeAdminScreen() {
         styleUrl={mapStyleUrl}
         centers={centers}
         onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)}
-        onZoneRightClick={(name) => setStatsZone(name)}
+        onZoneClick={(name) => setStatsZone(name)}
         placingMode={placingMode}
         onPlaceClick={handlePlaceClick}
-        pendingCoord={pendingCoord}
+        pendingCoord={pendingCoord || (eventMode ? eventCenter : null)}
         adminBins={adminBins}
         binColor={binColor}
+        events={activeEvents}
+        eventPlacing={eventMode}
+        onEventPlaceClick={handleEventPlaceClick}
+        onEventRightClick={openEditEvent}
+        onEventClick={(id) => {
+          const ev = events.find(e => String(e._id) === String(id));
+          if (ev) setViewingEvent(ev);
+        }}
+        previewCircle={eventCenter && evRadiusNum > 0
+          ? { lat: eventCenter.lat, lng: eventCenter.lng, radius: evRadiusNum }
+          : null}
       />
 
-      {/* All standard chrome is hidden while in the bin-placing phase */}
-      {!placingMode && (<>
+      {/* All standard chrome is hidden while in the bin-placing or event-creation phase */}
+      {!placingMode && !eventMode && (<>
 
       {/* ── Search bar ── */}
       <View style={[styles.searchBarWrapper, { zIndex: 10 }]} pointerEvents="box-none">
@@ -864,17 +1410,17 @@ export default function HomeAdminScreen() {
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
-            {searchResults.map((center, i) => (
+            {searchResults.map((item, i) => (
               <TouchableOpacity
-                key={center._id ?? i}
+                key={item.key ?? i}
                 style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => selectCenter(center)}
+                onPress={() => selectResult(item)}
               >
-                <Text style={styles.resultIcon}>📍</Text>
+                <Text style={styles.resultIcon}>{searchTypeIcon(item.type)}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.resultText} numberOfLines={1}>{center.name}</Text>
-                  {center.address ? <Text style={styles.resultSubText} numberOfLines={1}>{center.address}</Text> : null}
+                  <Text style={styles.resultText} numberOfLines={1}>{item.name}</Text>
+                  {item.subtitle ? <Text style={styles.resultSubText} numberOfLines={1}>{item.subtitle}</Text> : null}
                 </View>
               </TouchableOpacity>
             ))}
@@ -993,14 +1539,14 @@ export default function HomeAdminScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* RIGHT — Work in progress */}
+        {/* RIGHT — Recycling event (Eventi di Raccolta) */}
         <View style={styles.buttonWrapper}>
           <TouchableOpacity
             style={styles.button}
             activeOpacity={0.85}
             onPress={() => { closeAllCards(); router.push('/work'); }}
           >
-            <Image source={WorkImg} style={styles.buttonIcon} />
+            <Image source={EventImg} style={styles.buttonIcon} />
           </TouchableOpacity>
         </View>
 
@@ -1244,7 +1790,162 @@ export default function HomeAdminScreen() {
         </>
       )}
 
-      {/* ── Circoscrizione statistics popup (right-click on a zone) ── */}
+      {/* ── Event-creation map mode: hint + cancel ✕ ── */}
+      {eventMode && (
+        <>
+          {!eventCenter && (
+            <View style={styles.placeHintBox} pointerEvents="none">
+              <Text style={styles.placeHintText}>
+                Click sulla mappa per scegliere il centro dell'evento · rotella per zoom · tasto centrale per spostarti
+              </Text>
+            </View>
+          )}
+          <View style={styles.placeCancelWrap} pointerEvents="box-none">
+            <TouchableOpacity style={styles.placeCancelBtn} activeOpacity={0.85} onPress={cancelEventCreation}>
+              <Text style={styles.placeCancelTxt}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {/* ── Event configuration popup (creation while eventCenter set, or edit) ── */}
+      {eventCenter && (eventMode || editingEventId) && (
+        <View style={styles.binOverlay}>
+          <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={() => {}} />
+          <View style={styles.binCard}>
+            <View style={styles.binHeader}>
+              <Text style={styles.binTitle}>{editingEventId ? 'Modifica evento' : 'Nuovo evento di raccolta'}</Text>
+              <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={closeEventPopup}>
+                <Text style={styles.binCloseTxt}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 520 }} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+              {/* Name */}
+              <Text style={styles.binLabel}>Nome dell'evento</Text>
+              <TextInput
+                style={styles.binInput}
+                placeholder="Es. Settimana del Riciclo"
+                placeholderTextColor="#999"
+                value={evName}
+                onChangeText={setEvName}
+              />
+
+              {/* Radius */}
+              <Text style={styles.binLabel}>Raggio dell'area (metri)</Text>
+              <TextInput
+                style={styles.binInput}
+                placeholder="Es. 300"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+                value={evRadius}
+                onChangeText={(t) => setEvRadius(t.replace(/[^0-9]/g, ''))}
+              />
+
+              {/* Boosted waste types */}
+              <Text style={styles.binLabel}>Tipi di rifiuto potenziati</Text>
+              {evWasteTypes.map((val, i) => (
+                <WasteDropdown
+                  key={i}
+                  value={val}
+                  options={optionsForEvSlot(i)}
+                  placeholder={i === 0 ? 'Tipo principale…' : 'Tipo aggiuntivo…'}
+                  onSelect={(opt) => setEvWasteAt(i, opt)}
+                />
+              ))}
+              {canAddMoreEvWaste && (
+                <TouchableOpacity style={styles.binAddWasteBtn} activeOpacity={0.8} onPress={addEvWasteSlot}>
+                  <Text style={styles.binAddWasteTxt}>＋</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Boost multiplier */}
+              <Text style={styles.binLabel}>Boost punti</Text>
+              <View style={styles.boostRow}>
+                {EVENT_BOOSTS.map((b) => (
+                  <TouchableOpacity
+                    key={b}
+                    style={[styles.boostBtn, evBoost === b && styles.boostBtnActive]}
+                    activeOpacity={0.85}
+                    onPress={() => setEvBoost(b)}
+                  >
+                    <Text style={[styles.boostBtnTxt, evBoost === b && styles.boostBtnTxtActive]}>x{b}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Start */}
+              <Text style={styles.binLabel}>Inizio (giorno · ora · minuto)</Text>
+              {evStart && <DateTimeScroller value={evStart} onChange={setEvStart} />}
+
+              {/* End */}
+              <Text style={styles.binLabel}>Fine (giorno · ora · minuto)</Text>
+              {evEnd && <DateTimeScroller value={evEnd} onChange={setEvEnd} />}
+              {evStart && evEnd && evEnd.getTime() <= evStart.getTime() && (
+                <Text style={styles.evError}>⚠️ La fine deve essere successiva all'inizio.</Text>
+              )}
+
+              <Text style={styles.binMuted}>
+                Quartiere: {eventZone || 'Altro'} · l'area sarà un cerchio giallo centrato sul punto scelto.
+              </Text>
+
+              {editingEventId && (
+                <TouchableOpacity style={styles.binDeleteBtn} activeOpacity={0.85} onPress={deleteEvent}>
+                  <Text style={styles.binSubmitTxt}>{savingEvent ? 'Eliminazione…' : 'Elimina evento'}</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.binSubmitBtn, !canSaveEvent && styles.binSubmitBtnDisabled]}
+              activeOpacity={canSaveEvent ? 0.85 : 1}
+              onPress={saveEvent}
+            >
+              <Text style={styles.binSubmitTxt}>
+                {savingEvent ? 'Salvataggio…' : (editingEventId ? 'Salva modifiche' : 'Crea evento')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── Event characteristics (admin left-click on an event, read-only) ── */}
+      {viewingEvent && (
+        <View style={styles.binOverlay}>
+          <TouchableOpacity style={styles.binBackdrop} activeOpacity={1} onPress={() => setViewingEvent(null)} />
+          <View style={styles.binCard}>
+            <View style={styles.binHeader}>
+              <Text style={styles.binTitle} numberOfLines={1}>{viewingEvent.name}</Text>
+              <TouchableOpacity style={styles.binCloseBtn} activeOpacity={0.7} onPress={() => setViewingEvent(null)}>
+                <Text style={styles.binCloseTxt}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Inizio</Text>
+              <Text style={styles.detailValue}>{formatEventDateTime(viewingEvent.startDate)}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Fine</Text>
+              <Text style={styles.detailValue}>{formatEventDateTime(viewingEvent.endDate)}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Raggio</Text>
+              <Text style={styles.detailValue}>{viewingEvent.radius} m</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Boost punti</Text>
+              <Text style={[styles.detailValue, { color: PRIMARY, fontWeight: '800' }]}>x{viewingEvent.boost}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Rifiuti potenziati</Text>
+              <Text style={styles.detailValue}>{(viewingEvent.wasteTypes || []).join(', ') || '—'}</Text>
+            </View>
+            <Text style={styles.binMuted}>Click destro sull'evento per modificarne i parametri.</Text>
+          </View>
+        </View>
+      )}
+
+      {/* ── Circoscrizione statistics popup (left-click on a zone) ── */}
       {statsZone && (() => {
         const s = statsForZone(statsZone);
         const leftColumn = [
@@ -1679,4 +2380,34 @@ const styles = StyleSheet.create({
   statRow: { paddingVertical: 10 },
   statValue: { fontSize: 26, fontWeight: '800', color: PRIMARY, lineHeight: 30 },
   statLabel: { fontSize: 13, color: '#555', marginTop: 2 },
+
+  // ── Recycling-event popup ───────────────────────────────────────────────────
+  boostRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  boostBtn: {
+    flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center',
+    borderWidth: 1.5, borderColor: '#ddd', backgroundColor: '#fff',
+  },
+  boostBtnActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+  boostBtnTxt: { fontSize: 15, fontWeight: '700', color: '#555' },
+  boostBtnTxtActive: { color: '#fff' },
+  evError: { fontSize: 13, color: '#cc0000', marginTop: 8, fontWeight: '600' },
+
+  // Date-time scroller (day · hour · minute snapping columns)
+  scrollPicker: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginTop: 4,
+    borderWidth: 1.5, borderColor: '#eee', borderRadius: 12,
+    backgroundColor: '#fafafa', paddingVertical: 4, position: 'relative',
+  },
+  scrollHighlight: {
+    position: 'absolute', left: 8, right: 8,
+    top: SCROLL_ITEM_H * 2, height: SCROLL_ITEM_H,
+    backgroundColor: 'rgba(192,23,77,0.10)',
+    borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: 'rgba(192,23,77,0.45)',
+    borderRadius: 8,
+  },
+  scrollItem: { height: SCROLL_ITEM_H, justifyContent: 'center', alignItems: 'center' },
+  scrollItemTxt: { fontSize: 15, color: '#aaa' },
+  scrollItemTxtActive: { color: PRIMARY, fontWeight: '800', fontSize: 16 },
+  scrollColon: { fontSize: 18, fontWeight: '800', color: '#555' },
 });

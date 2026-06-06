@@ -68,6 +68,7 @@ export default function Informations() {
   const [error, setError]         = useState(null);
   const [searched, setSearched]   = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [rewardInfo, setRewardInfo]   = useState(null); // {points, boost} after a points-earning scan
 
   const scannedRef = useRef(false);
 
@@ -97,6 +98,10 @@ export default function Informations() {
       if (data.status === 1) {
         setProduct(data.product);
         setDisposal(data.disposal ?? []);
+        // Reward popup: shown whenever points were actually granted for this scan.
+        if (data.reward?.granted && data.reward.pointsAdded > 0) {
+          setRewardInfo({ points: data.reward.pointsAdded, boost: data.reward.boost || 1 });
+        }
       } else {
         setError(data.error || 'Prodotto non trovato. Verifica il codice e riprova.');
       }
@@ -311,6 +316,28 @@ export default function Informations() {
         <View style={styles.bottomPad} />
       </ScrollView>
 
+      {/* ── Reward popup: thanks the user and shows the points earned ── */}
+      <Modal
+        visible={!!rewardInfo}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRewardInfo(null)}
+      >
+        <View style={styles.rewardOverlay}>
+          <View style={styles.rewardCard}>
+            <Text style={styles.rewardEmoji}>♻️</Text>
+            <Text style={styles.rewardTitle}>Grazie per aver riciclato!</Text>
+            <Text style={styles.rewardPoints}>+{rewardInfo?.points} punti</Text>
+            {rewardInfo?.boost > 1 && (
+              <Text style={styles.rewardBoost}>⚡ Boost evento x{rewardInfo.boost} applicato</Text>
+            )}
+            <TouchableOpacity style={styles.rewardBtn} activeOpacity={0.85} onPress={() => setRewardInfo(null)}>
+              <Text style={styles.rewardBtnTxt}>Chiudi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {Platform.OS !== 'web' && (
         <Modal
           visible={showScanner}
@@ -350,6 +377,27 @@ export default function Informations() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f6f4' },
+
+  // ── Reward popup ────────────────────────────────────────────────────────────
+  rewardOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32,
+  },
+  rewardCard: {
+    width: '100%', maxWidth: 360, backgroundColor: '#fff', borderRadius: 20,
+    paddingVertical: 26, paddingHorizontal: 24, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 14, elevation: 14,
+  },
+  rewardEmoji: { fontSize: 48, marginBottom: 8 },
+  rewardTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a', textAlign: 'center', marginBottom: 10 },
+  rewardPoints: { fontSize: 34, fontWeight: '900', color: '#009933', marginBottom: 6 },
+  rewardBoost: { fontSize: 14, fontWeight: '700', color: '#C0174D', marginBottom: 4, textAlign: 'center' },
+  rewardBtn: {
+    marginTop: 16, backgroundColor: '#009933', borderRadius: 12,
+    paddingVertical: 13, paddingHorizontal: 40, alignItems: 'center',
+  },
+  rewardBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   header: {
     backgroundColor: '#009933',

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Image, Platform, StyleSheet,
+  ActivityIndicator, Alert, Image, Platform, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -21,14 +21,60 @@ const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 // Grey colour used for the bin markers shown on the map.
 const BIN_GREY = '#9E9E9E';
 
+// Recycling-event circle colours (shared look with the admin map).
+const EVENT_FILL    = '#FFEB3B';
+const EVENT_OUTLINE = '#000000';
+
+// "gg/mm/aaaa hh:mm" — compact Italian date-time for event popups.
+function formatEventDateTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// GeoJSON polygon approximating a metric circle around (lat,lng).
+function circlePolygon(lat, lng, radiusMeters, steps = 64) {
+  const coords = [];
+  const latR = radiusMeters / 111320;
+  const lngR = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * 2 * Math.PI;
+    coords.push([lng + lngR * Math.cos(a), lat + latR * Math.sin(a)]);
+  }
+  return { type: 'Polygon', coordinates: [coords] };
+}
+
+function eventsToFeatureCollection(events) {
+  return {
+    type: 'FeatureCollection',
+    features: (events || [])
+      .filter(e => Number.isFinite(Number(e?.coordinates?.lat)) && Number.isFinite(Number(e?.coordinates?.lng)))
+      .map(e => ({
+        type: 'Feature',
+        properties: { id: String(e._id), name: e.name || '' },
+        geometry: circlePolygon(Number(e.coordinates.lat), Number(e.coordinates.lng), Number(e.radius) || 0),
+      })),
+  };
+}
+
+
 // ------- Web map -------
-function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
+function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick, onEventClick }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
   const [maplibreInstance, setMaplibreInstance] = useState(null);
+  const [mapReady, setMapReady] = useState(false);
   const markersRef = useRef([]);
   const binMarkersRef = useRef([]);
+  const eventLabelsRef = useRef([]);
+
+  // Keep the latest events + click callback reachable from once-only handlers.
+  const eventsRef = useRef(events);
+  useEffect(() => { eventsRef.current = events; }, [events]);
+  const onEventClickRef = useRef(onEventClick);
+  useEffect(() => { onEventClickRef.current = onEventClick; }, [onEventClick]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -51,6 +97,28 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
         attributionControl: true,
       });
       mapRef.current = map;
+
+      map.on('load', () => {
+        // Recycling-event circles: translucent yellow fill + black outline.
+        map.addSource('events', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+          id: 'events-fill', type: 'fill', source: 'events',
+          paint: { 'fill-color': EVENT_FILL, 'fill-opacity': 0.35 },
+        });
+        map.addLayer({
+          id: 'events-line', type: 'line', source: 'events',
+          paint: { 'line-color': EVENT_OUTLINE, 'line-width': 2 },
+        });
+        // Click an event circle → open the characteristics modal (with join btn).
+        map.on('click', 'events-fill', (e) => {
+          if (!e.features.length) return;
+          const ev = eventsRef.current.find(x => String(x._id) === String(e.features[0].properties.id));
+          if (ev) onEventClickRef.current?.(ev);
+        });
+        map.on('mouseenter', 'events-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', 'events-fill', () => { map.getCanvas().style.cursor = ''; });
+        setMapReady(true);
+      });
     });
 
     return () => {
@@ -59,6 +127,28 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
       if (document.head.contains(link)) document.head.removeChild(link);
     };
   }, [style]);
+
+  // Draw the event circles + a centred name label per event.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !maplibreInstance) return;
+    map.getSource('events')?.setData(eventsToFeatureCollection(events));
+
+    eventLabelsRef.current.forEach(m => m.remove());
+    eventLabelsRef.current = [];
+    (events || []).forEach((e) => {
+      const lat = Number(e?.coordinates?.lat);
+      const lng = Number(e?.coordinates?.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const el = document.createElement('div');
+      el.textContent = e.name || '';
+      el.style.cssText =
+        'font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#000;' +
+        'text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;';
+      const marker = new maplibreInstance.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+      eventLabelsRef.current.push(marker);
+    });
+  }, [events, mapReady, maplibreInstance]);
 
   useEffect(() => {
     if (!targetCenter || !mapRef.current) return;
@@ -138,7 +228,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
 }
 
 // ---- Native map -----
-function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
+function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick, onEventClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
@@ -164,6 +254,9 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'centerClicked' && data.center) {
         onCenterClick(data.center);
+      } else if (data.type === 'eventClicked' && data.id) {
+        const ev = (events || []).find(x => String(x._id) === String(data.id));
+        if (ev) onEventClick?.(ev);
       }
     } catch (error) {
       console.error("Errore nel ricevere il messaggio dalla WebView:", error);
@@ -204,10 +297,58 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
 
     const centers = ${JSON.stringify(centers || [])};
     const bins = ${JSON.stringify(bins || [])};
+    const events = ${JSON.stringify(events || [])};
     const centersById = {};
     centers.forEach(c => { if (c && c._id) centersById[String(c._id)] = c.name; });
 
+    function circlePolygon(lat, lng, radiusMeters, steps) {
+      steps = steps || 64;
+      const coords = [];
+      const latR = radiusMeters / 111320;
+      const lngR = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180));
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * 2 * Math.PI;
+        coords.push([lng + lngR * Math.cos(a), lat + latR * Math.sin(a)]);
+      }
+      return { type: 'Polygon', coordinates: [coords] };
+    }
+    function fmtDate(v) {
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return '—';
+      const p = (n) => String(n).padStart(2, '0');
+      return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    }
+
     map.on('load', () => {
+      // Recycling-event circles + centred name labels + click popups.
+      const eventFeatures = events
+        .filter(e => e && e.coordinates && e.coordinates.lat != null && e.coordinates.lng != null)
+        .map(e => ({ type: 'Feature', properties: { id: String(e._id) },
+          geometry: circlePolygon(Number(e.coordinates.lat), Number(e.coordinates.lng), Number(e.radius) || 0) }));
+      map.addSource('events', { type: 'geojson', data: { type: 'FeatureCollection', features: eventFeatures } });
+      map.addLayer({ id: 'events-fill', type: 'fill', source: 'events',
+        paint: { 'fill-color': '${EVENT_FILL}', 'fill-opacity': 0.35 } });
+      map.addLayer({ id: 'events-line', type: 'line', source: 'events',
+        paint: { 'line-color': '${EVENT_OUTLINE}', 'line-width': 2 } });
+
+      events.forEach((e) => {
+        if (!e || !e.coordinates || e.coordinates.lat == null || e.coordinates.lng == null) return;
+        const el = document.createElement('div');
+        el.textContent = e.name || '';
+        el.style.cssText = 'font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#000;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;';
+        new maplibregl.Marker({ element: el }).setLngLat([Number(e.coordinates.lng), Number(e.coordinates.lat)]).addTo(map);
+      });
+
+      // Click an event circle → notify React Native to open the modal (with the
+      // "Partecipa" button). The webview cannot perform the authenticated join.
+      map.on('click', 'events-fill', (ev) => {
+        if (!ev.features.length) return;
+        const id = String(ev.features[0].properties.id);
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'eventClicked', id: id }));
+        }
+      });
+
       centers.forEach((center, index) => {
         if (!center.coordinates || !center.coordinates.lng || !center.coordinates.lat) return;
 
@@ -268,7 +409,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
   return (
     <WebView
       ref={webViewRef}
-      key={`map-centers-${centers.length}-bins-${bins.length}`}
+      key={`map-centers-${centers.length}-bins-${bins.length}-events-${events.length}`}
       source={{ html: mapHtml }}
       style={{ flex: 1 }}
       javaScriptEnabled
@@ -285,7 +426,7 @@ export default function HomeCitizenScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedCenter, setSelectedCenter] = useState(null);
+  const [selectedTarget, setSelectedTarget] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [searchError, setSearchError] = useState(false);
   const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
@@ -293,6 +434,20 @@ export default function HomeCitizenScreen() {
   const [showInfoCard, setShowInfoCard] = useState(false);
   const [centers, setCenters] = useState([]);
   const [bins, setBins] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [viewingEvent, setViewingEvent] = useState(null); // event shown in the modal
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [joining, setJoining] = useState(false);
+  const [endedPopup, setEndedPopup] = useState(null);     // {events:[{name}], points} after settle
+
+  // Only events that have not ended are shown on the map / searchable.
+  const activeEvents = events.filter((e) => +new Date(e.endDate) > Date.now());
+
+  const fetchEvents = useCallback(() => {
+    axios.get(`${API_URL}/events/all`)
+      .then((response) => setEvents(Array.isArray(response.data) ? response.data : []))
+      .catch(() => setEvents([]));
+  }, []);
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
@@ -312,7 +467,64 @@ export default function HomeCitizenScreen() {
         setBins(Array.isArray(response.data) ? response.data : []);
       })
       .catch(() => setBins([]));
-  }, []);
+
+    // Recycling events (visible read-only to citizens).
+    fetchEvents();
+
+    // Current user id, used to tell whether the citizen already joined an event.
+    AsyncStorage.getItem('user').then((stored) => {
+      try {
+        const u = stored ? JSON.parse(stored) : null;
+        setCurrentUserId(u?.id || u?._id || null);
+      } catch { setCurrentUserId(null); }
+    });
+
+    // Settle any events that ended while the user was away: awards +10 once per
+    // event and surfaces a thank-you popup. Refreshes the list afterwards so the
+    // concluded events drop off the map.
+    AsyncStorage.getItem('token').then((token) => {
+      if (!token) return;
+      axios.post(`${API_URL}/events/settle`, {}, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => {
+          const s = Array.isArray(r.data?.settled) ? r.data.settled : [];
+          if (s.length > 0) {
+            setEndedPopup({ events: s, points: r.data?.pointsAwarded ?? s.length * 10 });
+            fetchEvents();
+          }
+        })
+        .catch(() => {});
+    });
+  }, [fetchEvents]);
+
+  // Whether the current citizen is already a participant of the given event.
+  const isJoined = (ev) =>
+    !!currentUserId && (ev?.participants || []).some((p) => String(p) === String(currentUserId));
+
+  // Join the currently-viewed event → unlocks its point boost on matching scans.
+  const joinEvent = async () => {
+    if (!viewingEvent || joining) return;
+    if (isJoined(viewingEvent)) return;
+    setJoining(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const { data } = await axios.post(
+        `${API_URL}/events/${viewingEvent._id}/join`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (data?.event) {
+        setViewingEvent(data.event);              // reflect joined state in the modal
+        setEvents((prev) => prev.map((e) => (String(e._id) === String(data.event._id) ? data.event : e)));
+      } else {
+        fetchEvents();
+      }
+      Alert.alert('Iscrizione effettuata', `Ora ricevi i punti x${viewingEvent.boost} sui rifiuti potenziati di questo evento.`);
+    } catch (e) {
+      Alert.alert('Errore', e?.response?.data?.message || 'Impossibile iscriversi all\'evento. Riprova.');
+    } finally {
+      setJoining(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -320,30 +532,50 @@ export default function HomeCitizenScreen() {
     }, [])
   );
 
+  // Unified searchable elements: collection centers, bins and (active) events.
+  const buildSearchItems = () => {
+    const items = [];
+    (centers || []).forEach((c) => {
+      const lat = Number(c?.coordinates?.lat), lng = Number(c?.coordinates?.lng);
+      if (c?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `c_${c._id}`, type: 'center', name: c.name, lat, lng, subtitle: c.address || 'Centro di raccolta' });
+    });
+    (bins || []).forEach((b) => {
+      const lat = Number(b?.coordinates?.lat), lng = Number(b?.coordinates?.lng);
+      if (b?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `b_${b._id}`, type: 'bin', name: b.name, lat, lng, subtitle: b.address || 'Bidone' });
+    });
+    (activeEvents || []).forEach((e) => {
+      const lat = Number(e?.coordinates?.lat), lng = Number(e?.coordinates?.lng);
+      if (e?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `e_${e._id}`, type: 'event', name: e.name, lat, lng, subtitle: 'Evento di raccolta' });
+    });
+    return items;
+  };
+  const searchTypeIcon = (type) => (type === 'center' ? '📍' : type === 'bin' ? '🗑️' : '🎪');
+
   const handleQueryChange = (text) => {
     setSearchQuery(text);
-    setSelectedCenter(null);
+    setSelectedTarget(null);
     setSearchError(false);
     const q = text.trim().toLowerCase();
     if (!q) { setSearchResults([]); return; }
-    const matches = centers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 5);
-    setSearchResults(matches);
+    setSearchResults(buildSearchItems().filter(it => it.name.toLowerCase().includes(q)).slice(0, 6));
   };
 
-  const selectCenter = (center) => {
-    setSearchQuery(center.name);
-    setSelectedCenter(center);
+  const selectResult = (item) => {
+    setSearchQuery(item.name);
+    setSelectedTarget(item);
     setSearchResults([]);
   };
 
   const handleSearch = () => {
     setSearchResults([]);
     setSearchError(false);
-    const target = selectedCenter || centers.find(
-      c => c.name.toLowerCase() === searchQuery.trim().toLowerCase()
-    );
-    if (target?.coordinates) {
-      setMapCenter([target.coordinates.lat, target.coordinates.lng]);
+    const q = searchQuery.trim().toLowerCase();
+    const target = selectedTarget || buildSearchItems().find(it => it.name.toLowerCase() === q);
+    if (target) {
+      setMapCenter([target.lat, target.lng]);
     } else {
       setSearchError(true);
       setTimeout(() => setSearchError(false), 2500);
@@ -358,6 +590,8 @@ export default function HomeCitizenScreen() {
           styleUrl={mapStyleUrl}
           centers={centers}
           bins={bins}
+          events={activeEvents}
+          onEventClick={(ev) => setViewingEvent(ev)}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       ) : (
         <NativeMap
@@ -365,6 +599,8 @@ export default function HomeCitizenScreen() {
           styleUrl={mapStyleUrl}
           centers={centers}
           bins={bins}
+          events={activeEvents}
+          onEventClick={(ev) => setViewingEvent(ev)}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
 
@@ -393,17 +629,17 @@ export default function HomeCitizenScreen() {
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
-            {searchResults.map((center, i) => (
+            {searchResults.map((item, i) => (
               <TouchableOpacity
-                key={center._id ?? i}
+                key={item.key ?? i}
                 style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => selectCenter(center)}
+                onPress={() => selectResult(item)}
               >
-                <Text style={styles.resultIcon}>📍</Text>
+                <Text style={styles.resultIcon}>{searchTypeIcon(item.type)}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.resultText} numberOfLines={1}>{center.name}</Text>
-                  {center.address ? <Text style={styles.resultSubText} numberOfLines={1}>{center.address}</Text> : null}
+                  <Text style={styles.resultText} numberOfLines={1}>{item.name}</Text>
+                  {item.subtitle ? <Text style={styles.resultSubText} numberOfLines={1}>{item.subtitle}</Text> : null}
                 </View>
               </TouchableOpacity>
             ))}
@@ -449,6 +685,77 @@ export default function HomeCitizenScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── Event ended: thank-you for participation + 10 points granted ── */}
+      {endedPopup && (
+        <View style={styles.eventOverlay}>
+          <TouchableOpacity style={styles.eventBackdrop} activeOpacity={1} onPress={() => setEndedPopup(null)} />
+          <View style={styles.eventCard}>
+            <Text style={styles.endedTitle}>🎉 Grazie per aver partecipato!</Text>
+            <Text style={styles.endedBody}>
+              {endedPopup.events.length === 1
+                ? `L'evento "${endedPopup.events[0].name}" è terminato.`
+                : `${endedPopup.events.length} eventi a cui partecipavi sono terminati.`}
+            </Text>
+            <View style={styles.eventBoostBanner}>
+              <Text style={styles.eventBoostTxt}>+{endedPopup.points} punti per la partecipazione</Text>
+            </View>
+            <TouchableOpacity style={styles.joinBtn} activeOpacity={0.85} onPress={() => setEndedPopup(null)}>
+              <Text style={styles.joinTxt}>Chiudi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* ── Event characteristics modal (click on an event) + join button ── */}
+      {viewingEvent && (
+        <View style={styles.eventOverlay}>
+          <TouchableOpacity style={styles.eventBackdrop} activeOpacity={1} onPress={() => setViewingEvent(null)} />
+          <View style={styles.eventCard}>
+            <View style={styles.eventHeader}>
+              <Text style={styles.eventTitle} numberOfLines={1}>{viewingEvent.name}</Text>
+              <TouchableOpacity style={styles.eventCloseBtn} activeOpacity={0.7} onPress={() => setViewingEvent(null)}>
+                <Text style={styles.eventCloseTxt}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Inizio</Text>
+              <Text style={styles.eventValue}>{formatEventDateTime(viewingEvent.startDate)}</Text>
+            </View>
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Fine</Text>
+              <Text style={styles.eventValue}>{formatEventDateTime(viewingEvent.endDate)}</Text>
+            </View>
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Raggio</Text>
+              <Text style={styles.eventValue}>{viewingEvent.radius} m</Text>
+            </View>
+            <View style={styles.eventRow}>
+              <Text style={styles.eventLabel}>Rifiuti potenziati</Text>
+              <Text style={styles.eventValue}>{(viewingEvent.wasteTypes || []).join(', ') || '—'}</Text>
+            </View>
+            <View style={styles.eventBoostBanner}>
+              <Text style={styles.eventBoostTxt}>⚡ Punti x{viewingEvent.boost} sui rifiuti potenziati</Text>
+            </View>
+
+            {/* Join the event → grants the boost on matching scans */}
+            {isJoined(viewingEvent) ? (
+              <View style={[styles.joinBtn, styles.joinedBtn]}>
+                <Text style={styles.joinedTxt}>✓ Sei iscritto a questo evento</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.joinBtn, joining && styles.joinBtnDisabled]}
+                activeOpacity={joining ? 1 : 0.85}
+                onPress={joinEvent}
+              >
+                <Text style={styles.joinTxt}>{joining ? 'Iscrizione…' : 'Partecipa all\'evento'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
+
       <StatusBar style="auto" />
     </View>
   );
@@ -456,6 +763,52 @@ export default function HomeCitizenScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative' },
+
+  // ── Event characteristics modal ─────────────────────────────────────────────
+  eventOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', zIndex: 40,
+  },
+  eventBackdrop: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  eventCard: {
+    width: '90%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 18,
+    paddingHorizontal: 22, paddingTop: 16, paddingBottom: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 14, elevation: 14,
+  },
+  eventHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8,
+  },
+  eventTitle: { fontSize: 20, fontWeight: '700', color: '#1a1a1a', flex: 1 },
+  eventCloseBtn: {
+    width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#f2f2f2', marginLeft: 8,
+  },
+  eventCloseTxt: { fontSize: 16, color: '#444', fontWeight: '700' },
+  eventRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#f4f4f4', gap: 12,
+  },
+  eventLabel: { fontSize: 13, color: '#888', fontWeight: '600' },
+  eventValue: { fontSize: 14, color: '#222', flex: 1, textAlign: 'right' },
+  eventBoostBanner: {
+    marginTop: 14, backgroundColor: '#FFF8E1', borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#FFEB3B', paddingVertical: 10, alignItems: 'center',
+  },
+  eventBoostTxt: { fontSize: 14, fontWeight: '800', color: '#C0174D' },
+  joinBtn: {
+    marginTop: 16, backgroundColor: '#009933', borderRadius: 12, paddingVertical: 14, alignItems: 'center',
+  },
+  joinBtnDisabled: { backgroundColor: '#9bd3ad' },
+  joinTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  joinedBtn: { backgroundColor: '#e8f5e9', borderWidth: 1.5, borderColor: '#009933' },
+  joinedTxt: { color: '#2e7d32', fontSize: 15, fontWeight: '700' },
+  endedTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a', textAlign: 'center', marginBottom: 8 },
+  endedBody: { fontSize: 14, color: '#555', textAlign: 'center', lineHeight: 20 },
+
   mapPlaceholder: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#d0e8c0', alignItems: 'center', justifyContent: 'center',

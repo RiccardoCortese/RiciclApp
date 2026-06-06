@@ -44,6 +44,9 @@ app.use('/api/admin', require('./routes/admin'));
 // Rotta per le segnalazioni sui bidoni
 app.use('/api/report', require('./routes/report'));
 
+// Rotta per gli eventi di raccolta (Recycling event)
+app.use('/api/events', require('./routes/event'));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server in esecuzione sulla porta ${PORT}`));
 

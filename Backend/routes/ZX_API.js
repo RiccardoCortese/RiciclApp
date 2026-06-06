@@ -1,6 +1,33 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/user');
+const RecyclingEvent = require('../models/event');
+
+// Punti base assegnati per una scansione (prima dell'eventuale boost evento).
+const BASE_SCAN_POINTS = 5;
+
+// Calcola il moltiplicatore di punti dovuto agli eventi di raccolta: se l'utente
+// è iscritto a un evento attualmente attivo che potenzia uno dei tipi di rifiuto
+// del prodotto scansionato, applica il boost più alto fra gli eventi idonei.
+// Restituisce 1 (nessun boost) se non ci sono eventi idonei.
+async function eventBoostFor(userId, disposalLabels) {
+  if (!userId || !Array.isArray(disposalLabels) || disposalLabels.length === 0) return 1;
+  const now = new Date();
+  const events = await RecyclingEvent.find({
+    startDate: { $lte: now },
+    endDate:   { $gt: now },
+    participants: userId,
+  }).lean();
+
+  let best = 1;
+  for (const ev of events) {
+    const types = ev.wasteTypes || [];
+    if (types.some(t => disposalLabels.includes(t)) && ev.boost > best) {
+      best = ev.boost;
+    }
+  }
+  return best;
+}
 
 // Rotta per la scansione del codice a barre tramite ZXing/expo-camera e recupero dati da Open Food Facts
 const PACKAGING_DISPOSAL = {
@@ -94,15 +121,24 @@ router.get('/scan/:barcode', async (req, res) => {
         const lastScan = user.lastScanRewardAt;
 
         if (!lastScan || now - lastScan >= cooldownMs) {
-          user.points = (user.points || 0) + 5;
+          // Boost evento: i partecipanti a un evento attivo che potenzia uno dei
+          // tipi di rifiuto del prodotto ricevono i punti moltiplicati.
+          const disposalLabels = (disposal || []).map(d => d.label);
+          const boost = await eventBoostFor(userId, disposalLabels);
+          const gained = BASE_SCAN_POINTS * boost;
+
+          user.points = (user.points || 0) + gained;
           user.lastScanRewardAt = now;
           await user.save();
 
           reward = {
             granted: true,
-            pointsAdded: 5,
+            pointsAdded: gained,
+            boost,
             totalPoints: user.points,
-            message: 'Punti scansione aggiunti'
+            message: boost > 1
+              ? `Punti scansione aggiunti (boost evento x${boost})`
+              : 'Punti scansione aggiunti'
           };
         } else {
           const remainingMs = cooldownMs - (now - lastScan);

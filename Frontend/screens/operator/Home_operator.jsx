@@ -321,29 +321,45 @@ export default function HomeOperatorScreen() {
       });
     }, [])
   );
+  // Unified searchable elements for the operator: collection centers and bins.
+  const buildSearchItems = () => {
+    const items = [];
+    (centers || []).forEach((c) => {
+      const lat = Number(c?.coordinates?.lat), lng = Number(c?.coordinates?.lng);
+      if (c?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `c_${c._id}`, type: 'center', name: c.name, lat, lng, subtitle: c.address || 'Centro di raccolta' });
+    });
+    (bins || []).forEach((b) => {
+      const lat = Number(b?.coordinates?.lat), lng = Number(b?.coordinates?.lng);
+      if (b?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `b_${b._id}`, type: 'bin', name: b.name, lat, lng, subtitle: b.address || 'Bidone' });
+    });
+    return items;
+  };
+  const searchTypeIcon = (type) => (type === 'center' ? '📍' : '🗑️');
+
   const handleQueryChange = (text) => {
     setSearchQuery(text);
     setSelectedCenter(null);
     setSearchError(false);
     const q = text.trim().toLowerCase();
     if (!q) { setSearchResults([]); return; }
-    setSearchResults(centers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 5));
+    setSearchResults(buildSearchItems().filter(it => it.name.toLowerCase().includes(q)).slice(0, 6));
   };
 
-  const selectCenter = (center) => {
-    setSearchQuery(center.name);
-    setSelectedCenter(center);
+  const selectResult = (item) => {
+    setSearchQuery(item.name);
+    setSelectedCenter(item);
     setSearchResults([]);
   };
 
   const handleSearch = () => {
     setSearchResults([]);
     setSearchError(false);
-    const target = selectedCenter || centers.find(
-      c => c.name.toLowerCase() === searchQuery.trim().toLowerCase()
-    );
-    if (target?.coordinates) {
-      setMapCenter([target.coordinates.lat, target.coordinates.lng]);
+    const q = searchQuery.trim().toLowerCase();
+    const target = selectedCenter || buildSearchItems().find(it => it.name.toLowerCase() === q);
+    if (target) {
+      setMapCenter([target.lat, target.lng]);
     } else {
       setSearchError(true);
       setTimeout(() => setSearchError(false), 2500);
@@ -402,17 +418,17 @@ export default function HomeOperatorScreen() {
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
-            {searchResults.map((center, i) => (
+            {searchResults.map((item, i) => (
               <TouchableOpacity
-                key={center._id ?? i}
+                key={item.key ?? i}
                 style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => selectCenter(center)}
+                onPress={() => selectResult(item)}
               >
-                <Text style={styles.resultIcon}>📍</Text>
+                <Text style={styles.resultIcon}>{searchTypeIcon(item.type)}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.resultText} numberOfLines={1}>{center.name}</Text>
-                  {center.address ? <Text style={styles.resultSubText} numberOfLines={1}>{center.address}</Text> : null}
+                  <Text style={styles.resultText} numberOfLines={1}>{item.name}</Text>
+                  {item.subtitle ? <Text style={styles.resultSubText} numberOfLines={1}>{item.subtitle}</Text> : null}
                 </View>
               </TouchableOpacity>
             ))}
