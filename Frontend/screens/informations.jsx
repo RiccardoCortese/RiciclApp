@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
 import { API_URL } from '../src/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ---- Disposal logic (used as fallback when ZX_API is unreachable) -----
 
@@ -93,9 +94,16 @@ export default function Informations() {
     setSearched(true);
 
     try {
+      const storedUser = await AsyncStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      const userId = user?.id || user?._id;
+
       // --- Primary: ZX_API backend ---
       const { data } = await axios.get(`${API_URL}/zx/scan/${trimmed}`, {
         timeout: 10000,
+        params: {
+          userId
+        }
       });
 
       if (data.status === 1) {

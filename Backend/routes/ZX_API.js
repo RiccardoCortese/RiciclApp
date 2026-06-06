@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const User = require('../models/user');
 
 // Rotta per la scansione del codice a barre tramite ZXing/expo-camera e recupero dati da Open Food Facts
 const PACKAGING_DISPOSAL = {
@@ -49,6 +50,7 @@ function resolveDisposal(product) {
 // a clean payload including pre-computed disposal categories.
 router.get('/scan/:barcode', async (req, res) => {
   const { barcode } = req.params;
+  const { userId } = req.query;
   if (!barcode) return res.status(400).json({ error: 'Barcode obbligatorio' });
 
   // Hard 8-second timeout on the upstream Open Food Facts call so that
@@ -75,6 +77,48 @@ router.get('/scan/:barcode', async (req, res) => {
     const p = data.product;
     const disposal = resolveDisposal(p);
 
+    let reward = {
+      granted: false,
+      pointsAdded: 0,
+      totalPoints: null,
+      message: 'Utente non specificato'
+    };
+
+
+    if (userId) {
+      const user = await User.findById(userId);
+
+      if (user) {
+        const now = new Date();
+        const cooldownMs = 10 * 60 * 1000; // 10 minuti
+        const lastScan = user.lastScanRewardAt;
+
+        if (!lastScan || now - lastScan >= cooldownMs) {
+          user.points = (user.points || 0) + 5;
+          user.lastScanRewardAt = now;
+          await user.save();
+
+          reward = {
+            granted: true,
+            pointsAdded: 5,
+            totalPoints: user.points,
+            message: 'Punti scansione aggiunti'
+          };
+        } else {
+          const remainingMs = cooldownMs - (now - lastScan);
+          const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+          reward = {
+            granted: false,
+            pointsAdded: 0,
+            totalPoints: user.points,
+            remainingSeconds,
+            message: 'Attendere prima di ottenere altri punti da una scansione'
+          };
+        }
+      }
+    }
+
     return res.json({
       status: 1,
       barcode,
@@ -90,6 +134,7 @@ router.get('/scan/:barcode', async (req, res) => {
         image_front_small_url: p.image_front_small_url || null,
       },
       disposal,
+      reward
     });
   } catch (err) {
     clearTimeout(timeoutId);
