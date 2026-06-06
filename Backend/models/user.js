@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    lastScanRewardAt: {
+      type: Date,
+      default: null
+    }
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
