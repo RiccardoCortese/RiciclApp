@@ -113,13 +113,15 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Web: right-mouse-button drag to scrub the column, plus an auto-stabilizer
+  // Web: left-mouse-button drag to scrub the column, plus an auto-stabilizer
   // that snaps to the closest option whenever scrolling settles (wheel, drag or
   // touchpad) so a date is never left between two options.
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const node = getNode();
     if (!node) return;
+
+    node.style.cursor = 'grab'; // hint that the column can be dragged
 
     const clampIndex = (i) => Math.max(0, Math.min(data.length - 1, i));
     const snap = () => {
@@ -130,12 +132,12 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
     };
 
     let dragging = false, startY = 0, startTop = 0;
-    const onContextMenu = (e) => { e.preventDefault(); }; // free the right button for dragging
     const onMouseDown = (e) => {
-      if (e.button !== 2) return;            // right button only
+      if (e.button !== 0) return;             // left button only
       dragging = true;
       startY = e.clientY; startTop = node.scrollTop;
-      e.preventDefault();
+      node.style.cursor = 'grabbing';
+      e.preventDefault();                     // avoid text selection while dragging
     };
     const onMouseMove = (e) => {
       if (!dragging) return;
@@ -144,6 +146,7 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
     const onMouseUp = () => {
       if (!dragging) return;
       dragging = false;
+      node.style.cursor = 'grab';
       snap();
     };
 
@@ -155,14 +158,12 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
       settleTimer = setTimeout(snap, 120);
     };
 
-    node.addEventListener('contextmenu', onContextMenu);
     node.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     node.addEventListener('scroll', onScroll);
     return () => {
       clearTimeout(settleTimer);
-      node.removeEventListener('contextmenu', onContextMenu);
       node.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
@@ -969,29 +970,54 @@ export default function HomeAdminScreen() {
     };
   };
 
+  // Only events that have not ended are drawn on the map / searchable. Concluded
+  // events disappear from the map (still listed in the management screen).
+  const activeEvents = events.filter((e) => +new Date(e.endDate) > Date.now());
+
+  // Unified searchable elements: collection centers, bins and (active) events.
+  const buildSearchItems = () => {
+    const items = [];
+    (centers || []).forEach((c) => {
+      const lat = Number(c?.coordinates?.lat), lng = Number(c?.coordinates?.lng);
+      if (c?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `c_${c._id}`, type: 'center', name: c.name, lat, lng, subtitle: c.address || 'Centro di raccolta' });
+    });
+    (adminBins || []).forEach((b) => {
+      const lat = Number(b?.coordinates?.lat), lng = Number(b?.coordinates?.lng);
+      if (b?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `b_${b._id}`, type: 'bin', name: b.name, lat, lng, subtitle: b.address || 'Bidone' });
+    });
+    (activeEvents || []).forEach((e) => {
+      const lat = Number(e?.coordinates?.lat), lng = Number(e?.coordinates?.lng);
+      if (e?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `e_${e._id}`, type: 'event', name: e.name, lat, lng, subtitle: 'Evento di raccolta' });
+    });
+    return items;
+  };
+  const searchTypeIcon = (type) => (type === 'center' ? '📍' : type === 'bin' ? '🗑️' : '🎪');
+
   const handleQueryChange = (text) => {
     setSearchQuery(text);
     setSelectedCenter(null);
     setSearchError(false);
     const q = text.trim().toLowerCase();
     if (!q) { setSearchResults([]); return; }
-    setSearchResults(centers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 5));
+    setSearchResults(buildSearchItems().filter(it => it.name.toLowerCase().includes(q)).slice(0, 6));
   };
 
-  const selectCenter = (center) => {
-    setSearchQuery(center.name);
-    setSelectedCenter(center);
+  const selectResult = (item) => {
+    setSearchQuery(item.name);
+    setSelectedCenter(item);
     setSearchResults([]);
   };
 
   const handleSearch = () => {
     setSearchResults([]);
     setSearchError(false);
-    const target = selectedCenter || centers.find(
-      c => c.name.toLowerCase() === searchQuery.trim().toLowerCase()
-    );
-    if (target?.coordinates) {
-      setMapCenter([target.coordinates.lat, target.coordinates.lng]);
+    const q = searchQuery.trim().toLowerCase();
+    const target = selectedCenter || buildSearchItems().find(it => it.name.toLowerCase() === q);
+    if (target) {
+      setMapCenter([target.lat, target.lng]);
     } else {
       setSearchError(true);
       setTimeout(() => setSearchError(false), 2500);
@@ -1343,7 +1369,7 @@ export default function HomeAdminScreen() {
         pendingCoord={pendingCoord || (eventMode ? eventCenter : null)}
         adminBins={adminBins}
         binColor={binColor}
-        events={events}
+        events={activeEvents}
         eventPlacing={eventMode}
         onEventPlaceClick={handleEventPlaceClick}
         onEventRightClick={openEditEvent}
@@ -1384,17 +1410,17 @@ export default function HomeAdminScreen() {
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
-            {searchResults.map((center, i) => (
+            {searchResults.map((item, i) => (
               <TouchableOpacity
-                key={center._id ?? i}
+                key={item.key ?? i}
                 style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => selectCenter(center)}
+                onPress={() => selectResult(item)}
               >
-                <Text style={styles.resultIcon}>📍</Text>
+                <Text style={styles.resultIcon}>{searchTypeIcon(item.type)}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.resultText} numberOfLines={1}>{center.name}</Text>
-                  {center.address ? <Text style={styles.resultSubText} numberOfLines={1}>{center.address}</Text> : null}
+                  <Text style={styles.resultText} numberOfLines={1}>{item.name}</Text>
+                  {item.subtitle ? <Text style={styles.resultSubText} numberOfLines={1}>{item.subtitle}</Text> : null}
                 </View>
               </TouchableOpacity>
             ))}

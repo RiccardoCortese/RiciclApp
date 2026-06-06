@@ -59,6 +59,14 @@ const eventSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    // Partecipanti che hanno già ricevuto i 10 punti di ringraziamento alla
+    // conclusione dell'evento. Evita di assegnarli più volte (vedi /events/settle).
+    rewardedParticipants: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

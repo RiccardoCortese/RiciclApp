@@ -426,7 +426,7 @@ export default function HomeCitizenScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedCenter, setSelectedCenter] = useState(null);
+  const [selectedTarget, setSelectedTarget] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [searchError, setSearchError] = useState(false);
   const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
@@ -438,6 +438,10 @@ export default function HomeCitizenScreen() {
   const [viewingEvent, setViewingEvent] = useState(null); // event shown in the modal
   const [currentUserId, setCurrentUserId] = useState(null);
   const [joining, setJoining] = useState(false);
+  const [endedPopup, setEndedPopup] = useState(null);     // {events:[{name}], points} after settle
+
+  // Only events that have not ended are shown on the map / searchable.
+  const activeEvents = events.filter((e) => +new Date(e.endDate) > Date.now());
 
   const fetchEvents = useCallback(() => {
     axios.get(`${API_URL}/events/all`)
@@ -473,6 +477,22 @@ export default function HomeCitizenScreen() {
         const u = stored ? JSON.parse(stored) : null;
         setCurrentUserId(u?.id || u?._id || null);
       } catch { setCurrentUserId(null); }
+    });
+
+    // Settle any events that ended while the user was away: awards +10 once per
+    // event and surfaces a thank-you popup. Refreshes the list afterwards so the
+    // concluded events drop off the map.
+    AsyncStorage.getItem('token').then((token) => {
+      if (!token) return;
+      axios.post(`${API_URL}/events/settle`, {}, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => {
+          const s = Array.isArray(r.data?.settled) ? r.data.settled : [];
+          if (s.length > 0) {
+            setEndedPopup({ events: s, points: r.data?.pointsAwarded ?? s.length * 10 });
+            fetchEvents();
+          }
+        })
+        .catch(() => {});
     });
   }, [fetchEvents]);
 
@@ -512,30 +532,50 @@ export default function HomeCitizenScreen() {
     }, [])
   );
 
+  // Unified searchable elements: collection centers, bins and (active) events.
+  const buildSearchItems = () => {
+    const items = [];
+    (centers || []).forEach((c) => {
+      const lat = Number(c?.coordinates?.lat), lng = Number(c?.coordinates?.lng);
+      if (c?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `c_${c._id}`, type: 'center', name: c.name, lat, lng, subtitle: c.address || 'Centro di raccolta' });
+    });
+    (bins || []).forEach((b) => {
+      const lat = Number(b?.coordinates?.lat), lng = Number(b?.coordinates?.lng);
+      if (b?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `b_${b._id}`, type: 'bin', name: b.name, lat, lng, subtitle: b.address || 'Bidone' });
+    });
+    (activeEvents || []).forEach((e) => {
+      const lat = Number(e?.coordinates?.lat), lng = Number(e?.coordinates?.lng);
+      if (e?.name && Number.isFinite(lat) && Number.isFinite(lng))
+        items.push({ key: `e_${e._id}`, type: 'event', name: e.name, lat, lng, subtitle: 'Evento di raccolta' });
+    });
+    return items;
+  };
+  const searchTypeIcon = (type) => (type === 'center' ? '📍' : type === 'bin' ? '🗑️' : '🎪');
+
   const handleQueryChange = (text) => {
     setSearchQuery(text);
-    setSelectedCenter(null);
+    setSelectedTarget(null);
     setSearchError(false);
     const q = text.trim().toLowerCase();
     if (!q) { setSearchResults([]); return; }
-    const matches = centers.filter(c => c.name.toLowerCase().includes(q)).slice(0, 5);
-    setSearchResults(matches);
+    setSearchResults(buildSearchItems().filter(it => it.name.toLowerCase().includes(q)).slice(0, 6));
   };
 
-  const selectCenter = (center) => {
-    setSearchQuery(center.name);
-    setSelectedCenter(center);
+  const selectResult = (item) => {
+    setSearchQuery(item.name);
+    setSelectedTarget(item);
     setSearchResults([]);
   };
 
   const handleSearch = () => {
     setSearchResults([]);
     setSearchError(false);
-    const target = selectedCenter || centers.find(
-      c => c.name.toLowerCase() === searchQuery.trim().toLowerCase()
-    );
-    if (target?.coordinates) {
-      setMapCenter([target.coordinates.lat, target.coordinates.lng]);
+    const q = searchQuery.trim().toLowerCase();
+    const target = selectedTarget || buildSearchItems().find(it => it.name.toLowerCase() === q);
+    if (target) {
+      setMapCenter([target.lat, target.lng]);
     } else {
       setSearchError(true);
       setTimeout(() => setSearchError(false), 2500);
@@ -550,7 +590,7 @@ export default function HomeCitizenScreen() {
           styleUrl={mapStyleUrl}
           centers={centers}
           bins={bins}
-          events={events}
+          events={activeEvents}
           onEventClick={(ev) => setViewingEvent(ev)}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       ) : (
@@ -559,7 +599,7 @@ export default function HomeCitizenScreen() {
           styleUrl={mapStyleUrl}
           centers={centers}
           bins={bins}
-          events={events}
+          events={activeEvents}
           onEventClick={(ev) => setViewingEvent(ev)}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
@@ -589,17 +629,17 @@ export default function HomeCitizenScreen() {
 
         {searchResults.length > 0 && (
           <View style={styles.resultsDropdown}>
-            {searchResults.map((center, i) => (
+            {searchResults.map((item, i) => (
               <TouchableOpacity
-                key={center._id ?? i}
+                key={item.key ?? i}
                 style={[styles.resultItem, i < searchResults.length - 1 && styles.resultItemBorder]}
                 activeOpacity={0.7}
-                onPress={() => selectCenter(center)}
+                onPress={() => selectResult(item)}
               >
-                <Text style={styles.resultIcon}>📍</Text>
+                <Text style={styles.resultIcon}>{searchTypeIcon(item.type)}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.resultText} numberOfLines={1}>{center.name}</Text>
-                  {center.address ? <Text style={styles.resultSubText} numberOfLines={1}>{center.address}</Text> : null}
+                  <Text style={styles.resultText} numberOfLines={1}>{item.name}</Text>
+                  {item.subtitle ? <Text style={styles.resultSubText} numberOfLines={1}>{item.subtitle}</Text> : null}
                 </View>
               </TouchableOpacity>
             ))}
@@ -644,6 +684,27 @@ export default function HomeCitizenScreen() {
           <Image source={Info} style={styles.buttonIcon} />
         </TouchableOpacity>
       </View>
+
+      {/* ── Event ended: thank-you for participation + 10 points granted ── */}
+      {endedPopup && (
+        <View style={styles.eventOverlay}>
+          <TouchableOpacity style={styles.eventBackdrop} activeOpacity={1} onPress={() => setEndedPopup(null)} />
+          <View style={styles.eventCard}>
+            <Text style={styles.endedTitle}>🎉 Grazie per aver partecipato!</Text>
+            <Text style={styles.endedBody}>
+              {endedPopup.events.length === 1
+                ? `L'evento "${endedPopup.events[0].name}" è terminato.`
+                : `${endedPopup.events.length} eventi a cui partecipavi sono terminati.`}
+            </Text>
+            <View style={styles.eventBoostBanner}>
+              <Text style={styles.eventBoostTxt}>+{endedPopup.points} punti per la partecipazione</Text>
+            </View>
+            <TouchableOpacity style={styles.joinBtn} activeOpacity={0.85} onPress={() => setEndedPopup(null)}>
+              <Text style={styles.joinTxt}>Chiudi</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* ── Event characteristics modal (click on an event) + join button ── */}
       {viewingEvent && (
@@ -745,6 +806,8 @@ const styles = StyleSheet.create({
   joinTxt: { color: '#fff', fontSize: 16, fontWeight: '700' },
   joinedBtn: { backgroundColor: '#e8f5e9', borderWidth: 1.5, borderColor: '#009933' },
   joinedTxt: { color: '#2e7d32', fontSize: 15, fontWeight: '700' },
+  endedTitle: { fontSize: 20, fontWeight: '800', color: '#1a1a1a', textAlign: 'center', marginBottom: 8 },
+  endedBody: { fontSize: 14, color: '#555', textAlign: 'center', lineHeight: 20 },
 
   mapPlaceholder: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

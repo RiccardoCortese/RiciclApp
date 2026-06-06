@@ -2,7 +2,12 @@ const express = require('express');
 const router  = express.Router();
 
 const RecyclingEvent = require('../models/event');
+const User           = require('../models/user');
 const authMiddleware = require('../middleware/authMiddleware');
+
+// Punti di ringraziamento assegnati una sola volta a chi ha partecipato a un
+// evento, quando l'evento si conclude.
+const PARTICIPATION_REWARD = 10;
 
 // Moltiplicatori ammessi per il boost dell'evento.
 const ALLOWED_BOOSTS = [2, 3, 5, 10];
@@ -120,6 +125,53 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'ID dell\'evento non valido' });
     }
     console.error('Errore durante l\'eliminazione dell\'evento:', error);
+    return res.status(500).json({ message: 'Errore del server' });
+  }
+});
+
+// ── POST /api/events/settle  (cittadino autenticato) ─────────────────────────
+// Liquida gli eventi conclusi a cui l'utente ha partecipato e per cui non ha
+// ancora ricevuto i punti di ringraziamento: assegna +10 una sola volta per
+// evento e restituisce gli eventi appena liquidati (per il popup di ringrazio).
+// Va dichiarata PRIMA di "/:id/join" per non essere oscurata da rotte dinamiche.
+router.post('/settle', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: 'Utente non autenticato' });
+
+    const now = new Date();
+    const candidates = await RecyclingEvent.find({
+      endDate: { $lte: now },
+      participants: userId,
+      rewardedParticipants: { $ne: userId },
+    }).lean();
+
+    const settled = [];
+    for (const ev of candidates) {
+      // Claim atomico: aggiunge l'utente ai premiati solo se non c'è già, così
+      // chiamate concorrenti non assegnano i punti due volte.
+      const claimed = await RecyclingEvent.findOneAndUpdate(
+        { _id: ev._id, participants: userId, rewardedParticipants: { $ne: userId } },
+        { $addToSet: { rewardedParticipants: userId } },
+        { new: true }
+      );
+      if (claimed) settled.push({ _id: ev._id, name: ev.name });
+    }
+
+    const pointsAwarded = settled.length * PARTICIPATION_REWARD;
+    if (pointsAwarded > 0) {
+      await User.findByIdAndUpdate(userId, { $inc: { points: pointsAwarded } });
+    }
+    const user = await User.findById(userId).lean();
+
+    return res.status(200).json({
+      settled,
+      pointsPerEvent: PARTICIPATION_REWARD,
+      pointsAwarded,
+      totalPoints: user?.points ?? null,
+    });
+  } catch (error) {
+    console.error('Errore durante la liquidazione degli eventi conclusi:', error);
     return res.status(500).json({ message: 'Errore del server' });
   }
 });
