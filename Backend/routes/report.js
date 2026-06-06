@@ -118,4 +118,37 @@ router.put('/update/:reportId', async (req, res) => {
     }
 });
 
+router.put('/assign/:reportId', async (req, res) => {
+    try {
+        const { reportId } = req.params;
+        const { assignedTo } = req.body;
+
+        if (!assignedTo) {
+            return res.status(400).json({ success: false, message: "ID operatore mancante." });
+        }
+
+        // Trova il report e aggiorna sia il campo dell'operatore sia lo status
+        const updatedReport = await Report.findByIdAndUpdate(
+            reportId,
+            {
+                assignedTo: assignedTo,
+                status: 'ASSIGNED' // Cambiamo lo status in ASSIGNED
+            },
+            { new: true }
+        );
+
+        if (!updatedReport) {
+            return res.status(404).json({ success: false, message: "Segnalazione non trovata." });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Operatore assegnato con successo.",
+            report: updatedReport
+        });
+    } catch (error) {
+        console.error("Errore durante l'assegnazione:", error);
+        return res.status(500).json({ success: false, message: "Errore del server." });
+    }
+});
 module.exports = router;

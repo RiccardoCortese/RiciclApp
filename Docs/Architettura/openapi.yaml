@@ -682,6 +682,7 @@ components:
         - address
         - area
         - coordinates
+
     Report:
       type: object
       required:
@@ -718,7 +719,14 @@ components:
             - IN_PROGRESS
             - RESOLVED
             - REJECTED
+            - ASSIGNED
           example: PENDING
+
+        assignedTo:
+          type: string
+          nullable: true
+          description: Operatore assegnato alla gestione della segnalazione
+          example: "683a7e4f9b12c8a55555555"
 
         createdAt:
           type: string

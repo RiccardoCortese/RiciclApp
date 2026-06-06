@@ -796,6 +796,15 @@ export default function HomeAdminScreen() {
       setSavingCenter(false);
     }
   };
+  //button per la side bar a sinistra 
+  const sideButtons = [
+    //  REPORT ADMIN
+  { id: 0, icon: admin_report, label: 'Segnalazioni', onPress: () => router.push('/report_admin') }, 
+  { id: 1, icon: WorkImg},
+  { id: 2, icon: WorkImg },
+  { id: 3, icon: WorkImg},
+  { id: 4, icon: WorkImg},
+];
 
   // ── Mobile fallback ──────────────────────────────────────────────────────────
   if (Platform.OS !== 'web') {

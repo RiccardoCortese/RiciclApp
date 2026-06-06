@@ -287,22 +287,40 @@ export default function HomeOperatorScreen() {
     useCallback(() => {
       AsyncStorage.getItem('profileAvatarUri').then(uri => setAvatarUri(uri || null));
 
-      // Recupero delle segnalazioni reali filtrate per stato "accept"
-      axios.get(`${API_URL}/report/all`)
-        .then(r => {
-          const allReports = Array.isArray(r.data?.reports) ? r.data.reports : [];
-          // Filtro mantenendo solo quelle con status 'ACCEPT' 
-          console.log("Segnalazioni recuperate:", allReports);
-          const acceptedReports = allReports.filter(s => s.status === 'ACCEPT');
-          setSegnalazioni(acceptedReports);
-        })
-        .catch(err => {
-          console.error("Errore nel recupero delle segnalazioni:", err);
-          setSegnalazioni([]);
-        });
+      // Recupera l'ID dell'operatore da AsyncStorage
+      AsyncStorage.getItem('user').then(userString => {
+
+        if (!userString) {
+          console.warn("Attenzione: nessun dato utente trovato in AsyncStorage");
+        }
+
+        // Estrai l'ID operatore dal JSON dell'utente, parse perché è salvato come stringa
+        const loggedInUser = JSON.parse(userString);
+        const currentIdOperatore = loggedInUser.id;
+
+        // Recupera tutte le segnalazioni dal backend
+        axios.get(`${API_URL}/report/all`)
+          .then(r => {
+            const allReports = Array.isArray(r.data?.reports) ? r.data.reports : [];
+
+            const assignedReports = allReports.filter(s => {
+              const operatorIdInReport = s.assignedTo; 
+
+              // Controlla che lo status sia 'ASSIGNED' e l'ID combaci alla perfezione
+              return s.status === 'ASSIGNED' && operatorIdInReport === currentIdOperatore;
+            });
+            setSegnalazioni(assignedReports);
+          })
+          .catch(err => {
+            console.error("Errore nel recupero delle segnalazioni:", err);
+            setSegnalazioni([]);
+          });
+
+      }).catch(err => {
+        console.error("Errore nel recupero di profileId da AsyncStorage:", err);
+      });
     }, [])
   );
-
   const handleQueryChange = (text) => {
     setSearchQuery(text);
     setSelectedCenter(null);

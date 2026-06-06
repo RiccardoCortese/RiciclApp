@@ -28,8 +28,6 @@ export default function Login() {
     await AsyncStorage.setItem("userRole", user.role); // Salvo anche il ruolo per il redirect
 
     alert("Successo", "Login effettuato!");
-    console.log("TOKEN:", token);
-    console.log("USER:", user);
     
     router.replace('/'); // Torna alla home page
 

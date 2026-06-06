@@ -1,42 +1,59 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../../src/config';
 import { useRouter } from 'expo-router';
+import { Picker } from '@react-native-picker/picker'; // Importazione del Picker per la selezione dell'operatore
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AdminReportsScreen() {
     const [reports, setReports] = useState([]);
+    const [operators, setOperators] = useState([]); // Stato per memorizzare gli operatori disponibili
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('registered_user');
     const router = useRouter();
 
-    const fetchReports = async () => {
-        // Recupera tutte le segnalazioni dal backend
+    const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`${API_URL}/report/all`);
-            setReports(response.data.reports || response.data || []);
+            // Recupera tutte le segnalazioni
+            const reportsRes = await axios.get(`${API_URL}/report/all`);
+            setReports(reportsRes.data.reports || reportsRes.data || []);
+
+            // Recupera tutti gli utenti per filtrare solo gli operatori -> SOLO ADMIN PUO' VEDERE GLI OPERATORI DISPONIBILI PER L'ASSEGNAZIONE
+            const token = await AsyncStorage.getItem('token');
+
+            const usersRes = await axios.get(`${API_URL}/user/all`, {
+                headers: { 
+                    Authorization: `Bearer ${token}` }
+            });
+
+            const allUsers = usersRes.data.users || usersRes.data || [];
+            const onlyOperators = allUsers.filter(u => u.role === 'operator');
+            setOperators(onlyOperators);
+
         } catch (err) {
-            console.error("Errore nel recupero delle segnalazioni:", err);
+            console.error("Errore nel recupero dei dati:", err);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        // Carica le segnalazioni all'avvio del componente
-        fetchReports();
+        fetchData();
     }, []);
 
     const handleAction = async (reportId, action) => {
         try {
-            // Invia la decisione al backend per aggiornare lo stato del report
+            const nextStatus = action === 'ACCEPT' ? 'ACCEPT' : 'REJECTED';
             const response = await axios.put(`${API_URL}/report/update/${reportId}`, {
-                status: action === 'ACCEPT' ? 'IN_PROGRESS' : 'REJECTED'
+                status: nextStatus
             });
 
             if (response.status === 200 || response.data.success) {
-                setReports(prevReports => prevReports.filter(r => r._id !== reportId));
+                setReports(prevReports =>
+                    prevReports.map(r => r._id === reportId ? { ...r, status: nextStatus } : r)
+                );
                 alert(`Segnalazione ${action === 'ACCEPT' ? 'accettata' : 'rifiutata'} con successo.`);
             } else {
                 alert("Impossibile aggiornare lo stato della segnalazione.");
@@ -47,9 +64,41 @@ export default function AdminReportsScreen() {
         }
     };
 
+    // Funzione per assegnare l'operatore alla segnalazione
+    const handleAssignOperator = async (reportId, operatorId) => {
+        if (!operatorId) return;
+        try {
+            // Effettua la chiamata al backend per assegnare l'operatore alla segnalazione
+            const response = await axios.put(`${API_URL}/report/assign/${reportId}`, {
+                assignedTo: operatorId
+            });
+
+            if (response.status === 200 || response.data.success) {
+                // Aggiorna lo stato locale modificando sia assignedTo che lo status in 'ASSIGNED'
+                setReports(prevReports =>
+                    prevReports.map(r => r._id === reportId ? { ...r, assignedTo: operatorId, status: 'ASSIGNED' } : r)
+                );
+                alert("Operatore assegnato con successo! La segnalazione è stata spostata nelle 'Assegnate'.");
+            } else {
+                alert("Impossibile assegnare l'operatore.");
+            }
+        } catch (err) {
+            console.error("Errore durante l'assegnazione dell'operatore:", err);
+            alert("Errore di connessione durante l'assegnazione.");
+        }
+    };
+
+    // Filtra le segnalazioni in base alla tab attiva e allo status delle varie tab (pending, approved, assigned)
     const filteredReports = reports.filter(report => {
+        if (activeTab === 'segnalazioni_approvate') {
+            return report.status === 'ACCEPT';
+        }
+        if (activeTab === 'segnalazioni_assegnate') {
+            return report.status === 'ASSIGNED';
+        }
+        const isPending = report.status !== 'ACCEPT' && report.status !== 'REJECTED' && report.status !== 'ASSIGNED';
         const userRole = report.userId?.role || 'registered_user';
-        return userRole === activeTab;
+        return isPending && userRole === activeTab;
     });
 
     if (loading) {
@@ -71,14 +120,14 @@ export default function AdminReportsScreen() {
                 <Text style={styles.title}>Pannello Amministratore</Text>
                 <Text style={styles.subtitle}>Gestione e approvazione segnalazioni guasti</Text>
 
-                {/* ── TAB DI SEPARAZIONE ── */}
+                {/* ── TAB DI SEPARAZIONE AGGIORNATA CON 4 PULSANTI ── */}
                 <View style={styles.tabContainer}>
                     <TouchableOpacity
                         style={[styles.tabButton, activeTab === 'registered_user' && styles.activeTabButton]}
                         onPress={() => setActiveTab('registered_user')}
                     >
                         <Text style={[styles.tabButtonText, activeTab === 'registered_user' && styles.activeTabButtonText]}>
-                            👤 Utenti Registrati ({reports.filter(r => (r.userId?.role || 'registered_user') === 'registered_user').length})
+                            👤 Report Cittadini ({reports.filter(r => r.status !== 'ACCEPT' && r.status !== 'REJECTED' && r.status !== 'ASSIGNED' && (r.userId?.role || 'registered_user') === 'registered_user').length})
                         </Text>
                     </TouchableOpacity>
 
@@ -87,7 +136,25 @@ export default function AdminReportsScreen() {
                         onPress={() => setActiveTab('operator')}
                     >
                         <Text style={[styles.tabButtonText, activeTab === 'operator' && styles.activeTabButtonText]}>
-                            🛠️ Operatori ({reports.filter(r => r.userId?.role === 'operator').length})
+                            🛠️ Report Operatori ({reports.filter(r => r.status !== 'ACCEPT' && r.status !== 'REJECTED' && r.status !== 'ASSIGNED' && r.userId?.role === 'operator').length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'segnalazioni_approvate' && styles.activeTabButton]}
+                        onPress={() => setActiveTab('segnalazioni_approvate')}
+                    >
+                        <Text style={[styles.tabButtonText, activeTab === 'segnalazioni_approvate' && styles.activeTabButtonText]}>
+                            ✅ Approvate ({reports.filter(r => r.status === 'ACCEPT').length})
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'segnalazioni_assegnate' && styles.activeTabButton]}
+                        onPress={() => setActiveTab('segnalazioni_assegnate')}
+                    >
+                        <Text style={[styles.tabButtonText, activeTab === 'segnalazioni_assegnate' && styles.activeTabButtonText]}>
+                            🏃 Assegnate ({reports.filter(r => r.status === 'ASSIGNED').length})
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -100,7 +167,11 @@ export default function AdminReportsScreen() {
                         {filteredReports.map((report) => (
                             <View key={report._id} style={[
                                 styles.reportCard,
-                                activeTab === 'operator' ? styles.operatorCardBorder : styles.userCardBorder
+                                activeTab === 'segnalazioni_assegnate'
+                                    ? styles.assignedCardBorder
+                                    : activeTab === 'segnalazioni_approvate'
+                                        ? styles.approvedCardBorder
+                                        : (report.userId?.role === 'operator' ? styles.operatorCardBorder : styles.userCardBorder)
                             ]}>
 
                                 <View style={styles.cardHeader}>
@@ -108,35 +179,61 @@ export default function AdminReportsScreen() {
                                         {report.binType?.toUpperCase() || 'RIFIUTO'} ({report.binName || 'N/D'})
                                     </Text>
                                     <Text style={styles.userRoleBadge}>
-                                        {activeTab === 'operator' ? '👷 Operatore' : '📱 Cittadino'}
+                                        {report.userId?.role === 'operator' ? '👷 Operatore' : '📱 Cittadino'}
                                     </Text>
                                 </View>
 
-                                {/* Info Utente */}
                                 <Text style={styles.reporterName}>Inviata da: {report.userId?.name || 'Utente Sconosciuto'}</Text>
-
-                                {/* 📍 INFO DEL CENTRO AGGIUNTA QUI */}
                                 <Text style={styles.centerNameText}>📍 Centro: {report.binCenter || 'Centro non disponibile'}</Text>
 
                                 <View style={styles.descriptionBox}>
                                     <Text style={styles.descriptionText}>"{report.description}"</Text>
                                 </View>
 
-                                <View style={styles.actionsRow}>
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, styles.rejectButton]}
-                                        onPress={() => handleAction(report._id, 'REJECT')}
-                                    >
-                                        <Text style={styles.rejectButtonText}>❌ Rifiuta</Text>
-                                    </TouchableOpacity>
+                                {/* ── GESTIONE DINAMICA DEL CONTENUTO DELLE CARD IN BASE ALLA TAB ── */}
+                                {activeTab === 'segnalazioni_assegnate' ? (
+                                    // Vista per la nuova Tab Assegnate: Mostra a chi è in carico
+                                    <View style={styles.assignmentBox}>
+                                        <Text style={styles.assignmentLabel}>👷 Operatore incaricato:</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#1565c0' }}>
+                                            {operators.find(op => op._id === report.assignedTo)?.name || report.assignedOperator?.name || 'Operatore Assegnato'}
+                                        </Text>
+                                        <Text style={styles.assignedStatus}>Status: Scansione presa in carico</Text>
+                                    </View>
+                                ) : activeTab === 'segnalazioni_approvate' ? (
+                                    // Vista per la Tab Approvate: Picker per effettuare l'assegnazione
+                                    <View style={styles.assignmentBox}>
+                                        <Text style={styles.assignmentLabel}>👷 Assegna a un Operatore:</Text>
+                                        <View style={styles.pickerWrapper}>
+                                            <Picker
+                                                selectedValue={report.assignedTo || ''}
+                                                style={styles.pickerStyle}
+                                                onValueChange={(itemValue) => handleAssignOperator(report._id, itemValue)}
+                                            >
+                                                <Picker.Item label="Seleziona Operatore..." value="" />
+                                                {operators.map(op => (
+                                                    <Picker.Item key={op._id} label={op.name} value={op._id} />
+                                                ))}
+                                            </Picker>
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <View style={styles.actionsRow}>
+                                        <TouchableOpacity
+                                            style={[styles.actionButton, styles.rejectButton]}
+                                            onPress={() => handleAction(report._id, 'REJECT')}
+                                        >
+                                            <Text style={styles.rejectButtonText}>❌ Rifiuta</Text>
+                                        </TouchableOpacity>
 
-                                    <TouchableOpacity
-                                        style={[styles.actionButton, styles.acceptButton]}
-                                        onPress={() => handleAction(report._id, 'ACCEPT')}
-                                    >
-                                        <Text style={styles.acceptButtonText}>✅ Approva</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                        <TouchableOpacity
+                                            style={[styles.actionButton, styles.acceptButton]}
+                                            onPress={() => handleAction(report._id, 'ACCEPT')}
+                                        >
+                                            <Text style={styles.acceptButtonText}>✅ Approva</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
 
                             </View>
                         ))}
@@ -198,7 +295,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: 4,
         marginTop: 15,
-        maxWidth: 600
+        maxWidth: 800
     },
     tabButton: {
         flex: 1,
@@ -217,7 +314,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15
     },
     tabButtonText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '600',
         color: '#666'
     },
@@ -262,6 +359,10 @@ const styles = StyleSheet.create({
     operatorCardBorder: {
         borderLeftWidth: 5,
         borderLeftColor: '#2196f3'
+    },
+    approvedCardBorder: {
+        borderLeftWidth: 5,
+        borderLeftColor: '#ef6c00'
     },
     cardHeader: {
         flexDirection: 'row',
@@ -340,5 +441,35 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 40,
         width: '100%'
+    },
+    assignmentBox: {
+        marginTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+        paddingTop: 12
+    },
+    assignmentLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#444',
+        marginBottom: 6
+    },
+    pickerWrapper: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        overflow: 'hidden'
+    },
+    pickerStyle: {
+        height: 40,
+        width: '100%'
+    },
+    assignedStatus: {
+        fontSize: 12,
+        color: '#ef6c00',
+        marginTop: 6,
+        fontWeight: '600',
+        fontStyle: 'italic'
     }
 });

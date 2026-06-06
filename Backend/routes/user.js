@@ -230,5 +230,21 @@ router.delete('/delete', authMiddleware, async (req, res) => {
     }
 });
 
+//rotta per ottenere tutti gli utenti (solo per admin)
+router.get('/all', authMiddleware, async (req, res) => {
+    try {
+        // Verifica che l'utente sia un admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Accesso negato: solo admin possono accedere a questa risorsa' });
+        }
+
+        const users = await User.find({}, { password: 0, passwordResetToken: 0 }); // Esclude i campi sensibili
+        console.log("Utenti recuperati:", users);
+        res.status(200).json({ users });
+    } catch (error) {
+        console.error('Errore durante il recupero degli utenti:', error);
+        res.status(500).json({ message: 'Errore del server' });
+    }
+});
 
 module.exports = router;
