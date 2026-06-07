@@ -154,7 +154,7 @@ export default function AdminReportsScreen() {
                         onPress={() => setActiveTab('segnalazioni_assegnate')}
                     >
                         <Text style={[styles.tabButtonText, activeTab === 'segnalazioni_assegnate' && styles.activeTabButtonText]}>
-                            🏃 Assegnate ({reports.filter(r => r.status === 'ASSIGNED').length})
+                            🎯 Assegnate ({reports.filter(r => r.status === 'ASSIGNED').length})
                         </Text>
                     </TouchableOpacity>
                 </View>

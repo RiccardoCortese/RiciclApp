@@ -418,9 +418,6 @@ export default function BinScreen({ centerId, onBack }) {
                     <Text style={styles.adminDeleteTxt}>🗑  Elimina bidone</Text>
                   </TouchableOpacity>
                 </View>
-              ) : isOperator ? (
-                /* L'operatore può solo visualizzare, nessuna azione */
-                null
               ) : (
                 /* Pulsante di Segnalazione dinamico (cittadini) */
                 <TouchableOpacity
