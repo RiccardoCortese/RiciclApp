@@ -621,6 +621,17 @@ export default function HomeCitizenScreen() {
           />
         </View>
 
+        {/* ── Bottone Lista Premi ── */}
+        <TouchableOpacity
+          style={styles.rewardsFloatingButton}
+          activeOpacity={0.85}
+          onPress={() => router.push('/rewards')}
+        >
+          <Text style={styles.rewardsFloatingButtonText}>
+            🎁 Premi
+          </Text>
+        </TouchableOpacity>
+
         {searchError && (
           <View style={styles.searchErrorBox}>
             <Text style={styles.searchErrorText}>Location not found</Text>
@@ -864,4 +875,25 @@ const styles = StyleSheet.create({
   resultIcon: { fontSize: 16 },
   resultText: { fontSize: 14, color: '#333', lineHeight: 20 },
   resultSubText: { fontSize: 12, color: '#888', lineHeight: 16 },
+  rewardsFloatingButton: {
+    alignSelf: 'flex-start',
+    marginTop: 12,
+    backgroundColor: '#009933',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 8
+  },
+  rewardsFloatingButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700'
+  },
 });
