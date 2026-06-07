@@ -52,6 +52,54 @@ router.get('/bins', async (req, res) => {
     }
 });
 
+router.get('/bins/:binId/fill-level', async (req, res) => {
+  try {
+    const { binId } = req.params;
+
+    const bin = await Bin.findById(binId);
+
+    if (!bin) {
+      return res.status(404).json({ message: 'Bidone non trovato' });
+    }
+
+    const fillLevel = Number(bin.fillLevel || 0);
+
+    let fillColor;
+    let fillLabel;
+
+    if (fillLevel >= 80) {
+      fillColor = '#d32f2f';
+      fillLabel = 'Pieno';
+    } else if (fillLevel >= 50) {
+      fillColor = '#f9a825';
+      fillLabel = 'Medio riempimento';
+    } else {
+      fillColor = '#2e7d32';
+      fillLabel = 'Disponibile';
+    }
+
+    bin.status = fillLevel >= 80 ? 'PIENO' : 'OK';
+    await bin.save();
+
+    return res.status(200).json({
+      _id: bin._id,
+      binCode: bin.binCode,
+      name: bin.name,
+      wasteType: bin.wasteType,
+      wasteTypes: bin.wasteTypes,
+      fillLevel,
+      status: bin.status,
+      fillColor,
+      fillLabel,
+      sensor: bin.sensor,
+      updatedAt: bin.updatedAt,
+    });
+  } catch (error) {
+    console.error('Errore recupero livello riempimento:', error);
+    return res.status(500).json({ message: 'Errore server' });
+  }
+});
+
 //Rotta per il singolo centro + i suoi bidoni
 router.get('/:id', async (req, res) => {
   try {

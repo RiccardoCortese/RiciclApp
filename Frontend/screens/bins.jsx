@@ -24,6 +24,11 @@ export default function BinScreen({ centerId, onBack }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false); 
 
+  // Stati per gestione visualizzazione livello riempimento bidoni
+  const [fillModalVisible, setFillModalVisible] = useState(false);
+  const [fillDetailsLoading, setFillDetailsLoading] = useState(false);
+  const [selectedFillBin, setSelectedFillBin] = useState(null);
+
   useEffect(() => {
     if (!centerId || centerId === 'undefined') {
       console.warn("ID del centro non valido o non ricevuto:", centerId);
@@ -207,6 +212,80 @@ export default function BinScreen({ centerId, onBack }) {
     );
   }
 
+  // Restituisce il colore del bidone in base alla percentuale di riempimento
+  const getFillColor = (fillLevel) => {
+    const value = Number(fillLevel || 0);
+
+    if (value >= 80) return '#d32f2f';
+    if (value >= 50) return '#f9a825';
+
+    return '#2e7d32';
+  };
+
+  // Restituisce l'etichetta testuale del livello di riempimento
+  const getFillLabel = (fillLevel) => {
+    const value = Number(fillLevel || 0);
+
+    if (value >= 80) return 'Pieno';
+    if (value >= 50) return 'Medio riempimento';
+
+    return 'Disponibile';
+  };
+
+  // Recupera dal backend il livello aggiornato del bidone selezionato
+  const openFillDetails = async (bin) => {
+
+    if (!isOperator || !bin?._id) return;
+
+    setSelectedFillBin(bin);
+    setFillModalVisible(true);
+    setFillDetailsLoading(true);
+
+    try {
+
+      const response = await axios.get(
+        `${API_URL}/centers/bins/${bin._id}/fill-level`
+      );
+
+      const updatedBin = response.data;
+
+      setSelectedFillBin(updatedBin);
+
+      setCenter(prev =>
+        prev
+          ? {
+              ...prev,
+              bins: (prev.bins || []).map(b =>
+                b._id === updatedBin._id
+                  ? {
+                      ...b,
+                      ...updatedBin,
+                      color: updatedBin.fillColor,
+                    }
+                  : b
+              ),
+            }
+          : prev
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Errore recupero livello riempimento:",
+        error
+      );
+
+      setErrorMessage(
+        "Errore nel recupero dello stato di riempimento."
+      );
+
+    } finally {
+
+      setFillDetailsLoading(false);
+
+    }
+  };
+
   const binsList = center.bins || [];
 
   // Visualizzazione bidoni;
@@ -255,17 +334,43 @@ export default function BinScreen({ centerId, onBack }) {
             : 'Rifiuto';
 
           return (
-            <View key={bin._id || index} style={styles.binRow}>
+            <TouchableOpacity
+              key={bin._id || index}
+              style={styles.binRow}
+              activeOpacity={isOperator ? 0.75 : 1}
+              onPress={() => {
+                if (isOperator) {
+                  openFillDetails(bin);
+                }
+              }}
+            >
               <View style={styles.binInfoText}>
-                <Text style={styles.binType}>{formattedWasteType} ({bin.binCode || 'Codice non disponibile'})</Text>
-                
+                <Text style={styles.binType}>
+                  {formattedWasteType} ({bin.binCode || 'Codice non disponibile'})
+                </Text>
+
                 {/* Il testo sopra la barra cambia in base allo stato */}
-                <Text style={[styles.binPercentage, { color: isInMaintenance ? '#777' : (isBroken ? '#cc0000' : (isReported ? '#ff9800' : (isAlmostFull ? '#cc0000' : '#555'))) }]}>
+                <Text style={[
+                  styles.binPercentage,
+                  {
+                    color: isInMaintenance
+                      ? '#777'
+                      : (isBroken
+                          ? '#cc0000'
+                          : (isReported
+                              ? '#ff9800'
+                              : (isAlmostFull ? '#cc0000' : '#555')))
+                  }
+                ]}>
                   {isInMaintenance
                     ? '🔧 In Manutenzione'
                     : (isBroken
                         ? '❌ Guasto'
-                        : (isReported ? '⚠️ Segnalato' : `${bin.fillLevel}% ${isAlmostFull ? '⚠️ Quasi Pieno' : ''}`))}
+                        : (isReported
+                            ? '⚠️ Segnalato'
+                            : (isOperator
+                                ? `${bin.fillLevel}% - ${getFillLabel(bin.fillLevel)}`
+                                : `${bin.fillLevel}% ${isAlmostFull ? '⚠️ Quasi Pieno' : ''}`)))}
                 </Text>
               </View>
 
@@ -275,7 +380,11 @@ export default function BinScreen({ centerId, onBack }) {
                   styles.progressBarFill,
                   {
                     width: isInMaintenance ? '100%' : `${bin.fillLevel}%`,
-                    backgroundColor: isInMaintenance ? '#9e9e9e' : (isAlmostFull ? '#cc0000' : (bin.color || '#009933'))
+                    backgroundColor: isInMaintenance
+                      ? '#9e9e9e'
+                      : (isOperator
+                          ? getFillColor(bin.fillLevel)
+                          : (isAlmostFull ? '#cc0000' : (bin.color || '#009933')))
                   }
                 ]} />
               </View>
@@ -300,6 +409,7 @@ export default function BinScreen({ centerId, onBack }) {
                       );
                     })}
                   </View>
+
                   <TouchableOpacity
                     style={styles.adminDeleteBtn}
                     onPress={() => deleteBin(bin._id)}
@@ -317,17 +427,22 @@ export default function BinScreen({ centerId, onBack }) {
                   style={[
                     styles.actionReportButton,
                     isButtonDisabled && styles.disabledReportButton,
-                    isReported && styles.reportedReportButton // Colore giallo/arancio tenue se segnalato
+                    isReported && styles.reportedReportButton
                   ]}
                   onPress={() => openReportModal(bin)}
                   disabled={isButtonDisabled}
                 >
-                  <Text style={[styles.actionReportButtonText, isButtonDisabled && styles.disabledReportButtonText]}>
-                    {isInMaintenance ? '🔧 In Riparazione' : (isReported ? '⚠️ Segnalato' : '⚠️ Segnala Guasto')}
+                  <Text style={[
+                    styles.actionReportButtonText,
+                    isButtonDisabled && styles.disabledReportButtonText
+                  ]}>
+                    {isInMaintenance
+                      ? '🔧 In Riparazione'
+                      : (isReported ? '⚠️ Segnalato' : '⚠️ Segnala Guasto')}
                   </Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </TouchableOpacity>
           );
         })
       ) : (
@@ -349,7 +464,10 @@ export default function BinScreen({ centerId, onBack }) {
               <View style={styles.successContainer}>
                 <Text style={styles.successIcon}>✅</Text>
                 <Text style={styles.successTitle}>Grazie!</Text>
-                <Text style={styles.successText}>La segnalazione è stata inviata e lo stato del bidone è stato aggiornato.</Text>
+                <Text style={styles.successText}>
+                  La segnalazione è stata inviata e lo stato del bidone è stato aggiornato.
+                </Text>
+
                 <TouchableOpacity style={styles.closeModalBtn} onPress={handleCloseModal}>
                   <Text style={styles.closeModalBtnText}>Chiudi</Text>
                 </TouchableOpacity>
@@ -361,7 +479,9 @@ export default function BinScreen({ centerId, onBack }) {
                   Segnala guasto: {(selectedBin?.wasteType || 'Rifiuto').toUpperCase()} ({selectedBin?.binCode})
                 </Text>
                 
-                {errorMessage ? <Text style={styles.modalErrorText}>⚠️ {errorMessage}</Text> : null}
+                {errorMessage ? (
+                  <Text style={styles.modalErrorText}>⚠️ {errorMessage}</Text>
+                ) : null}
                 
                 <TextInput
                   style={styles.textArea}
@@ -385,7 +505,11 @@ export default function BinScreen({ centerId, onBack }) {
                     onPress={submitReport}
                     disabled={sending}
                   >
-                    {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmButtonText}>Invia</Text>}
+                    {sending ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.confirmButtonText}>Invia</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -394,6 +518,63 @@ export default function BinScreen({ centerId, onBack }) {
           </View>
         </View>
       </Modal>
+
+      {/* ── MODAL LIVELLO RIEMPIMENTO OPERATORE ── */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={fillModalVisible}
+        onRequestClose={() => setFillModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {fillDetailsLoading ? (
+              <ActivityIndicator size="large" color="#009933" />
+            ) : (
+              <View>
+                <Text style={styles.modalTitle}>
+                  Stato riempimento bidone
+                </Text>
+
+                <Text style={styles.infoLine}>
+                  Codice: {selectedFillBin?.binCode || 'Non disponibile'}
+                </Text>
+
+                <Text style={styles.infoLine}>
+                  Tipo rifiuto: {selectedFillBin?.wasteType || 'Non disponibile'}
+                </Text>
+
+                <Text style={styles.infoLine}>
+                  Riempimento: {selectedFillBin?.fillLevel ?? 0}%
+                </Text>
+
+                <Text style={styles.infoLine}>
+                  Stato: {selectedFillBin?.fillLabel || getFillLabel(selectedFillBin?.fillLevel)}
+                </Text>
+
+                <View
+                  style={[
+                    styles.fillColorPreview,
+                    {
+                      backgroundColor:
+                        selectedFillBin?.fillColor ||
+                        getFillColor(selectedFillBin?.fillLevel),
+                    },
+                  ]}
+                />
+
+                <TouchableOpacity
+                  style={styles.closeModalBtn}
+                  onPress={() => setFillModalVisible(false)}
+                >
+                  <Text style={styles.closeModalBtnText}>Chiudi</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 }
@@ -649,5 +830,14 @@ const styles = StyleSheet.create({
     color: '#fff', 
     fontWeight: '600', 
     fontSize: 15 
-  }
+  },
+  fillColorPreview: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignSelf: 'center',
+    marginVertical: 20,
+    borderWidth: 2,
+    borderColor: '#ddd'
+  },
 });
