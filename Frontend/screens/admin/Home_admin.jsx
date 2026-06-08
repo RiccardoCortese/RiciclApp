@@ -104,6 +104,16 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
     return r && typeof r.getScrollableNode === 'function' ? r.getScrollableNode() : null;
   };
 
+  const clampIndex = (i) => Math.max(0, Math.min(data.length - 1, i));
+
+  // Move the selection by `delta` rows (used by the ▲/▼ buttons). It only nudges
+  // the index; the effect below then scrolls the wheel so the newly-selected
+  // option slides to the centre and is clearly visible.
+  const stepBy = (delta) => {
+    const i = clampIndex(indexRef.current + delta);
+    if (i !== indexRef.current) onIndexChangeRef.current?.(i);
+  };
+
   useEffect(() => {
     // Align the initially-selected row with the centre highlight.
     const t = setTimeout(() => {
@@ -112,6 +122,23 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep the wheel position in sync with the selected index. When the index
+  // changes from something other than live scrolling (the ▲/▼ buttons), this
+  // smoothly slides that option to the centre so the user can see what is
+  // selected. The distance guard means it never fights a manual scroll that has
+  // already settled on the right row.
+  const firstSync = useRef(true);
+  useEffect(() => {
+    if (firstSync.current) { firstSync.current = false; return; } // mount handled above
+    const target = index * SCROLL_ITEM_H;
+    const node = getNode();
+    if (node) {
+      if (Math.abs(node.scrollTop - target) > 1) node.scrollTo({ top: target, behavior: 'smooth' });
+    } else {
+      ref.current?.scrollTo({ y: target, animated: true });
+    }
+  }, [index]);
 
   // Web: left-mouse-button drag to scrub the column, plus an auto-stabilizer
   // that snaps to the closest option whenever scrolling settles (wheel, drag or
@@ -123,7 +150,10 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
 
     node.style.cursor = 'grab'; // hint that the column can be dragged
 
-    const clampIndex = (i) => Math.max(0, Math.min(data.length - 1, i));
+    // Snap to whichever option is *closest* to the centre when scrolling settles.
+    // Rounding to the nearest row gives a generous half-row tolerance, so a wheel
+    // tick that lands between two options is gently centred on the nearest one —
+    // it is never thrown back to the start of the column.
     const snap = () => {
       const i = clampIndex(Math.round(node.scrollTop / SCROLL_ITEM_H));
       const target = i * SCROLL_ITEM_H;
@@ -173,23 +203,47 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
   }, [data.length]);
 
   return (
-    <View style={{ width, height: SCROLL_ITEM_H * 5 }}>
-      <ScrollView
-        ref={ref}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={SCROLL_ITEM_H}
-        decelerationRate="fast"
-        nestedScrollEnabled
-        contentContainerStyle={{ paddingVertical: SCROLL_ITEM_H * 2 }}
-      >
-        {data.map((item, i) => (
-          <View key={i} style={styles.scrollItem}>
-            <Text style={[styles.scrollItemTxt, i === index && styles.scrollItemTxtActive]} numberOfLines={1}>
-              {renderLabel(item)}
-            </Text>
-          </View>
-        ))}
-      </ScrollView>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ width, height: SCROLL_ITEM_H * 5 }}>
+        <ScrollView
+          ref={ref}
+          showsVerticalScrollIndicator={false}
+          // On web the JS handler above does the snapping; CSS scroll-snap would
+          // fight it and could yank the column back, so only enable the native
+          // snap on real devices.
+          {...(Platform.OS !== 'web' ? { snapToInterval: SCROLL_ITEM_H, decelerationRate: 'fast' } : {})}
+          nestedScrollEnabled
+          contentContainerStyle={{ paddingVertical: SCROLL_ITEM_H * 2 }}
+        >
+          {data.map((item, i) => (
+            <View key={i} style={styles.scrollItem}>
+              <Text style={[styles.scrollItemTxt, i === index && styles.scrollItemTxtActive]} numberOfLines={1}>
+                {renderLabel(item)}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Step the selection by one in either direction */}
+      <View style={styles.wheelArrows}>
+        <TouchableOpacity
+          style={styles.wheelArrowBtn}
+          activeOpacity={0.6}
+          onPress={() => stepBy(-1)}
+          disabled={index <= 0}
+        >
+          <Text style={[styles.wheelArrowTxt, index <= 0 && styles.wheelArrowTxtOff]}>▲</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.wheelArrowBtn}
+          activeOpacity={0.6}
+          onPress={() => stepBy(1)}
+          disabled={index >= data.length - 1}
+        >
+          <Text style={[styles.wheelArrowTxt, index >= data.length - 1 && styles.wheelArrowTxtOff]}>▼</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -899,6 +953,14 @@ export default function HomeAdminScreen() {
     return () => clearInterval(id);
   }, [fetchEvents]);
 
+  // Keep the collection centers in sync too, so a center created elsewhere is
+  // reflected in the neighbourhood statistics ("Centri di Raccolta") without a
+  // page reload.
+  useEffect(() => {
+    const id = setInterval(() => { fetchCenters(); }, 15000);
+    return () => clearInterval(id);
+  }, [fetchCenters]);
+
   // Entering from "Crea nuovo evento di raccolta" starts the event-creation map
   // mode (chrome hidden). The query param is consumed once.
   useEffect(() => {
@@ -958,15 +1020,23 @@ export default function HomeAdminScreen() {
   // project/DB are reported as 0 (never invented); population is the exception.
   const statsForZone = (name) => {
     const b = binStatsByZone[name] || { total: 0, damaged: 0, reported: 0, sensors: 0 };
+    // Collection centers whose coordinates fall inside this circoscrizione.
+    const recyclingCenters = (centers || []).filter(
+      (c) => zoneForCoord(Number(c?.coordinates?.lat), Number(c?.coordinates?.lng)) === name
+    ).length;
+    // Active (not-yet-ended) events located in this circoscrizione.
+    const eventsInZone = activeEvents.filter(
+      (e) => zoneForCoord(Number(e?.coordinates?.lat), Number(e?.coordinates?.lng)) === name
+    ).length;
     return {
-      totalBins:       b.total,
-      operationalBins: Math.max(0, b.total - b.damaged),
-      damagedBins:     b.damaged,
-      activeSensors:   b.sensors,
-      citizens:        ZONE_POPULATION[name] ?? 0,
-      operators:       0, // users carry no neighbourhood/geo data
-      activeEvents:    0, // no events API reachable from the frontend
-      segnalazioni:    b.reported, // bins flagged SEGNALATO by /report/create
+      totalBins:        b.total,
+      operationalBins:  Math.max(0, b.total - b.damaged),
+      activeSensors:    b.sensors,
+      recyclingCenters,
+      citizens:         ZONE_POPULATION[name] ?? 0,
+      operators:        0, // users carry no neighbourhood/geo data
+      activeEvents:     eventsInZone,
+      segnalazioni:     b.reported, // bins flagged SEGNALATO by /report/create
     };
   };
 
@@ -1586,7 +1656,7 @@ export default function HomeAdminScreen() {
                     onPress={() => setCreationType('bin')}
                   >
                     <Text style={styles.choiceBtnIcon}>🗑️</Text>
-                    <Text style={styles.choiceBtnTxt}>Cassone</Text>
+                    <Text style={styles.choiceBtnTxt}>Bidone</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.choiceBtn}
@@ -1594,7 +1664,7 @@ export default function HomeAdminScreen() {
                     onPress={() => setCreationType('center')}
                   >
                     <Text style={styles.choiceBtnIcon}>🏢</Text>
-                    <Text style={styles.choiceBtnTxt}>Centro di Collezione</Text>
+                    <Text style={styles.choiceBtnTxt}>Centro di Raccolta</Text>
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity style={styles.choiceCancel} activeOpacity={0.7} onPress={closePopup}>
@@ -1949,15 +2019,15 @@ export default function HomeAdminScreen() {
       {statsZone && (() => {
         const s = statsForZone(statsZone);
         const leftColumn = [
-          { label: 'Total bins',            value: s.totalBins },
-          { label: 'Operational bins',      value: s.operationalBins },
-          { label: 'Damaged / broken bins', value: s.damagedBins },
-          { label: 'Active sensors',        value: s.activeSensors },
+          { label: 'Bidoni totali',     value: s.totalBins },
+          { label: 'Bidoni operativi',  value: s.operationalBins },
+          { label: 'Sensori attivi',    value: s.activeSensors },
+          { label: 'Centri di Raccolta', value: s.recyclingCenters },
         ];
         const rightColumn = [
-          { label: 'Avg. citizens', value: s.citizens },
-          { label: 'Operators',     value: s.operators },
-          { label: 'Active events', value: s.activeEvents },
+          { label: 'Cittadini',     value: s.citizens },
+          { label: 'Operatori',     value: s.operators },
+          { label: 'Eventi attivi', value: s.activeEvents },
           { label: 'Segnalazioni',  value: s.segnalazioni },
         ];
         const renderColumn = (rows) => rows.map((r) => (
@@ -2410,4 +2480,11 @@ const styles = StyleSheet.create({
   scrollItemTxt: { fontSize: 15, color: '#aaa' },
   scrollItemTxtActive: { color: PRIMARY, fontWeight: '800', fontSize: 16 },
   scrollColon: { fontSize: 18, fontWeight: '800', color: '#555' },
+  wheelArrows: { marginLeft: 4, justifyContent: 'center', gap: 6 },
+  wheelArrowBtn: {
+    width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#e2e2e2',
+  },
+  wheelArrowTxt: { fontSize: 12, color: PRIMARY, fontWeight: '800', lineHeight: 14 },
+  wheelArrowTxtOff: { color: '#ccc' },
 });
