@@ -2,6 +2,7 @@ const exress = require('express');
 const router = exress.Router();
 const Report = require('../models/reports');
 const Center = require('../models/collection_center');
+const Bin = require('../models/bin');
 
 // rotta per generare il percorso ottimizzato per l'operatore
 // il percorso è generato in base alle segnalazioni che appartengono all'operatore e ai centri di raccolta pieni (>= 80% di capacità)
@@ -22,9 +23,22 @@ router.get('/optimized-route/:operatorId', async (req, res) => {
         });
 
         // filtra i centri di raccolta pieni (>= 80% di capacità)
-        const fullCenters = await Center.find({
-            'bins.fillLevel': { $gte: 80 }
+        const fullBins = await Bin.find({
+            'fillLevel': { $gte: 80 }
         });
+
+        const fullCenters = [];
+        for (const bin of fullBins) {
+            if (bin.centerId) {
+                const center = await Center.findById(bin.centerId);
+                if (center) { 
+                    fullCenters.push({
+                        center: center,
+                        bin: bin
+                    });
+                }
+            }
+        }
 
         // crea una lista di punti da visitare (segnalazioni + centri pieni)
         const pointsToVisit = [];
@@ -34,29 +48,31 @@ router.get('/optimized-route/:operatorId', async (req, res) => {
                 pointsToVisit.push({
                     id: report.id,
                     type: 'INTERVENTO',
-                    titolo: "Intervento: ${report.description || Guasto sconosciuto}",
+                    titolo: 'Intervento: ' + (report.description || "Guasto sconosciuto"),
                     indirizzo: report.binId.centerId.address || "Indirizzo sconosciuto",
                     coordinate: {
-                        lat: report.binId.centerId.latitude,
-                        lng: report.binId.centerId.longitude
+                        lat: report.binId.centerId.coordinates.lat,
+                        lng: report.binId.centerId.coordinates.lng
                     }
                 });
             }
         });
 
-        fullCenters.forEach(center => {
+        fullCenters.forEach(item => {
+            const center = item.center;
+            const centerbin = item.bin;
             pointsToVisit.push({
                 id: center.id,
                 type: 'SVUOTAMENTO',
-                titolo: "Svuotamento: ${center.name || Centro sconosciuto}",
+                titolo: 'Svuotamento: ' + (center.name + ' -' + centerbin.wasteType + ' (' + centerbin.binCode + ')' || "Centro sconosciuto"),
                 indirizzo: center.address || "Indirizzo sconosciuto",
                 coordinate: {
-                    lat: center.latitude,
-                    lng: center.longitude
+                    lat: center.coordinates.lat,
+                    lng: center.coordinates.lng
                 }
             });
         });
-
+        console.log("Punti da visitare:", pointsToVisit);
         res.json({ pointsToVisit });
     } catch (error) {
         console.error('Errore nel generare il percorso ottimizzato:', error);
