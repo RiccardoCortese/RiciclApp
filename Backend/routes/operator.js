@@ -64,7 +64,7 @@ router.get('/optimized-route/:operatorId', async (req, res) => {
             pointsToVisit.push({
                 id: center.id,
                 type: 'SVUOTAMENTO',
-                titolo: 'Svuotamento: ' + (center.name + ' -' + centerbin.wasteType + ' (' + centerbin.binCode + ')' || "Centro sconosciuto"),
+                titolo: 'Svuotamento: ' + (center.name + ' - ' + centerbin.wasteType + ' (' + centerbin.binCode + ')' || "Centro sconosciuto"),
                 indirizzo: center.address || "Indirizzo sconosciuto",
                 coordinate: {
                     lat: center.coordinates.lat,
@@ -73,7 +73,10 @@ router.get('/optimized-route/:operatorId', async (req, res) => {
             });
         });
         console.log("Punti da visitare:", pointsToVisit);
-        res.json({ pointsToVisit });
+        res.status(200).json({ 
+            success: true,
+            tappe: pointsToVisit 
+        });
     } catch (error) {
         console.error('Errore nel generare il percorso ottimizzato:', error);
         res.status(500).json({ error: 'Errore nel generare il percorso ottimizzato' });
