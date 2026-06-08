@@ -106,13 +106,11 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
 
   const clampIndex = (i) => Math.max(0, Math.min(data.length - 1, i));
 
-  // Move the selection by `delta` rows (used by the ▲/▼ buttons). Always lands
-  // on a valid, fully-centred option and never snaps back to the start.
+  // Move the selection by `delta` rows (used by the ▲/▼ buttons). It only nudges
+  // the index; the effect below then scrolls the wheel so the newly-selected
+  // option slides to the centre and is clearly visible.
   const stepBy = (delta) => {
     const i = clampIndex(indexRef.current + delta);
-    const node = getNode();
-    if (node) node.scrollTo({ top: i * SCROLL_ITEM_H, behavior: 'smooth' });
-    else ref.current?.scrollTo({ y: i * SCROLL_ITEM_H, animated: true });
     if (i !== indexRef.current) onIndexChangeRef.current?.(i);
   };
 
@@ -124,6 +122,23 @@ function ScrollColumn({ data, index, onIndexChange, renderLabel, width }) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep the wheel position in sync with the selected index. When the index
+  // changes from something other than live scrolling (the ▲/▼ buttons), this
+  // smoothly slides that option to the centre so the user can see what is
+  // selected. The distance guard means it never fights a manual scroll that has
+  // already settled on the right row.
+  const firstSync = useRef(true);
+  useEffect(() => {
+    if (firstSync.current) { firstSync.current = false; return; } // mount handled above
+    const target = index * SCROLL_ITEM_H;
+    const node = getNode();
+    if (node) {
+      if (Math.abs(node.scrollTop - target) > 1) node.scrollTo({ top: target, behavior: 'smooth' });
+    } else {
+      ref.current?.scrollTo({ y: target, animated: true });
+    }
+  }, [index]);
 
   // Web: left-mouse-button drag to scrub the column, plus an auto-stabilizer
   // that snaps to the closest option whenever scrolling settles (wheel, drag or
