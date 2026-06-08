@@ -1,6 +1,6 @@
 const exress = require('express');
 const router = exress.Router();
-const Report = require('../models/Report');
+const Report = require('../models/reports');
 const Center = require('../models/collection_center');
 
 // rotta per generare il percorso ottimizzato per l'operatore
