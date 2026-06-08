@@ -104,10 +104,15 @@ router.get('/scan/:barcode', async (req, res) => {
     const p = data.product;
     const disposal = resolveDisposal(p);
 
+    const cooldownMs = 10 * 60 * 1000; // 10 minuti
+
     let reward = {
       granted: false,
+      canReceiveReward: false,
       pointsAdded: 0,
       totalPoints: null,
+      remainingSeconds: null,
+      nextRewardAt: null,
       message: 'Utente non specificato'
     };
 
@@ -117,7 +122,6 @@ router.get('/scan/:barcode', async (req, res) => {
 
       if (user) {
         const now = new Date();
-        const cooldownMs = 10 * 60 * 1000; // 10 minuti
         const lastScan = user.lastScanRewardAt;
 
         if (!lastScan || now - lastScan >= cooldownMs) {
@@ -131,11 +135,16 @@ router.get('/scan/:barcode', async (req, res) => {
           user.lastScanRewardAt = now;
           await user.save();
 
+          const nextRewardAt = new Date(now.getTime() + cooldownMs);
+
           reward = {
             granted: true,
+            canReceiveReward: false,
             pointsAdded: gained,
             boost,
             totalPoints: user.points,
+            remainingSeconds: Math.ceil(cooldownMs / 1000),
+            nextRewardAt,
             message: boost > 1
               ? `Punti scansione aggiunti (boost evento x${boost})`
               : 'Punti scansione aggiunti'
@@ -143,12 +152,15 @@ router.get('/scan/:barcode', async (req, res) => {
         } else {
           const remainingMs = cooldownMs - (now - lastScan);
           const remainingSeconds = Math.ceil(remainingMs / 1000);
+          const nextRewardAt = new Date(lastScan.getTime() + cooldownMs);
 
           reward = {
             granted: false,
+            canReceiveReward: false,
             pointsAdded: 0,
             totalPoints: user.points,
             remainingSeconds,
+            nextRewardAt,
             message: 'Attendere prima di ottenere altri punti da una scansione'
           };
         }

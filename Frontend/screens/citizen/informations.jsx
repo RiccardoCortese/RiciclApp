@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, ActivityIndicator, Image, Platform, Modal,
@@ -69,8 +69,59 @@ export default function Informations() {
   const [searched, setSearched]   = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [rewardInfo, setRewardInfo]   = useState(null); // {points, boost} after a points-earning scan
+  const [rewardStatus, setRewardStatus] = useState(null); // stato timer prossima scansione premiata
+
+  // Aggiorna il countdown ogni secondo
+  useEffect(() => {
+
+    if (!rewardStatus?.remainingSeconds || rewardStatus.remainingSeconds <= 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+
+      setRewardStatus((prev) => {
+
+        if (!prev) return prev;
+
+        if (prev.remainingSeconds <= 1) {
+          return {
+            ...prev,
+            remainingSeconds: 0
+          };
+        }
+
+        return {
+          ...prev,
+          remainingSeconds: prev.remainingSeconds - 1
+        };
+      });
+
+    }, 1000);
+
+    return () => clearInterval(interval);
+
+  }, [rewardStatus?.remainingSeconds]);
 
   const scannedRef = useRef(false);
+
+  // Formatta i secondi rimanenti in minuti e secondi
+  const formatRewardCountdown = (seconds) => {
+    const value = Number(seconds || 0);
+
+    if (value <= 0) {
+      return '0s';
+    }
+
+    const minutes = Math.floor(value / 60);
+    const remainingSeconds = value % 60;
+
+    if (minutes > 0) {
+      return `${minutes}m ${remainingSeconds}s`;
+    }
+
+    return `${remainingSeconds}s`;
+  };
 
   const searchProduct = async (code) => {
     const trimmed = (code ?? barcode).trim();
@@ -81,6 +132,7 @@ export default function Informations() {
     setProduct(null);
     setDisposal([]);
     setSearched(true);
+    setRewardStatus(null);
 
     try {
       const storedUser = await AsyncStorage.getItem("user");
@@ -98,9 +150,21 @@ export default function Informations() {
       if (data.status === 1) {
         setProduct(data.product);
         setDisposal(data.disposal ?? []);
-        // Reward popup: shown whenever points were actually granted for this scan.
+
+        // Stato disponibilità prossima scansione premiata
+        if (data.reward) {
+          setRewardStatus({
+            granted: data.reward.granted,
+            remainingSeconds: data.reward.remainingSeconds || 0
+          });
+        }
+
+        // Popup punti ottenuti
         if (data.reward?.granted && data.reward.pointsAdded > 0) {
-          setRewardInfo({ points: data.reward.pointsAdded, boost: data.reward.boost || 1 });
+          setRewardInfo({
+            points: data.reward.pointsAdded,
+            boost: data.reward.boost || 1
+          });
         }
       } else {
         setError(data.error || 'Prodotto non trovato. Verifica il codice e riprova.');
@@ -205,6 +269,16 @@ export default function Informations() {
               <Text style={styles.scanBtnIcon}>📷</Text>
               <Text style={styles.scanBtnText}>Scansiona Codice a Barre</Text>
             </TouchableOpacity>
+          )}
+
+          {rewardStatus && (
+            <View style={styles.rewardStatusBox}>
+              <Text style={styles.rewardStatusText}>
+                {rewardStatus.remainingSeconds > 0
+                  ? `⏳ Prossima scansione premiata tra ${formatRewardCountdown(rewardStatus.remainingSeconds)}`
+                  : '✅ Puoi ottenere punti con la prossima scansione'}
+              </Text>
+            </View>
           )}
 
           <Text style={styles.hint}>💡 Il codice a barre si trova sulla confezione del prodotto</Text>
@@ -559,5 +633,20 @@ const styles = StyleSheet.create({
     color: '#fff', fontSize: 14, textAlign: 'center', paddingHorizontal: 32,
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
+  rewardStatusBox: {
+    marginTop: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#009933',
+  },
+  rewardStatusText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    lineHeight: 20,
   },
 });
