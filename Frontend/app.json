@@ -3,6 +3,7 @@
     "name": "RiciclApp",
     "slug": "riciclapp",
     "version": "1.0.0",
+    "scheme": "riciclapp",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

@@ -72,7 +72,6 @@ router.get('/optimized-route/:operatorId', async (req, res) => {
                 }
             });
         });
-        console.log("Punti da visitare:", pointsToVisit);
         res.status(200).json({ 
             success: true,
             tappe: pointsToVisit 

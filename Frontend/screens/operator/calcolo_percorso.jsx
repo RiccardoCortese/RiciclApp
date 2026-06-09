@@ -45,7 +45,6 @@ export default function RoutePlannerScreen() {
       const response = await axios.get(`${API_URL}/operator/optimized-route/${currentIdOperatore}`);
 
       if (response.data && response.data.success) {
-        console.log("Percorso ottimizzato ricevuto dal server:", response.data);
         const tappeInEvidenza = response.data.tappe;
 
         if (tappeInEvidenza.length === 0) {

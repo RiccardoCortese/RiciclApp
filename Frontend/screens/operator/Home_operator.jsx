@@ -13,7 +13,7 @@ import calcoloPercorsoImg from '../../src/assets/calcolo_percorso.png';
 import UserDefault from '../../src/assets/Profile_image/User_image.png';
 
 // ── Brand color ──────────────────────────────────────────────────────────────
-const PRIMARY = '#0097A7'; // cyan
+const PRIMARY = '#0097A7';
 
 const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 };
 const DEFAULT_ZOOM = 14;
@@ -268,36 +268,46 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
       html,body,#map { width:100%; height:100%; }
-      .custom-marker { width:35px !important; height:35px !important; cursor:pointer; }
     </style>
   </head>
   <body>
     <div id="map"></div>
     <script>
-      // Variabili iniziali per la mappa, i centri, i bidoni e la rotta attiva
       var backupRoute = ${JSON.stringify(activeRoute || [])};  
       var mapReady = false;
+      
       const map = new maplibregl.Map({
-        container:'map', style:'${mapStyle}',
-        center:[${DEFAULT_CENTER.lon},${DEFAULT_CENTER.lat}], zoom:${DEFAULT_ZOOM},
+        container: 'map', 
+        style: '${mapStyle}',
+        center: [${DEFAULT_CENTER.lon}, ${DEFAULT_CENTER.lat}], 
+        zoom: ${DEFAULT_ZOOM},
       });
+      
       const centers = ${JSON.stringify(centers || [])};
       const bins = ${JSON.stringify(bins || [])};
       const initialRoute = ${JSON.stringify(activeRoute || [])};
       const centersById = {};
+      
       centers.forEach(c => { if (c && c._id) centersById[String(c._id)] = c.name; });
 
       function renderPolyline(routeData) {
         if (map.getLayer('route-line')) map.removeLayer('route-line');
         if (map.getSource('route-source')) map.removeSource('route-source');
-        if (!routeData || routeData.length < 2) return;
+
+        if (!routeData || !Array.isArray(routeData) || routeData.length < 2) return;
 
         const coordinatesString = routeData
-          .map(t => t.coordinate ? t.coordinate.lng + ',' + t.coordinate.lat : '')
+          .map(t => {
+            if (!t) return '';
+            const coords = t.coordinate || t;
+            const lat = coords.lat ?? coords.latitude;
+            const lng = coords.lng ?? coords.lon ?? coords.longitude;
+            return (lat && lng) ? lng + ',' + lat : '';
+          })
           .filter(Boolean)
           .join(';');
 
-        if (!coordinatesString) return;
+        if (!coordinatesString || coordinatesString.trim() === '') return;
 
         fetch('https://router.project-osrm.org/route/v1/driving/' + coordinatesString + '?overview=full&geometries=geojson')
           .then(function(res) { return res.json(); })
@@ -338,34 +348,34 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
       }
 
       map.on('load', function() {
-        mapReady = true; // La mappa è pronta, possiamo ora disegnare la rotta di backup se esiste e aggiungere i marker
+        mapReady = true;
 
         if (backupRoute && backupRoute.length > 0) {
-          drawLine(backupRoute);
+          renderPolyline(backupRoute);
+        } else {
+          renderPolyline(initialRoute);
         }
 
-        renderPolyline(initialRoute);
-
+        // CARICAMENTO MARKER DEI CENTRI CORRETTO (Allineato al cittadino)
         centers.forEach((center, index) => {
-          if (!center.coordinates?.lng || !center.coordinates?.lat) return;
-          const el = document.createElement('div');
-          el.className = 'custom-marker';
-          el.innerHTML = \`<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="${PRIMARY}"/>
-          </svg>\`;
-          function triggerClick() {
-            if (window.ReactNativeWebView) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({ type:'centerClicked', center:centers[index] }));
-            }
-            
-          }
-          el.addEventListener('touchend', e => { e.stopPropagation(); triggerClick(); });
-          el.addEventListener('click',    e => { e.stopPropagation(); triggerClick(); });
-          new maplibregl.Marker({ element:el })
+          if (!center || !center.coordinates || !center.coordinates.lng || !center.coordinates.lat) return;
+
+          const marker = new maplibregl.Marker({ color: '${PRIMARY}' })
             .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
             .addTo(map);
+
+          marker.getElement().addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ 
+                type: 'centerClicked', 
+                center: centers[index] 
+              }));
+            }
+          });
         });
 
+        // CARICAMENTO MARKER DEI BIDONI
         bins.forEach((bin) => {
           if (!bin.coordinates || !bin.coordinates.lng || !bin.coordinates.lat) return;
           const types = ((bin.wasteTypes && bin.wasteTypes.length) ? bin.wasteTypes : [bin.wasteType]).filter(Boolean).join(', ');
@@ -386,13 +396,12 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
 
       document.addEventListener('message', e => {
         try {
-        var msg = JSON.parse(e.data);
-        if (msg.type === 'drawRoute') {
-          backupRoute = msg.route; // aggiorna il backup
-          drawLine(msg.route);     // prova a disegnare
-        }
-      } catch(_) {}
-    });
+          var msg = JSON.parse(e.data);
+          if (msg.type === 'drawRoute') {
+            backupRoute = msg.route; 
+            renderPolyline(msg.route);    
+          }
+        } catch(_) {}
       });
     </script>
   </body>
@@ -464,7 +473,6 @@ export default function HomeOperatorScreen() {
         .then(storedRoute => {
           if (storedRoute) {
             const parsed = JSON.parse(storedRoute);
-            console.log("Rotta caricata in Home:", parsed);
             setActiveRoute(parsed);
           } else {
             setActiveRoute([]);
