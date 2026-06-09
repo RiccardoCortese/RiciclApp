@@ -7,10 +7,11 @@ import { API_URL } from "../../src/config";
 
 export default function RoutePlannerScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [tappe, setTappe] = useState([]);
-  const [percorsoGenerato, setPercorsoGenerato] = useState(false);
+  const [loading, setLoading] = useState(false); // Stato per gestire il caricamento durante la generazione del percorso
+  const [tappe, setTappe] = useState([]); // Stato per memorizzare le tappe del percorso ottimizzato ricevuto dal server
+  const [percorsoGenerato, setPercorsoGenerato] = useState(false); // Stato booleano per indicare se un percorso è stato generato o meno, usato per il rendering condizionale della sezione delle tappe
 
+  // Effetto per caricare un percorso esistente da AsyncStorage quando il componente viene montato, in modo da mostrare subito il percorso attivo se l'operatore ha già generato uno in precedenza e non lo ha cancellato.
   useEffect(() => {
     const caricaPercorsoEsistente = async () => {
       try {
@@ -38,8 +39,9 @@ export default function RoutePlannerScreen() {
         return;
       }
       const loggedInUser = JSON.parse(userString);
-      const currentIdOperatore = loggedInUser.id || loggedInUser._id;
+      const currentIdOperatore = loggedInUser.id;
 
+      // Effettua la richiesta al server per ottenere il percorso ottimizzato, passando l'ID dell'operatore per filtrare le segnalazioni e i bidoni rilevanti per quel profilo.
       const response = await axios.get(`${API_URL}/operator/optimized-route/${currentIdOperatore}`);
 
       if (response.data && response.data.success) {

@@ -27,8 +27,8 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
-  const markersRef = useRef([]);
-  const binMarkersRef = useRef([]);
+  const markersRef = useRef([]); // Riferimento ai marker dei centri, per poterli rimuovere/aggiornare quando la lista dei centri cambia
+  const binMarkersRef = useRef([]); // Riferimento ai marker dei bidoni, per poterli rimuovere/aggiornare quando la lista dei bidoni cambia
   const [isMapReady, setIsMapReady] = useState(false); // Stato per tracciare quando la mappa è pronta
   const [maplibreInstance, setMaplibreInstance] = useState(null);
   
