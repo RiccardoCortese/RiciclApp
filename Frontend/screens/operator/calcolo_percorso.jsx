@@ -54,7 +54,8 @@ export default function RoutePlannerScreen() {
           setLoading(false);
           return;
         }
-
+        
+        //metto in AsyncStorage il percorso generato per poterlo visualizzare sulla mappa home
         await AsyncStorage.setItem("active_operator_route", JSON.stringify(tappeInEvidenza));
 
         setTappe(tappeInEvidenza);

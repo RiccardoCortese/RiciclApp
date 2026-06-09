@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Image, Platform, StyleSheet,
-  Text, TextInput, TouchableOpacity, View,
-} from 'react-native';
+import { Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,32 +7,33 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../../src/config';
 import axios from 'axios';
 
-import Logo       from '../../src/assets/Riciclapp_Logo.png';
-import WorkImg    from '../../src/assets/Work_in_progess.png';
+import Logo from '../../src/assets/Riciclapp_Logo.png';
+import WorkImg from '../../src/assets/Work_in_progess.png';
 import UserDefault from '../../src/assets/Profile_image/User_image.png';
 
 // ── Brand color ──────────────────────────────────────────────────────────────
 const PRIMARY = '#0097A7'; // cyan
 
-const DEFAULT_CENTER     = { lat: 46.0667, lon: 11.1333 };
-const DEFAULT_ZOOM       = 14;
+const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 };
+const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
 // Grey colour used for the bin markers shown on the map.
 const BIN_GREY = '#9E9E9E';
 
 // ── Web map ───────────────────────────────────────────────────────────────────
-function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
-  const mapRef       = useRef(null);
+function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, activeRoute = [] }) {
+  const mapRef = useRef(null);
   const containerRef = useRef(null);
-  const style        = styleUrl || OFM_STYLE_FALLBACK;
+  const style = styleUrl || OFM_STYLE_FALLBACK;
   const [maplibreInstance, setMaplibreInstance] = useState(null);
-  const markersRef   = useRef([]);
+  const markersRef = useRef([]);
   const binMarkersRef = useRef([]);
-
+  
+  
   useEffect(() => {
     const link = document.createElement('link');
-    link.rel  = 'stylesheet';
+    link.rel = 'stylesheet';
     link.href = 'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css';
     document.head.appendChild(link);
 
@@ -66,13 +64,66 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
   }, [targetCenter]);
 
   useEffect(() => {
+    if (!mapRef.current || !activeRoute || activeRoute.length < 2) {
+      if (mapRef.current?.getLayer('route-line')) mapRef.current.removeLayer('route-line');
+      if (mapRef.current?.getSource('route-source')) mapRef.current.removeSource('route-source');
+      return;
+    }
+
+    const map = mapRef.current;
+
+    const coordinatesString = activeRoute
+      .map(t => {
+        const coords = t.coordinate || t;
+        const lat = coords.lat ?? coords.latitude;
+        const lng = coords.lng ?? coords.lon ?? coords.longitude;
+        return (lat && lng) ? `${lng},${lat}` : null;
+      })
+      .filter(Boolean)
+      .join(';');
+
+    if (!coordinatesString) return;
+
+    fetch(`https://router.project-osrm.org/route/v1/driving/${coordinatesString}?overview=full&geometries=geojson`)
+      .then(response => response.json())
+      .then(data => {
+        if (!data.routes || data.routes.length === 0) return;
+        const roadGeometry = data.routes[0].geometry;
+
+        const addLayerSecureWeb = () => {
+          if (map.getLayer('route-line')) map.removeLayer('route-line');
+          if (map.getSource('route-source')) map.removeSource('route-source');
+
+          map.addSource('route-source', {
+            type: 'geojson',
+            data: { type: 'Feature', properties: {}, geometry: roadGeometry }
+          });
+
+          map.addLayer({
+            id: 'route-line',
+            type: 'line',
+            source: 'route-source',
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': '#009933', 'line-width': 5 }
+          });
+        };
+
+        if (map.isStyleLoaded()) { addLayerSecureWeb(); } else { map.once('idle', addLayerSecureWeb); }
+      })
+      .catch(err => console.error("Errore nel calcolo del percorso stradale OSRM:", err));
+  }, [activeRoute]);
+
+  useEffect(() => {
     if (!mapRef.current || !maplibreInstance) return;
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
     centers.forEach(center => {
-      if (!center.coordinates) return;
+      const lat = center?.coordinates?.lat;
+      const lng = center?.coordinates?.lng ?? center?.coordinates?.lon;
+      if (!lat || !lng) return;
+
       const marker = new maplibreInstance.Marker({ color: PRIMARY })
-        .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
+        .setLngLat([Number(lng), Number(lat)])
         .addTo(mapRef.current);
       const popupHtml = `
         <div style="font-family:Arial,sans-serif;padding:5px;cursor:pointer;" id="popup-click-${center._id}">
@@ -92,7 +143,6 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
     });
   }, [centers, maplibreInstance]);
 
-  // Grey bin markers with a minimal banner: name, waste types, connected center.
   useEffect(() => {
     if (!mapRef.current || !maplibreInstance) return;
     binMarkersRef.current.forEach(m => m.remove());
@@ -100,13 +150,14 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
     const centersById = {};
     (centers || []).forEach(c => { if (c?._id) centersById[String(c._id)] = c.name; });
     (bins || []).forEach(bin => {
-      const lat = Number(bin?.coordinates?.lat);
-      const lng = Number(bin?.coordinates?.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      const lat = bin?.coordinates?.lat;
+      const lng = bin?.coordinates?.lng ?? bin?.coordinates?.lon;
+      if (!lat || !lng) return;
+
       const types = (bin.wasteTypes?.length ? bin.wasteTypes : [bin.wasteType]).filter(Boolean).join(', ');
       const centerName = bin.centerId ? (centersById[String(bin.centerId)] || null) : null;
       const marker = new maplibreInstance.Marker({ color: BIN_GREY })
-        .setLngLat([lng, lat])
+        .setLngLat([Number(lng), Number(lat)])
         .addTo(mapRef.current);
       const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(`
         <div style="font-family:Arial,sans-serif;padding:5px;min-width:170px;">
@@ -125,10 +176,18 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
       style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', zIndex: 0 }}
     />
   );
-}
 
+  map.on('styleimagemissing', (e) => {
+    const id = e.id;
+    // Crea un pixel trasparente 1x1 da dare a MapLibre per farlo stare zitto
+    const placeholder = new Uint8Array([0, 0, 0, 0]);
+    if (!map.hasImage(id)) {
+      map.addImage(id, { width: 1, height: 1, data: placeholder });
+    }
+  });
+}
 // ── Native map (WebView) ──────────────────────────────────────────────────────
-function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }) {
+function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, activeRoute = [] }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
@@ -149,11 +208,18 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
     );
   }, [targetCenter]);
 
+  useEffect(() => {
+    if (!webViewRef.current) return;
+    webViewRef.current.postMessage(
+      JSON.stringify({ type: 'drawRoute', route: activeRoute })
+    );
+  }, [activeRoute]);
+
   const handleOnMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'centerClicked' && data.center) onCenterClick(data.center);
-    } catch {}
+    } catch { }
   };
 
   if (!WebView) {
@@ -166,76 +232,134 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
     );
   }
 
-  const mapHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
-  <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    html,body,#map { width:100%; height:100%; }
-    .custom-marker { width:35px !important; height:35px !important; cursor:pointer; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    const map = new maplibregl.Map({
-      container:'map', style:'${mapStyle}',
-      center:[${DEFAULT_CENTER.lon},${DEFAULT_CENTER.lat}], zoom:${DEFAULT_ZOOM},
-    });
-    const centers = ${JSON.stringify(centers || [])};
-    const bins = ${JSON.stringify(bins || [])};
-    const centersById = {};
-    centers.forEach(c => { if (c && c._id) centersById[String(c._id)] = c.name; });
-    map.on('load', () => {
-      centers.forEach((center, index) => {
-        if (!center.coordinates?.lng || !center.coordinates?.lat) return;
-        const el = document.createElement('div');
-        el.className = 'custom-marker';
-        el.innerHTML = \`<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="${PRIMARY}"/>
-        </svg>\`;
-        function triggerClick() {
-          if (window.ReactNativeWebView) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type:'centerClicked', center:centers[index] }));
+
+  const mapHtml = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+    <style>
+      * { margin:0; padding:0; box-sizing:border-box; }
+      html,body,#map { width:100%; height:100%; }
+      .custom-marker { width:35px !important; height:35px !important; cursor:pointer; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      const map = new maplibregl.Map({
+        container:'map', style:'${mapStyle}',
+        center:[${DEFAULT_CENTER.lon},${DEFAULT_CENTER.lat}], zoom:${DEFAULT_ZOOM},
+      });
+      const centers = ${JSON.stringify(centers || [])};
+      const bins = ${JSON.stringify(bins || [])};
+      const initialRoute = ${JSON.stringify(activeRoute || [])};
+      const centersById = {};
+      centers.forEach(c => { if (c && c._id) centersById[String(c._id)] = c.name; });
+
+      function renderPolyline(routeData) {
+        if (map.getLayer('route-line')) map.removeLayer('route-line');
+        if (map.getSource('route-source')) map.removeSource('route-source');
+        if (!routeData || routeData.length < 2) return;
+
+        const coordinatesString = routeData
+          .map(t => t.coordinate ? t.coordinate.lng + ',' + t.coordinate.lat : '')
+          .filter(Boolean)
+          .join(';');
+
+        if (!coordinatesString) return;
+
+        fetch('https://router.project-osrm.org/route/v1/driving/' + coordinatesString + '?overview=full&geometries=geojson')
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (!data.routes || data.routes.length === 0) return;
+            
+            const roadGeometry = data.routes[0].geometry;
+
+            const addLayerSecure = function() {
+              if (map.getLayer('route-line')) map.removeLayer('route-line');
+              if (map.getSource('route-source')) map.removeSource('route-source');
+              
+              map.addSource('route-source', {
+                type: 'geojson',
+                data: {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: roadGeometry 
+                }
+              });
+
+              map.addLayer({
+                id: 'route-line',
+                type: 'line',
+                source: 'route-source',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#009933', 'line-width': 5 }
+              });
+            };
+
+            if (map.isStyleLoaded()) {
+              addLayerSecure();
+            } else {
+              map.once('idle', addLayerSecure);
+            }
+          })
+          .catch(function(err) { console.error("Errore OSRM nativo:", err); });
+      }
+
+      map.on('load', () => {
+        renderPolyline(initialRoute);
+
+        centers.forEach((center, index) => {
+          if (!center.coordinates?.lng || !center.coordinates?.lat) return;
+          const el = document.createElement('div');
+          el.className = 'custom-marker';
+          el.innerHTML = \`<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="${PRIMARY}"/>
+          </svg>\`;
+          function triggerClick() {
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type:'centerClicked', center:centers[index] }));
+            }
+            
           }
-        }
-        el.addEventListener('touchend', e => { e.stopPropagation(); triggerClick(); });
-        el.addEventListener('click',    e => { e.stopPropagation(); triggerClick(); });
-        new maplibregl.Marker({ element:el })
-          .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
-          .addTo(map);
+          el.addEventListener('touchend', e => { e.stopPropagation(); triggerClick(); });
+          el.addEventListener('click',    e => { e.stopPropagation(); triggerClick(); });
+          new maplibregl.Marker({ element:el })
+            .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
+            .addTo(map);
+        });
+
+        bins.forEach((bin) => {
+          if (!bin.coordinates || !bin.coordinates.lng || !bin.coordinates.lat) return;
+          const types = ((bin.wasteTypes && bin.wasteTypes.length) ? bin.wasteTypes : [bin.wasteType]).filter(Boolean).join(', ');
+          const centerName = bin.centerId ? (centersById[String(bin.centerId)] || null) : null;
+          const popup = new maplibregl.Popup({ offset: 25 }).setHTML(
+            '<div style="font-family:Arial,sans-serif;padding:5px;min-width:170px;">'
+            + '<h3 style="color:#444;margin:0 0 4px 0;">' + (bin.name || 'Bidone') + '</h3>'
+            + '<p style="margin:0;font-size:12px;color:#9E9E9E;font-weight:bold;">' + (types || '—') + '</p>'
+            + '<p style="margin:6px 0 0 0;font-size:12px;color:#666;">🏢 ' + (centerName || 'Nessun centro collegato') + '</p>'
+            + '</div>'
+          );
+          new maplibregl.Marker({ color: '#9E9E9E' })
+            .setLngLat([Number(bin.coordinates.lng), Number(bin.coordinates.lat)])
+            .setPopup(popup)
+            .addTo(map);
+        });
       });
 
-      // Grey bin markers with a minimal info popup (view only)
-      bins.forEach((bin) => {
-        if (!bin.coordinates || !bin.coordinates.lng || !bin.coordinates.lat) return;
-        const types = ((bin.wasteTypes && bin.wasteTypes.length) ? bin.wasteTypes : [bin.wasteType]).filter(Boolean).join(', ');
-        const centerName = bin.centerId ? (centersById[String(bin.centerId)] || null) : null;
-        const popup = new maplibregl.Popup({ offset: 25 }).setHTML(
-          '<div style="font-family:Arial,sans-serif;padding:5px;min-width:160px;">'
-          + '<h3 style="color:#444;margin:0 0 4px 0;">' + (bin.name || 'Bidone') + '</h3>'
-          + '<p style="margin:0;font-size:12px;color:#9E9E9E;font-weight:bold;">' + (types || '—') + '</p>'
-          + '<p style="margin:6px 0 0 0;font-size:12px;color:#666;">🏢 ' + (centerName || 'Nessun centro collegato') + '</p>'
-          + '</div>'
-        );
-        new maplibregl.Marker({ color: '#9E9E9E' })
-          .setLngLat([Number(bin.coordinates.lng), Number(bin.coordinates.lat)])
-          .setPopup(popup)
-          .addTo(map);
+      document.addEventListener('message', e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'flyTo') map.flyTo({ center:[msg.lon, msg.lat], zoom:15 });
+          if (msg.type === 'drawRoute') renderPolyline(msg.route);
+        } catch (_) {}
       });
-    });
-    document.addEventListener('message', e => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'flyTo') map.flyTo({ center:[msg.lon, msg.lat], zoom:15 });
-      } catch (_) {}
-    });
-  </script>
-</body>
-</html>`;
+    </script>
+  </body>
+  </html>`;
 
   return (
     <WebView
@@ -250,31 +374,40 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick }
       onMessage={handleOnMessage}
     />
   );
+
+  map.on('styleimagemissing', function (e) {
+    var id = e.id;
+    var placeholder = new Uint8Array([0, 0, 0, 0]);
+    if (!map.hasImage(id)) {
+      map.addImage(id, { width: 1, height: 1, data: placeholder });
+    }
+  });
 }
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function HomeOperatorScreen() {
   const router = useRouter();
 
-  const [searchQuery,    setSearchQuery]    = useState('');
-  const [searchResults,  setSearchResults]  = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
   const [selectedCenter, setSelectedCenter] = useState(null);
-  const [mapCenter,      setMapCenter]      = useState(null);
-  const [searchError,    setSearchError]    = useState(false);
-  const [mapStyleUrl,    setMapStyleUrl]    = useState(OFM_STYLE_FALLBACK);
-  const [centers,        setCenters]        = useState([]);
-  const [bins,           setBins]           = useState([]);
-  const [avatarUri,      setAvatarUri]      = useState(null);
+  const [mapCenter, setMapCenter] = useState(null);
+  const [searchError, setSearchError] = useState(false);
+  const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK);
+  const [centers, setCenters] = useState([]);
+  const [bins, setBins] = useState([]);
+  const [avatarUri, setAvatarUri] = useState(null);
 
-  const [showInfoCard,      setShowInfoCard]      = useState(false);
+  const [showInfoCard, setShowInfoCard] = useState(false);
   const [segnalazioniOpen, setSegnalazioniOpen] = useState(false);
 
   const [segnalazioni, setSegnalazioni] = useState([]);
+  const [activeRoute, setActiveRoute] = useState([]);
 
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
       .then(r => { if (r.data?.styleUrl) setMapStyleUrl(r.data.styleUrl); })
-      .catch(() => {});
+      .catch(() => { });
     axios.get(`${API_URL}/centers/all`)
       .then(r => setCenters(Array.isArray(r.data) ? r.data : []))
       .catch(() => setCenters([]));
@@ -287,26 +420,32 @@ export default function HomeOperatorScreen() {
     useCallback(() => {
       AsyncStorage.getItem('profileAvatarUri').then(uri => setAvatarUri(uri || null));
 
-      // Recupera l'ID dell'operatore da AsyncStorage
-      AsyncStorage.getItem('user').then(userString => {
+      AsyncStorage.getItem('active_operator_route')
+        .then(storedRoute => {
+          if (storedRoute) {
+            const parsed = JSON.parse(storedRoute);
+            console.log("Rotta caricata in Home:", parsed);
+            setActiveRoute(parsed);
+          } else {
+            setActiveRoute([]);
+          }
+        })
+        .catch(err => console.error("Errore lettura percorso attivo:", err));
 
+      AsyncStorage.getItem('user').then(userString => {
         if (!userString) {
           console.warn("Attenzione: nessun dato utente trovato in AsyncStorage");
+          return;
         }
 
-        // Estrai l'ID operatore dal JSON dell'utente, parse perché è salvato come stringa
         const loggedInUser = JSON.parse(userString);
         const currentIdOperatore = loggedInUser.id;
 
-        // Recupera tutte le segnalazioni dal backend
         axios.get(`${API_URL}/report/all`)
           .then(r => {
             const allReports = Array.isArray(r.data?.reports) ? r.data.reports : [];
-
             const assignedReports = allReports.filter(s => {
-              const operatorIdInReport = s.assignedTo; 
-
-              // Controlla che lo status sia 'ASSIGNED' e l'ID combaci alla perfezione
+              const operatorIdInReport = s.assignedTo;
               return s.status === 'ASSIGNED' && operatorIdInReport === currentIdOperatore;
             });
             setSegnalazioni(assignedReports);
@@ -321,7 +460,16 @@ export default function HomeOperatorScreen() {
       });
     }, [])
   );
-  // Unified searchable elements for the operator: collection centers and bins.
+
+  const rimuoviItinerario = async () => {
+    try {
+      await AsyncStorage.removeItem('active_operator_route');
+      setActiveRoute([]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const buildSearchItems = () => {
     const items = [];
     (centers || []).forEach((c) => {
@@ -374,7 +522,6 @@ export default function HomeOperatorScreen() {
     <View style={styles.container} onStartShouldSetResponder={() => { closeAllCards(); return false; }}>
       <StatusBar style="auto" />
 
-      {/* Map */}
       {Platform.OS === 'web' ? (
         <WebMap
           targetCenter={mapCenter}
@@ -382,6 +529,7 @@ export default function HomeOperatorScreen() {
           centers={centers}
           bins={bins}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)}
+          activeRoute={activeRoute}
         />
       ) : (
         <NativeMap
@@ -390,6 +538,7 @@ export default function HomeOperatorScreen() {
           centers={centers}
           bins={bins}
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)}
+          activeRoute={activeRoute}
         />
       )}
 
@@ -461,17 +610,12 @@ export default function HomeOperatorScreen() {
                     activeOpacity={0.8}
                     onPress={() => { }}
                   >
-                    {/* RIGA 1: Descrizione */}
                     <Text style={[styles.segnalazioneText, { fontWeight: '700', marginBottom: 4 }]} numberOfLines={2}>
                       📝 {s.description || 'Segnalazione senza testo'}
                     </Text>
-
-                    {/* RIGA 2: Bidone */}
                     <Text style={[styles.segnalazioneText, { fontWeight: '700', marginBottom: 4 }]} numberOfLines={2}>
                       🗑️{s.binType || 'Bidone non specificato'} ({s.binName || 'N/A'})
                     </Text>
-
-                    {/* RIGA 3: Centro di Raccolta */}
                     <Text style={{ color: '#666', fontSize: 12, fontStyle: 'italic' }} numberOfLines={1}>
                       📍 Presso: {s.binCenter || 'Centro non specificato'}
                     </Text>
@@ -487,10 +631,15 @@ export default function HomeOperatorScreen() {
         </View>
       </View>
 
+      {/* ── Floating Close Route Button ── */}
+      {activeRoute.length > 0 && (
+        <TouchableOpacity style={styles.floatingCloseButton} activeOpacity={0.85} onPress={rimuoviItinerario}>
+          <Text style={styles.closeButtonText}>✕ Rimuovi Itinerario Verde</Text>
+        </TouchableOpacity>
+      )}
+
       {/* ── Button bar ── */}
       <View style={[styles.buttonBar, { zIndex: 10 }]} pointerEvents="box-none">
-
-        {/* LEFT — User info */}
         <View style={styles.buttonWrapper}>
           <TouchableOpacity
             style={styles.button}
@@ -501,7 +650,6 @@ export default function HomeOperatorScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* CENTER — Logo / version */}
         <View style={styles.buttonWrapper}>
           {showInfoCard && (
             <View style={styles.popupCard}>
@@ -522,7 +670,6 @@ export default function HomeOperatorScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* RIGHT — Bottone calcolo di percorso ottimale */}
         <View style={styles.buttonWrapper}>
           <TouchableOpacity
             style={styles.button}
@@ -532,7 +679,6 @@ export default function HomeOperatorScreen() {
             <Image source={WorkImg} style={styles.buttonIcon} />
           </TouchableOpacity>
         </View>
-
       </View>
     </View>
   );
@@ -540,7 +686,6 @@ export default function HomeOperatorScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative' },
-
   mapPlaceholder: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#d0eef0', alignItems: 'center', justifyContent: 'center',
@@ -549,8 +694,6 @@ const styles = StyleSheet.create({
     color: '#555', fontSize: 14, textAlign: 'center',
     paddingHorizontal: 24, lineHeight: 22,
   },
-
-  // Search
   searchBarWrapper: {
     position: 'absolute', top: 50, left: 0, right: 0,
     alignItems: 'center', paddingHorizontal: 24,
@@ -563,7 +706,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2, shadowRadius: 6, elevation: 8,
   },
   searchIcon: { fontSize: 16, marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 15, color: '#222', outlineStyle: 'none' },
+  searchInput: { flex: 1, fontSize: 15, color: '#222' },
   searchErrorBox: {
     width: '100%', maxWidth: 480, backgroundColor: '#d32f2f',
     borderRadius: 10, marginTop: 6, paddingVertical: 8,
@@ -584,8 +727,26 @@ const styles = StyleSheet.create({
   resultIcon: { fontSize: 16 },
   resultText: { fontSize: 14, color: '#333', lineHeight: 20 },
   resultSubText: { fontSize: 12, color: '#888', lineHeight: 16 },
-
-  // Button bar
+  floatingCloseButton: {
+    position: "absolute",
+    bottom: 170,
+    right: 24,
+    backgroundColor: "#d32f2f",
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 25,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 30,
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
   buttonBar: {
     position: 'absolute', bottom: 40, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'center',
@@ -600,8 +761,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 6, elevation: 8, marginHorizontal: 20,
   },
   buttonIcon: { width: 100, height: 100, resizeMode: 'contain' },
-
-  // Popup cards
   popupCard: {
     position: 'absolute', bottom: 120,
     backgroundColor: '#fff', borderRadius: 14,
@@ -611,17 +770,10 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 12, zIndex: 20, minWidth: 180,
   },
-  popupTitle:        { fontSize: 18, fontWeight: '700', color: PRIMARY, marginBottom: 2 },
-  popupSub:          { fontSize: 13, color: '#555', marginBottom: 10 },
+  popupTitle: { fontSize: 18, fontWeight: '700', color: PRIMARY, marginBottom: 2 },
+  popupSub: { fontSize: 13, color: '#555', marginBottom: 10 },
   popupSectionLabel: { fontSize: 13, fontWeight: '700', color: PRIMARY, marginBottom: 4 },
-  popupLine:         { fontSize: 14, color: '#333', marginBottom: 2 },
-  popupBadge: {
-    marginTop: 4, borderWidth: 1.5, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 3,
-    fontSize: 13, fontWeight: '700',
-  },
-
-  // Segnalazioni
+  popupLine: { fontSize: 14, color: '#333', marginBottom: 2 },
   segnalazioniPanel: {
     width: '100%', maxWidth: 480, marginTop: 10,
     backgroundColor: PRIMARY, borderRadius: 16, borderWidth: 2.5, borderColor: PRIMARY,
@@ -635,7 +787,7 @@ const styles = StyleSheet.create({
   },
   segnalazioniTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
   segnalazioniArrow: { fontSize: 14, color: '#fff', fontWeight: '700' },
-  segnalazioniList:  { paddingHorizontal: 14, paddingBottom: 14, gap: 8 },
+  segnalazioniList: { paddingHorizontal: 14, paddingBottom: 14, gap: 8 },
   segnalazioneButton: {
     backgroundColor: '#fff', borderRadius: 20, borderWidth: 2, borderColor: PRIMARY,
     paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center',
