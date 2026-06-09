@@ -489,10 +489,10 @@ function WebMap({
           labelPopup.remove();
         });
 
-        // Left-click a neighbourhood → open its statistics popup, but ONLY when
+        // Right-click a neighbourhood → open its statistics popup, but ONLY when
         // there is nothing else on it: if an event circle sits under the cursor
         // the event takes over (handled by the events-fill click below).
-        map.on('click', 'circ-fill', (e) => {
+        map.on('contextmenu', 'circ-fill', (e) => {
           if (!e.features.length) return;
           if (placingModeRef.current || eventPlacingRef.current) return;
           const evHit = map.queryRenderedFeatures(e.point, { layers: ['events-fill'] });
@@ -1404,12 +1404,10 @@ export default function HomeAdminScreen() {
   //button per la side bar a sinistra 
   const sideButtons = [
     //  REPORT ADMIN
-  { id: 0, icon: admin_report, label: 'Segnalazioni', onPress: () => router.push('/report_admin') }, 
-  { id: 1, icon: WorkImg},
-  { id: 2, icon: WorkImg },
-  { id: 3, icon: WorkImg},
-  { id: 4, icon: WorkImg},
-];
+    { id: 0, icon: SegnalazioniImg, label: 'Segnalazioni', onPress: () => router.push('/report_admin') }, 
+    { id: 1, icon: AddBinImg, label: 'Posiziona bidone', onPress: () => enterPlacing() },
+    { id: 2, icon: ProblemBin, label: 'Centri di raccolta', onPress: () => router.push('/centers/unassigned/bins') },
+  ];
 
   // ── Mobile fallback ──────────────────────────────────────────────────────────
   if (Platform.OS !== 'web') {
@@ -1500,21 +1498,14 @@ export default function HomeAdminScreen() {
 
       {/* ── Left vertical tool bar ── */}
       <View style={[styles.sideBar, { zIndex: 10 }]}>
-        {[0, 1, 2, 3, 4].map((i) => (
+        {[0, 1, 2].map((i) => (
           <TouchableOpacity
             key={i}
             style={styles.sideButton}
             activeOpacity={0.85}
-            onPress={() => {
-              if (i === 0) router.push('/report_admin');
-              else if (i === 1) enterPlacing();
-              else if (i === 2) router.push('/centers/unassigned/bins');
-            }}
+            onPress={() => sideButtons[i]?.onPress()}
           >
-            <Image
-              source={i === 0 ? SegnalazioniImg : i === 1 ? AddBinImg : i === 2 ? ProblemBin : WorkImg}
-              style={styles.sideButtonIcon}
-            />
+            <Image source={sideButtons[i]?.icon} style={styles.sideButtonIcon} />
           </TouchableOpacity>
         ))}
       </View>

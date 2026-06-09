@@ -239,7 +239,6 @@ router.get('/all', authMiddleware, async (req, res) => {
         }
 
         const users = await User.find({}, { password: 0, passwordResetToken: 0 }); // Esclude i campi sensibili
-        console.log("Utenti recuperati:", users);
         res.status(200).json({ users });
     } catch (error) {
         console.error('Errore durante il recupero degli utenti:', error);
