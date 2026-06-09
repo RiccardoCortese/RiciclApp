@@ -26,9 +26,10 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
-  const [maplibreInstance, setMaplibreInstance] = useState(null);
   const markersRef = useRef([]);
   const binMarkersRef = useRef([]);
+  const [isMapReady, setIsMapReady] = useState(false); // Stato per tracciare quando la mappa è pronta
+  const [maplibreInstance, setMaplibreInstance] = useState(null);
   
   
   useEffect(() => {
@@ -47,8 +48,10 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
         center: [DEFAULT_CENTER.lon, DEFAULT_CENTER.lat],
         zoom: DEFAULT_ZOOM,
         attributionControl: true,
+      }); map.on('load', () => { //quando la mappa è completamente caricata, aggiorna lo stato per indicare che è pronta
+        mapRef.current = map; 
+        setIsMapReady(true); //in questo modo possiamo essere sicuri che la mappa è pronta prima di tentare di aggiungere marker calcolo del percorso
       });
-      mapRef.current = map;
     });
 
     return () => {
@@ -64,16 +67,19 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
   }, [targetCenter]);
 
   useEffect(() => {
-    if (!mapRef.current || !activeRoute || activeRoute.length < 2) {
+
+    if (!isMapReady || !mapRef.current) return; // assicuro che la mappa sia pronta prima di procedere con il calcolo del percorso e l'aggiunta dei layer
+
+    const map = mapRef.current;
+
+    if (!mapRef.current || !activeRoute || activeRoute.length < 2) { // se non ci sono abbastanza punti per formare un percorso, rimuovo eventuali layer esistenti e esco
       if (mapRef.current?.getLayer('route-line')) mapRef.current.removeLayer('route-line');
       if (mapRef.current?.getSource('route-source')) mapRef.current.removeSource('route-source');
       return;
     }
 
-    const map = mapRef.current;
-
-    const coordinatesString = activeRoute
-      .map(t => {
+    const coordinatesString = activeRoute 
+      .map(t => { // estraggo le coordinate in un formato compatto "lng,lat" 
         const coords = t.coordinate || t;
         const lat = coords.lat ?? coords.latitude;
         const lng = coords.lng ?? coords.lon ?? coords.longitude;
@@ -84,6 +90,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
 
     if (!coordinatesString) return;
 
+    // Chiamo OSRM per ottenere la geometria stradale del percorso da disegnare sulla mappa
     fetch(`https://router.project-osrm.org/route/v1/driving/${coordinatesString}?overview=full&geometries=geojson`)
       .then(response => response.json())
       .then(data => {
@@ -111,10 +118,10 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
         if (map.isStyleLoaded()) { addLayerSecureWeb(); } else { map.once('idle', addLayerSecureWeb); }
       })
       .catch(err => console.error("Errore nel calcolo del percorso stradale OSRM:", err));
-  }, [activeRoute]);
+  }, [activeRoute, isMapReady]);
 
   useEffect(() => {
-    if (!mapRef.current || !maplibreInstance) return;
+    if (!isMapReady || !mapRef.current || !maplibreInstance) return;
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
     centers.forEach(center => {
@@ -141,10 +148,10 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
       marker.setPopup(popup);
       markersRef.current.push(marker);
     });
-  }, [centers, maplibreInstance]);
+  }, [centers, maplibreInstance, isMapReady]);
 
   useEffect(() => {
-    if (!mapRef.current || !maplibreInstance) return;
+    if (!isMapReady || !mapRef.current || !maplibreInstance) return;
     binMarkersRef.current.forEach(m => m.remove());
     binMarkersRef.current = [];
     const centersById = {};
@@ -168,7 +175,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
       marker.setPopup(popup);
       binMarkersRef.current.push(marker);
     });
-  }, [bins, centers, maplibreInstance]);
+  }, [bins, centers, maplibreInstance, isMapReady]);
 
   return (
     <div
@@ -249,6 +256,9 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
   <body>
     <div id="map"></div>
     <script>
+      // Variabili iniziali per la mappa, i centri, i bidoni e la rotta attiva
+      var backupRoute = ${JSON.stringify(activeRoute || [])};  
+      var mapReady = false;
       const map = new maplibregl.Map({
         container:'map', style:'${mapStyle}',
         center:[${DEFAULT_CENTER.lon},${DEFAULT_CENTER.lat}], zoom:${DEFAULT_ZOOM},
@@ -309,7 +319,13 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
           .catch(function(err) { console.error("Errore OSRM nativo:", err); });
       }
 
-      map.on('load', () => {
+      map.on('load', function() {
+        mapReady = true; // La mappa è pronta, possiamo ora disegnare la rotta di backup se esiste e aggiungere i marker
+
+        if (backupRoute && backupRoute.length > 0) {
+          drawLine(backupRoute);
+        }
+
         renderPolyline(initialRoute);
 
         centers.forEach((center, index) => {
@@ -352,10 +368,13 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
 
       document.addEventListener('message', e => {
         try {
-          const msg = JSON.parse(e.data);
-          if (msg.type === 'flyTo') map.flyTo({ center:[msg.lon, msg.lat], zoom:15 });
-          if (msg.type === 'drawRoute') renderPolyline(msg.route);
-        } catch (_) {}
+        var msg = JSON.parse(e.data);
+        if (msg.type === 'drawRoute') {
+          backupRoute = msg.route; // aggiorna il backup
+          drawLine(msg.route);     // prova a disegnare
+        }
+      } catch(_) {}
+    });
       });
     </script>
   </body>
