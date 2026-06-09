@@ -29,6 +29,7 @@ export default function RoutePlannerScreen() {
   const generaPercorsoMigliore = async () => {
     setLoading(true);
     try {
+      // Recupera l'ID dell'operatore loggato
       const userString = await AsyncStorage.getItem("user");
 
       if (!userString) {

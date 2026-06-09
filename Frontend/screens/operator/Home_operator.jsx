@@ -522,12 +522,12 @@ export default function HomeOperatorScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* RIGHT — Work in progress */}
+        {/* RIGHT — Bottone calcolo di percorso ottimale */}
         <View style={styles.buttonWrapper}>
           <TouchableOpacity
             style={styles.button}
             activeOpacity={0.85}
-            onPress={() => { closeAllCards(); router.push('/work'); }}
+            onPress={() => { closeAllCards(); router.push('/calcolo_percorso'); }}
           >
             <Image source={WorkImg} style={styles.buttonIcon} />
           </TouchableOpacity>
