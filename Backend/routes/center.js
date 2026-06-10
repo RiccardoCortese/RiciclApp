@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Center = require('../models/collection_center'); 
-const Bin = require('../models/Bin');
+const Bin = require('../models/bin');
 const mongoose = require('mongoose'); 
 
 // Rotta per visualizzare tutti i centri di raccolta
