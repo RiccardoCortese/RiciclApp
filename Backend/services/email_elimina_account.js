@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer'); // Per inviare email di verifica
+const nodemailer = require('nodemailer'); // Per inviare email di eliminazione account
 const dotenv = require('dotenv');
 
 dotenv.config(); // Carica le variabili d'ambiente da .env

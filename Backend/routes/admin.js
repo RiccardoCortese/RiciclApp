@@ -27,7 +27,7 @@ const WASTE_TYPES = [
 
 // ── GET /api/admin/users?role=<role>  (sola lettura) ─────────────────────────
 // Restituisce la lista degli utenti filtrata per ruolo.
-// Accettati:  role=operator  →  operatori
+// Valori accettati:  role=operator  →  operatori
 //             role=user      →  cittadini (alias di registered_user nel DB)
 // Richiede un token JWT valido.
 router.get('/users', authMiddleware, async (req, res) => {
@@ -41,7 +41,7 @@ router.get('/users', authMiddleware, async (req, res) => {
             return res.status(400).json({ message: 'Parametro role mancante' });
         }
 
-        // Sola lettura — restituisce solo id, nome ed email, mai la password
+        // Sola lettura — restituisce solo ID, nome ed email, mai la password
         const users = await User
             .find({ role: dbRole })
             .select('name email role')
@@ -128,7 +128,7 @@ router.post('/bins', authMiddleware, async (req, res) => {
             coordinates: { lat, lng },
             area:       area ? String(area).trim() : undefined,
             wasteTypes: types,
-            wasteType:  types[0], // compatibilità col campo legacy
+            wasteType:  types[0], // Compatibilità col campo legacy
             centerId:   center || undefined,
             status:     finalStatus,
             sensor:     { sensorCode: `SENS-${unique}` },

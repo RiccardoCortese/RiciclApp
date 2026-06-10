@@ -4,25 +4,25 @@ const Report = require('../models/reports');
 const Center = require('../models/collection_center');
 const Bin = require('../models/bin');
 
-// rotta per generare il percorso ottimizzato per l'operatore
-// il percorso è generato in base alle segnalazioni che appartengono all'operatore e ai centri di raccolta pieni (>= 80% di capacità)
+// Rotta per generare il percorso ottimizzato dell'operatore
+// Il percorso include le segnalazioni assegnate all'operatore e i centri di raccolta pieni (>= 80%).
 
 router.get('/optimized-route/:operatorId', async (req, res) => {
     try {
         const operatorId = req.params.operatorId;
 
-        // recupera tutte le segnalazioni dell'operatore
+        // Recupera tutte le segnalazioni dell'operatore
         const reports = await Report.find({ 
             assignedTo: operatorId,
-            status: 'ASSIGNED' // considera solo le segnalazioni assegnate
-        }).populate({ // popola i dati del centro di raccolta associato alla segnalazione
+            status: 'ASSIGNED' // Considera solo le segnalazioni assegnate
+        }).populate({ // Popola i dati del centro di raccolta associato alla segnalazione
             path: 'binId',
             populate: {
                 path: 'centerId'
             }
         });
 
-        // filtra i centri di raccolta pieni (>= 80% di capacità)
+        // Filtra i centri di raccolta pieni (>= 80% di capacità)
         const fullBins = await Bin.find({
             'fillLevel': { $gte: 80 }
         });
@@ -40,7 +40,7 @@ router.get('/optimized-route/:operatorId', async (req, res) => {
             }
         }
 
-        // crea una lista di punti da visitare (segnalazioni + centri pieni)
+        // Crea una lista di punti da visitare (segnalazioni + centri pieni)
         const pointsToVisit = [];
 
         reports.forEach(report => {

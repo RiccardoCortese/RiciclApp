@@ -10,7 +10,7 @@ const { sendAccountDeletionEmail } = require('../services/email_elimina_account'
 // Rotta protetta per ottenere i dati dell'utente loggato
 router.get('/profile', authMiddleware, async (req, res) => {
     try {
-        // req.user.userId arriva dal token JWT verificato nel middleware
+        // req.user.userId viene dal token JWT verificato nel middleware
         const user = await User.findById(req.user.userId).select('-passwordHash');
 
         if (!user) {
@@ -230,7 +230,7 @@ router.delete('/delete', authMiddleware, async (req, res) => {
     }
 });
 
-//rotta per ottenere tutti gli utenti (solo per admin)
+// Rotta per ottenere tutti gli utenti (solo per admin)
 router.get('/all', authMiddleware, async (req, res) => {
     try {
         // Verifica che l'utente sia un admin
