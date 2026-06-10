@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import axios from 'axios';
 import { API_URL } from '../../src/config';
 import { useRouter } from 'expo-router';
-import { Picker } from '@react-native-picker/picker'; // Importazione del Picker per la selezione dell'operatore
+import { Picker } from '@react-native-picker/picker'; // Picker per la selezione dell'operatore.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AdminReportsScreen() {
     const [reports, setReports] = useState([]);
-    const [operators, setOperators] = useState([]); // Stato per memorizzare gli operatori disponibili
+    const [operators, setOperators] = useState([]); // Stato che memorizza gli operatori disponibili.
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('registered_user');
     const router = useRouter();
@@ -16,11 +16,11 @@ export default function AdminReportsScreen() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Recupera tutte le segnalazioni
+            // Recupera tutte le segnalazioni.
             const reportsRes = await axios.get(`${API_URL}/report/all`);
             setReports(reportsRes.data.reports || reportsRes.data || []);
 
-            // Recupera tutti gli utenti per filtrare solo gli operatori -> SOLO ADMIN PUO' VEDERE GLI OPERATORI DISPONIBILI PER L'ASSEGNAZIONE
+            // Recupera tutti gli utenti e filtra solo gli operatori disponibili per l'assegnazione.
             const token = await AsyncStorage.getItem('token');
 
             const usersRes = await axios.get(`${API_URL}/user/all`, {
@@ -64,17 +64,17 @@ export default function AdminReportsScreen() {
         }
     };
 
-    // Funzione per assegnare l'operatore alla segnalazione
+    // Assegna un operatore alla segnalazione.
     const handleAssignOperator = async (reportId, operatorId) => {
         if (!operatorId) return;
         try {
-            // Effettua la chiamata al backend per assegnare l'operatore alla segnalazione
+            // Effettua la chiamata al backend per assegnare l'operatore alla segnalazione.
             const response = await axios.put(`${API_URL}/report/assign/${reportId}`, {
                 assignedTo: operatorId
             });
 
             if (response.status === 200 || response.data.success) {
-                // Aggiorna lo stato locale modificando sia assignedTo che lo status in 'ASSIGNED'
+                // Aggiorna lo stato locale modificando assignedTo e status in 'ASSIGNED'.
                 setReports(prevReports =>
                     prevReports.map(r => r._id === reportId ? { ...r, assignedTo: operatorId, status: 'ASSIGNED' } : r)
                 );
@@ -88,7 +88,7 @@ export default function AdminReportsScreen() {
         }
     };
 
-    // Filtra le segnalazioni in base alla tab attiva e allo status delle varie tab (pending, approved, assigned)
+    // Filtra le segnalazioni in base alla tab attiva e allo status: pending, approved o assigned.
     const filteredReports = reports.filter(report => {
         if (activeTab === 'segnalazioni_approvate') {
             return report.status === 'ACCEPT';
@@ -120,7 +120,7 @@ export default function AdminReportsScreen() {
                 <Text style={styles.title}>Pannello Amministratore</Text>
                 <Text style={styles.subtitle}>Gestione e approvazione segnalazioni guasti</Text>
 
-                {/* ── TAB DI SEPARAZIONE AGGIORNATA CON 4 PULSANTI ── */}
+                {/* ── Tab di separazione con quattro pulsanti ── */}
                 <View style={styles.tabContainer}>
                     <TouchableOpacity
                         style={[styles.tabButton, activeTab === 'registered_user' && styles.activeTabButton]}
@@ -161,7 +161,7 @@ export default function AdminReportsScreen() {
 
                 <View style={styles.divider} />
 
-                {/* ── GRIGLIA REATTIVA DELLE CARD ── */}
+                {/* ── Griglia reattiva delle card ── */}
                 {filteredReports.length > 0 ? (
                     <View style={styles.gridContainer}>
                         {filteredReports.map((report) => (
@@ -190,7 +190,7 @@ export default function AdminReportsScreen() {
                                     <Text style={styles.descriptionText}>"{report.description}"</Text>
                                 </View>
 
-                                {/* ── GESTIONE DINAMICA DEL CONTENUTO DELLE CARD IN BASE ALLA TAB ── */}
+                                {/* ── Contenuto dinamico delle card in base alla tab ── */}
                                 {activeTab === 'segnalazioni_assegnate' ? (
                                     // Vista per la nuova Tab Assegnate: Mostra a chi è in carico
                                     <View style={styles.assignmentBox}>

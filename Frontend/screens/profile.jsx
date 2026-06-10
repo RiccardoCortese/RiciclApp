@@ -11,9 +11,9 @@ import * as FileSystem from "expo-file-system";
 const DEFAULT_AVATAR = require("../src/assets/Profile_image/User_image.png");
 
 const ROLE_COLOR = {
-  admin:    '#C0174D', // amaranth
-  operator: '#0097A7', // cyan
-  user:     '#009933', // green (default)
+  admin:    '#C0174D', // Amaranto
+  operator: '#0097A7', // Ciano
+  user:     '#009933', // Verde, valore predefinito
 };
 
 function usePrimaryColor() {
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: 'transparent', // overridden inline per role
+    backgroundColor: 'transparent', // Sovrascritto inline in base al ruolo
     paddingTop: Platform.OS === 'web' ? 20 : 50,
     paddingBottom: 18,
     paddingHorizontal: 20,
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   },
 
   saveButton: {
-    backgroundColor: 'transparent', // overridden inline per role
+    backgroundColor: 'transparent', // Sovrascritto inline in base al ruolo
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   },
 
   changeButton: {
-    backgroundColor: 'transparent', // overridden inline per role
+    backgroundColor: 'transparent', // Sovrascritto inline in base al ruolo
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
@@ -629,13 +629,13 @@ const styles = StyleSheet.create({
   },
 
   changeButtonText: {
-    color: 'transparent', // overridden inline per role
+    color: 'transparent', // Sovrascritto inline in base al ruolo
     fontWeight: "700",
   },
 
   logoutButton: {
     marginTop: 30,
-    backgroundColor: 'transparent', // overridden inline per role
+    backgroundColor: 'transparent', // Sovrascritto inline in base al ruolo
     padding: 10,
     borderRadius: 5,
     alignItems: "center",

@@ -10,11 +10,10 @@ import axios from 'axios';
 import { API_URL } from '../../src/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Ordered disposal categories. A scanned product is matched against every
-// packaging signal Open Food Facts exposes, so localized terms (e.g. the Italian
-// "plastica") and resin codes (pet, hdpe, ldpe, pp, ps…) all map to the right
-// bin. Categories are listed by priority: for a given bin the first matching
-// category wins, so "Indifferenziato" is only used when nothing matches at all.
+// Categorie di smaltimento ordinate per priorità.
+// Un prodotto scansionato viene confrontato con tutti i segnali di packaging di Open Food Facts,
+// così termini localizzati e codici delle plastiche vengono associati al bidone corretto.
+// "Indifferenziato" viene usato solo quando non ci sono corrispondenze.
 const DISPOSAL_CATEGORIES = [
   {
     info: { label: 'Plastica', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '♻️' },
@@ -69,19 +68,18 @@ const FALLBACK_DISPOSAL = {
   icon: '🗑️',
 };
 
-// Whole-word (token) match: anything that is not a letter or digit counts as a
-// boundary, so "plastic" matches "en:plastic" and "pet" matches "pet-1" while
-// short resin codes like "pp"/"ps" never leak into unrelated words.
+// Corrispondenza su parola intera: qualsiasi carattere non alfanumerico vale come separatore.
+// Così "plastic" corrisponde a "en:plastic" e "pet" a "pet-1",
+// mentre codici brevi come "pp" o "ps" non finiscono in parole non correlate.
 function matchesKeyword(text, keyword) {
   const escaped = keyword.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`).test(text);
 }
 
-// Collects every packaging signal Open Food Facts exposes — the tag lists, the
-// free-text fields and the structured "packagings" array — into one lowercase
-// string. Reading all of them (not just packaging/packaging_tags) is what stops
-// products whose material lives only in packaging_materials_tags / packagings
-// from wrongly falling back to "Indifferenziato".
+// Raccoglie tutti i segnali di packaging esposti da Open Food Facts in una stringa minuscola:
+// liste di tag, campi testuali e array strutturato "packagings".
+// Leggerli tutti evita che prodotti con materiale indicato solo in packaging_materials_tags
+// o packagings ricadano erroneamente in "Indifferenziato".
 function collectPackagingText(product) {
   const parts = [];
   const addTags = (arr) => { if (Array.isArray(arr)) parts.push(arr.join(' ')); };
@@ -141,10 +139,10 @@ export default function Informations() {
   const [error, setError]         = useState(null);
   const [searched, setSearched]   = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [rewardInfo, setRewardInfo]   = useState(null); // {points, boost} after a points-earning scan
-  const [rewardStatus, setRewardStatus] = useState(null); // stato timer prossima scansione premiata
+  const [rewardInfo, setRewardInfo]   = useState(null); // {points, boost} dopo una scansione premiata
+  const [rewardStatus, setRewardStatus] = useState(null); // Stato del timer per la prossima scansione premiata.
 
-  // Aggiorna il countdown ogni secondo
+  // Aggiorna il countdown ogni secondo.
   useEffect(() => {
 
     if (!rewardStatus?.remainingSeconds || rewardStatus.remainingSeconds <= 0) {
@@ -178,7 +176,7 @@ export default function Informations() {
 
   const scannedRef = useRef(false);
 
-  // Formatta i secondi rimanenti in minuti e secondi
+  // Formatta i secondi rimanenti in minuti e secondi.
   const formatRewardCountdown = (seconds) => {
     const value = Number(seconds || 0);
 
@@ -212,7 +210,7 @@ export default function Informations() {
       const user = storedUser ? JSON.parse(storedUser) : null;
       const userId = user?.id || user?._id;
 
-      // --- Primary: ZX_API backend ---
+      // --- Percorso principale: backend ZX_API ---
       const { data } = await axios.get(`${API_URL}/zx/scan/${trimmed}`, {
         timeout: 10000,
         params: {
@@ -224,7 +222,7 @@ export default function Informations() {
         setProduct(data.product);
         setDisposal(data.disposal ?? []);
 
-        // Stato disponibilità prossima scansione premiata
+        // Stato della disponibilità per la prossima scansione premiata.
         if (data.reward) {
           setRewardStatus({
             granted: data.reward.granted,
@@ -232,7 +230,7 @@ export default function Informations() {
           });
         }
 
-        // Popup punti ottenuti
+        // Popup dei punti ottenuti.
         if (data.reward?.granted && data.reward.pointsAdded > 0) {
           setRewardInfo({
             points: data.reward.pointsAdded,
@@ -463,7 +461,7 @@ export default function Informations() {
         <View style={styles.bottomPad} />
       </ScrollView>
 
-      {/* ── Reward popup: thanks the user and shows the points earned ── */}
+      {/* ── Popup ricompensa: ringrazia l'utente e mostra i punti ottenuti ── */}
       <Modal
         visible={!!rewardInfo}
         transparent
@@ -525,7 +523,7 @@ export default function Informations() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f4f6f4' },
 
-  // ── Reward popup ────────────────────────────────────────────────────────────
+  // ── Popup ricompensa ─────────────────────────────────────────────────────────
   rewardOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32,

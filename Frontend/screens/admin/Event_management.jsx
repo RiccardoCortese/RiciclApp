@@ -1,8 +1,7 @@
-// ── Recycling event — management screen ──────────────────────────────────────
-// Reachable from the third button of the admin bottom bar. Lists the recycling
-// events that are currently running, those scheduled for the future and those
-// already ended, and offers a button that starts the creation of a new event
-// (which happens on the admin map, see Home_admin.jsx ▸ event-creation mode).
+// ── Eventi di raccolta: schermata di gestione ────────────────────────────────
+// Raggiungibile dal terzo pulsante della barra inferiore admin.
+// Mostra gli eventi in corso, programmati e conclusi, e offre un pulsante
+// per avviare la creazione di un nuovo evento dalla mappa admin.
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View,
@@ -15,7 +14,7 @@ import { API_URL } from '../../src/config';
 
 const AMARANTH = '#C0174D';
 
-// "gg/mm/aaaa hh:mm" — compact Italian date-time for the event cards.
+// "gg/mm/aaaa hh:mm": formato data e ora compatto per le card degli eventi.
 function formatDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
@@ -82,7 +81,7 @@ export default function EventManagementAdmin() {
 
   useFocusEffect(useCallback(() => { fetchEvents(); }, [fetchEvents]));
 
-  // Bucket the events by their time window relative to now.
+  // Suddivide gli eventi in base alla loro finestra temporale rispetto all'orario corrente.
   const now      = Date.now();
   const ongoing  = events.filter((e) => +new Date(e.startDate) <= now && +new Date(e.endDate) > now);
   const upcoming = events.filter((e) => +new Date(e.startDate) > now);
@@ -92,7 +91,7 @@ export default function EventManagementAdmin() {
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Header: centered title + close button (top-right → Home) */}
+      {/* Intestazione: titolo centrato e pulsante di chiusura in alto a destra verso la home */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Eventi di Raccolta</Text>
         <TouchableOpacity
@@ -105,7 +104,7 @@ export default function EventManagementAdmin() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Start the creation of a new recycling event */}
+        {/* Avvia la creazione di un nuovo evento di raccolta */}
         <TouchableOpacity
           style={styles.createButton}
           activeOpacity={0.85}

@@ -12,7 +12,7 @@ export default function RootIndex() {
         const token = await AsyncStorage.getItem('token');
         const role = await AsyncStorage.getItem('userRole');
 
-        // Se manca il token o il ruolo, l'utente non è loggato -> vista generica
+        // Se manca il token o il ruolo, l'utente non è loggato e vede la schermata generica
         if (!token || !role) {
           router.replace('/(user)');
           return;

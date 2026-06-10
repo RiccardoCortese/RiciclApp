@@ -18,14 +18,14 @@ const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 };
 const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
-// Grey colour used for the bin markers shown on the map.
+// Colore grigio usato per i marker dei bidoni sulla mappa
 const BIN_GREY = '#9E9E9E';
 
-// Recycling-event circle colours (shared look with the admin map).
+// Colori dei cerchi degli eventi di raccolta, coerenti con la mappa admin
 const EVENT_FILL    = '#FFEB3B';
 const EVENT_OUTLINE = '#000000';
 
-// "gg/mm/aaaa hh:mm" — compact Italian date-time for event popups.
+// Formato "gg/mm/aaaa hh:mm" per le date mostrate nei popup degli eventi
 function formatEventDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
@@ -33,7 +33,7 @@ function formatEventDateTime(value) {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// GeoJSON polygon approximating a metric circle around (lat,lng).
+// Poligono GeoJSON che approssima un cerchio metrico attorno a latitudine e longitudine
 function circlePolygon(lat, lng, radiusMeters, steps = 64) {
   const coords = [];
   const latR = radiusMeters / 111320;
@@ -59,13 +59,13 @@ function eventsToFeatureCollection(events) {
 }
 
 
-// True when a center/bin marker visually covers the given screen point. Markers
-// are drawn above the event circles, so when one sits on the clicked spot it
-// wins the interaction (its own popup handles the click) and the event handler
-// stands down. When no marker is there, the click falls through to the event.
+// Verifica se un marker di centro o bidone copre visivamente il punto cliccato.
+// I marker sono disegnati sopra i cerchi degli eventi: se un marker si trova
+// nel punto cliccato, gestisce lui l'interazione; altrimenti il click passa
+// all'evento.
 function markerCoversPoint(map, items, point) {
   if (!map || !point || !Array.isArray(items)) return false;
-  const HALF_W = 16, ABOVE = 42, BELOW = 4; // default maplibre pin, anchored at its tip
+  const HALF_W = 16, ABOVE = 42, BELOW = 4; // Pin MapLibre predefinito, ancorato sulla punta
   for (const it of items) {
     const lat = Number(it?.coordinates?.lat);
     const lng = Number(it?.coordinates?.lng);
@@ -90,14 +90,14 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
   const binMarkersRef = useRef([]);
   const eventLabelsRef = useRef([]);
 
-  // Keep the latest events + click callback reachable from once-only handlers.
+  // Mantiene gli eventi aggiornati e la callback di click accessibili agli handler registrati una sola volta.
   const eventsRef = useRef(events);
   useEffect(() => { eventsRef.current = events; }, [events]);
   const onEventClickRef = useRef(onEventClick);
   useEffect(() => { onEventClickRef.current = onEventClick; }, [onEventClick]);
 
-  // Latest centers/bins, reachable from the once-only event click handler so it
-  // can yield to a bin/center marker sitting on top of the clicked spot.
+  // Mantiene centri e bidoni aggiornati per l'handler di click sugli eventi,
+  // così il click può essere lasciato al marker di un bidone o centro sovrapposto.
   const centersRef = useRef(centers);
   useEffect(() => { centersRef.current = centers; }, [centers]);
   const binsRef = useRef(bins);
@@ -126,7 +126,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
       mapRef.current = map;
 
       map.on('load', () => {
-        // Recycling-event circles: translucent yellow fill + black outline.
+        // Cerchi degli eventi di raccolta: riempimento giallo trasparente e bordo nero.
         map.addSource('events', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         map.addLayer({
           id: 'events-fill', type: 'fill', source: 'events',
@@ -136,10 +136,10 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
           id: 'events-line', type: 'line', source: 'events',
           paint: { 'line-color': EVENT_OUTLINE, 'line-width': 2 },
         });
-        // Click an event circle → open the characteristics modal (with join btn).
+        // Click su un cerchio evento: apre il modale dei dettagli con il pulsante di partecipazione.
         map.on('click', 'events-fill', (e) => {
           if (!e.features.length) return;
-          // A bin/center marker on this spot is a level above the event → it wins.
+          // Un marker di bidone o centro sopra l'evento ha priorità sul click.
           if (markerCoversPoint(map, [...(centersRef.current || []), ...(binsRef.current || [])], e.point)) return;
           const ev = eventsRef.current.find(x => String(x._id) === String(e.features[0].properties.id));
           if (ev) onEventClickRef.current?.(ev);
@@ -157,7 +157,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
     };
   }, [style]);
 
-  // Draw the event circles + a centred name label per event.
+  // Disegna i cerchi degli eventi e l'etichetta centrale con il nome.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !maplibreInstance) return;
@@ -199,10 +199,10 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
         .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
         .addTo(map);
 
-      // Build the popup body as a real DOM node and bind the click listener
-      // straight onto it. maplibre reuses this same node across open/close, so
-      // the "vedi i bidoni" link stays clickable no matter how many times the
-      // popup is reopened or the centers list refetches.
+      // Costruisce il contenuto del popup come nodo DOM reale e collega direttamente
+      // il listener di click. MapLibre riutilizza lo stesso nodo tra apertura e chiusura,
+      // quindi il link "vedi i bidoni" resta cliccabile anche dopo riaperture del popup
+      // o aggiornamenti della lista dei centri.
       const popupNode = document.createElement('div');
       popupNode.style.cssText = 'font-family:Arial,sans-serif;padding:5px;cursor:pointer;';
       popupNode.innerHTML = `
@@ -218,7 +218,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
     });
   }, [centers, maplibreInstance]);
 
-  // Grey bin markers with a minimal banner: name, waste types, connected center.
+  // Marker grigi dei bidoni con nome, tipi di rifiuto e centro collegato.
   useEffect(() => {
     if (!mapRef.current || !maplibreInstance) return;
     binMarkersRef.current.forEach(m => m.remove());
@@ -344,8 +344,8 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
       const p = (n) => String(n).padStart(2, '0');
       return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
     }
-    // A bin/center marker on the clicked spot is a level above the event circle,
-    // so it wins the interaction; only an empty spot falls through to the event.
+    // Un marker di bidone o centro sopra il cerchio evento ha priorità
+    // sull'interazione; solo un punto libero passa il click all'evento.
     function markerCoversPoint(point) {
       const HALF_W = 16, ABOVE = 42, BELOW = 4;
       const items = centers.concat(bins);
@@ -362,7 +362,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
     }
 
     map.on('load', () => {
-      // Recycling-event circles + centred name labels + click popups.
+      // Cerchi degli eventi di raccolta, etichette centrali e popup al click.
       const eventFeatures = events
         .filter(e => e && e.coordinates && e.coordinates.lat != null && e.coordinates.lng != null)
         .map(e => ({ type: 'Feature', properties: { id: String(e._id) },
@@ -381,11 +381,11 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
         new maplibregl.Marker({ element: el }).setLngLat([Number(e.coordinates.lng), Number(e.coordinates.lat)]).addTo(map);
       });
 
-      // Click an event circle → notify React Native to open the modal (with the
-      // "Partecipa" button). The webview cannot perform the authenticated join.
+      // Click su un cerchio evento: notifica React Native per aprire il modale
+      // con il pulsante "Partecipa". La WebView non gestisce l'iscrizione autenticata.
       map.on('click', 'events-fill', (ev) => {
         if (!ev.features.length) return;
-        if (markerCoversPoint(ev.point)) return; // a bin/center on top wins
+        if (markerCoversPoint(ev.point)) return; // Un bidone o centro sovrapposto ha priorità
         const id = String(ev.features[0].properties.id);
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'eventClicked', id: id }));
@@ -420,7 +420,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
           .addTo(map);
       });
 
-      // Grey bin markers with a minimal info popup (view only)
+      // Marker grigi dei bidoni con popup informativo in sola visualizzazione
       bins.forEach((bin) => {
         if (!bin.coordinates || !bin.coordinates.lng || !bin.coordinates.lat) return;
         const types = ((bin.wasteTypes && bin.wasteTypes.length) ? bin.wasteTypes : [bin.wasteType]).filter(Boolean).join(', ');
@@ -464,7 +464,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
   );
 }
 
-// ------- Main screen (logged-in citizen) -------
+// ------- Schermata principale del cittadino autenticato -------
 export default function HomeCitizenScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -478,12 +478,12 @@ export default function HomeCitizenScreen() {
   const [centers, setCenters] = useState([]);
   const [bins, setBins] = useState([]);
   const [events, setEvents] = useState([]);
-  const [viewingEvent, setViewingEvent] = useState(null); // event shown in the modal
+  const [viewingEvent, setViewingEvent] = useState(null); // Evento mostrato nel modale
   const [currentUserId, setCurrentUserId] = useState(null);
   const [joining, setJoining] = useState(false);
-  const [endedPopup, setEndedPopup] = useState(null);     // {events:[{name}], points} after settle
+  const [endedPopup, setEndedPopup] = useState(null);     // Popup mostrato dopo la liquidazione degli eventi conclusi
 
-  // Only events that have not ended are shown on the map / searchable.
+  // Mostra sulla mappa e nella ricerca solo gli eventi non ancora conclusi.
   const activeEvents = events.filter((e) => +new Date(e.endDate) > Date.now());
 
   const fetchEvents = useCallback(() => {
@@ -511,10 +511,10 @@ export default function HomeCitizenScreen() {
       })
       .catch(() => setBins([]));
 
-    // Recycling events (visible read-only to citizens).
+    // Eventi di raccolta visibili in sola lettura ai cittadini.
     fetchEvents();
 
-    // Current user id, used to tell whether the citizen already joined an event.
+    // ID dell'utente corrente, usato per capire se ha già aderito a un evento.
     AsyncStorage.getItem('user').then((stored) => {
       try {
         const u = stored ? JSON.parse(stored) : null;
@@ -522,9 +522,9 @@ export default function HomeCitizenScreen() {
       } catch { setCurrentUserId(null); }
     });
 
-    // Settle any events that ended while the user was away: awards +10 once per
-    // event and surfaces a thank-you popup. Refreshes the list afterwards so the
-    // concluded events drop off the map.
+    // Liquida gli eventi conclusi mentre l'utente era assente: assegna 10 punti
+    // una sola volta per evento e mostra un popup di ringraziamento. Poi aggiorna
+    // la lista per rimuovere dalla mappa gli eventi conclusi.
     AsyncStorage.getItem('token').then((token) => {
       if (!token) return;
       axios.post(`${API_URL}/events/settle`, {}, { headers: { Authorization: `Bearer ${token}` } })
@@ -539,12 +539,12 @@ export default function HomeCitizenScreen() {
     });
   }, [fetchEvents]);
 
-  // Whether the current citizen is already a participant of the given event.
+  // Verifica se il cittadino corrente partecipa già all'evento indicato.
   const isJoined = (ev) =>
     !!currentUserId && (ev?.participants || []).some((p) => String(p) === String(currentUserId));
 
-  // Join the currently-viewed event → unlocks its point boost on matching scans.
-  const joinEvent = async () => {
+  // Iscrive l'utente all'evento visualizzato e abilita il boost punti sulle scansioni compatibili.
+   const joinEvent = async () => {
     if (!viewingEvent || joining) return;
     if (isJoined(viewingEvent)) return;
     setJoining(true);
@@ -556,7 +556,7 @@ export default function HomeCitizenScreen() {
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (data?.event) {
-        setViewingEvent(data.event);              // reflect joined state in the modal
+        setViewingEvent(data.event); // Aggiorna lo stato di partecipazione nel modale
         setEvents((prev) => prev.map((e) => (String(e._id) === String(data.event._id) ? data.event : e)));
       } else {
         fetchEvents();
@@ -575,7 +575,7 @@ export default function HomeCitizenScreen() {
     }, [])
   );
 
-  // Unified searchable elements: collection centers, bins and (active) events.
+  // Elementi ricercabili unificati: centri di raccolta, bidoni ed eventi attivi.
   const buildSearchItems = () => {
     const items = [];
     (centers || []).forEach((c) => {
@@ -647,7 +647,7 @@ export default function HomeCitizenScreen() {
           onCenterClick={(center) => router.push(`/centers/${center._id}/bins`)} />
       )}
 
-      {/* ── Search Bar ── */}
+      {/* ── Barra di ricerca ── */}
       <View style={[styles.searchBarWrapper, { zIndex: 10 }]} pointerEvents="box-none">
         <View style={styles.searchBar}>
           <TouchableOpacity onPress={handleSearch} activeOpacity={0.7}>
@@ -701,7 +701,7 @@ export default function HomeCitizenScreen() {
         )}
       </View>
 
-      {/* ── Button Bar ── */}
+      {/* ── Barra dei pulsanti ── */}
       <View style={[styles.buttonBar, { zIndex: 10 }]} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.button}
@@ -739,7 +739,7 @@ export default function HomeCitizenScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Event ended: thank-you for participation + 10 points granted ── */}
+      {/* ── Evento concluso: ringraziamento per la partecipazione e 10 punti assegnati ── */}
       {endedPopup && (
         <View style={styles.eventOverlay}>
           <TouchableOpacity style={styles.eventBackdrop} activeOpacity={1} onPress={() => setEndedPopup(null)} />
@@ -760,7 +760,7 @@ export default function HomeCitizenScreen() {
         </View>
       )}
 
-      {/* ── Event characteristics modal (click on an event) + join button ── */}
+      {/* ── Modale dettagli evento con pulsante di partecipazione ── */}
       {viewingEvent && (
         <View style={styles.eventOverlay}>
           <TouchableOpacity style={styles.eventBackdrop} activeOpacity={1} onPress={() => setViewingEvent(null)} />
@@ -792,7 +792,7 @@ export default function HomeCitizenScreen() {
               <Text style={styles.eventBoostTxt}>⚡ Punti x{viewingEvent.boost} sui rifiuti potenziati</Text>
             </View>
 
-            {/* Join the event → grants the boost on matching scans */}
+            {/* Iscrizione all'evento: abilita il boost sulle scansioni compatibili */}
             {isJoined(viewingEvent) ? (
               <View style={[styles.joinBtn, styles.joinedBtn]}>
                 <Text style={styles.joinedTxt}>✓ Sei iscritto a questo evento</Text>
@@ -818,7 +818,7 @@ export default function HomeCitizenScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, position: 'relative' },
 
-  // ── Event characteristics modal ─────────────────────────────────────────────
+  // ── Modale dettagli evento ──────────────────────────────────────────────────
   eventOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     alignItems: 'center', justifyContent: 'center', zIndex: 40,

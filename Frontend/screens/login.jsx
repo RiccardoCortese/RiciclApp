@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../src/config";
 
 export default function Login() {
-  const router = useRouter(); // Inizializza il router
+  const router = useRouter(); 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -24,11 +24,11 @@ export default function Login() {
       // Salvo token e utente nel dispositivo
       await AsyncStorage.setItem("token", token);
       await AsyncStorage.setItem("user", JSON.stringify(user));
-      await AsyncStorage.setItem("userRole", user.role); // Salvo anche il ruolo per il redirect
+      await AsyncStorage.setItem("userRole", user.role); // Salva il ruolo per il redirect
 
       alert("Successo", "Login effettuato!");
 
-      router.push("/"); // Torna alla home page
+      router.push("/"); // Torna alla schermata principale
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const errorMsg =

@@ -10,13 +10,12 @@ import axios from 'axios';
 import { API_URL } from '../src/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ---- Disposal logic (used as fallback when ZX_API is unreachable) -----
+// ---- Logica di smaltimento, usata come fallback quando ZX_API non è raggiungibile -----
 
-// Ordered disposal categories. A scanned product is matched against every
-// packaging signal Open Food Facts exposes, so localized terms (e.g. the Italian
-// "plastica") and resin codes (pet, hdpe, ldpe, pp, ps…) all map to the right
-// bin. Categories are listed by priority: for a given bin the first matching
-// category wins, so "Indifferenziato" is only used when nothing matches at all.
+// Categorie di smaltimento ordinate per priorità.
+// Un prodotto scansionato viene confrontato con tutti i segnali di packaging di Open Food Facts,
+// così termini localizzati e codici delle plastiche vengono associati al bidone corretto.
+// "Indifferenziato" viene usato solo quando non ci sono corrispondenze.
 const DISPOSAL_CATEGORIES = [
   {
     info: { label: 'Plastica', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '♻️' },
@@ -71,19 +70,18 @@ const FALLBACK_DISPOSAL = {
   icon: '🗑️',
 };
 
-// Whole-word (token) match: anything that is not a letter or digit counts as a
-// boundary, so "plastic" matches "en:plastic" and "pet" matches "pet-1" while
-// short resin codes like "pp"/"ps" never leak into unrelated words.
+// Corrispondenza su parola intera: qualsiasi carattere non alfanumerico vale come separatore.
+// Così "plastic" corrisponde a "en:plastic" e "pet" a "pet-1",
+// mentre codici brevi come "pp" o "ps" non finiscono in parole non correlate.
 function matchesKeyword(text, keyword) {
   const escaped = keyword.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`).test(text);
 }
 
-// Collects every packaging signal Open Food Facts exposes — the tag lists, the
-// free-text fields and the structured "packagings" array — into one lowercase
-// string. Reading all of them (not just packaging/packaging_tags) is what stops
-// products whose material lives only in packaging_materials_tags / packagings
-// from wrongly falling back to "Indifferenziato".
+// Raccoglie tutti i segnali di packaging esposti da Open Food Facts in una stringa minuscola:
+// liste di tag, campi testuali e array strutturato "packagings".
+// Leggerli tutti evita che prodotti con materiale indicato solo in packaging_materials_tags
+// o packagings ricadano erroneamente in "Indifferenziato".
 function collectPackagingText(product) {
   const parts = [];
   const addTags = (arr) => { if (Array.isArray(arr)) parts.push(arr.join(' ')); };
@@ -124,7 +122,7 @@ function resolveDisposal(product) {
   return result.length > 0 ? result : [FALLBACK_DISPOSAL];
 }
 
-// ---- Ecoscore display info -----
+// ---- Informazioni di visualizzazione dell'Eco-score -----
 
 const ECOSCORE_INFO = {
   a: { color: '#1B5E20', text: 'Impatto ambientale molto basso' },
@@ -134,7 +132,7 @@ const ECOSCORE_INFO = {
   e: { color: '#B71C1C', text: 'Impatto ambientale molto alto' },
 };
 
-// ------ Screen -----
+// ------ Schermata -----
 
 export default function Informations() {
   const router = useRouter();
@@ -148,12 +146,12 @@ export default function Informations() {
   const [searched, setSearched]   = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
-  // Prevents onBarcodeScanned firing more than once per scan session
+  // Evita che onBarcodeScanned venga eseguito più di una volta per sessione di scansione.
   const scannedRef = useRef(false);
 
-  // ── Product search ──────────────────────────────────────────────────────────
-  // Primary path  → ZX_API backend (pre-computes disposal server-side)
-  // Fallback path → OpenFoodFacts directly (disposal computed client-side)
+  // ── Ricerca prodotto ────────────────────────────────────────────────────────
+  // Percorso principale → backend ZX_API, con smaltimento calcolato lato server.
+  // Percorso fallback → Open Food Facts diretto, con smaltimento calcolato lato client.
 
 
   const searchProduct = async (code) => {
@@ -171,7 +169,7 @@ export default function Informations() {
       const user = storedUser ? JSON.parse(storedUser) : null;
       const userId = user?.id || user?._id;
 
-      // --- Primary: ZX_API backend ---
+      // --- Percorso principale: backend ZX_API ---
       const { data } = await axios.get(`${API_URL}/zx/scan/${trimmed}`, {
         timeout: 10000,
         params: {
@@ -186,8 +184,8 @@ export default function Informations() {
         setError(data.error || 'Prodotto non trovato. Verifica il codice e riprova.');
       }
     } catch (primaryErr) {
-      // --- Fallback: call OpenFoodFacts directly ---
-      // Triggered when the backend is unreachable (wrong IP, not started, etc.)
+      // --- Fallback: chiamata diretta a Open Food Facts ---
+      // Usato quando il backend non è raggiungibile, ad esempio per IP errato o server non avviato.
       console.warn('[ZX_API] Backend non raggiungibile, uso OpenFoodFacts diretto:', primaryErr.message);
       try {
         const { data } = await axios.get(
@@ -213,14 +211,14 @@ export default function Informations() {
     }
   };
 
-  // ------ Camera handler -----
+  // ------ Gestione camera -----
   const handleBarcodeScan = useCallback(({ data }) => {
     if (scannedRef.current) return;
     scannedRef.current = true;
     setShowScanner(false);
     setBarcode(data);
     searchProduct(data);
-  }, []); // stable — relies only on stable setters and the ref
+  }, []); // Stabile: usa solo setter stabili e il riferimento.
 
   const openScanner = async () => {
     if (!permission?.granted) {
@@ -231,11 +229,11 @@ export default function Informations() {
     setShowScanner(true);
   };
 
-  // ------ Derived display values ------
+  // ------ Valori derivati per la visualizzazione ------
   const ecoscore = product?.ecoscore_grade;
   const ecoscoreInfo = ecoscore && ecoscore !== 'not-applicable' ? ECOSCORE_INFO[ecoscore] : null;
 
-  // ------ Render ------
+  // ------ Rendering ------
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -264,7 +262,7 @@ export default function Informations() {
           </Text>
         </View>
 
-        {/* ── Search ── */}
+        {/* ── Ricerca ── */}
         <View style={styles.searchCard}>
           <Text style={styles.inputLabel}>Codice a barre</Text>
           <View style={styles.inputRow}>
@@ -288,7 +286,7 @@ export default function Informations() {
             </TouchableOpacity>
           </View>
 
-          {/* Scan button — hidden on web */}
+          {/* Pulsante scansione, nascosto su web */}
           {Platform.OS !== 'web' && (
             <TouchableOpacity style={styles.scanBtn} activeOpacity={0.85} onPress={openScanner}>
               <Text style={styles.scanBtnIcon}>📷</Text>
@@ -299,7 +297,7 @@ export default function Informations() {
           <Text style={styles.hint}>💡 Il codice a barre si trova sulla confezione del prodotto</Text>
         </View>
 
-        {/* ── Loading ── */}
+        {/* ── Caricamento ── */}
         {loading && (
           <View style={styles.stateBox}>
             <ActivityIndicator size="large" color="#009933" />
@@ -307,7 +305,7 @@ export default function Informations() {
           </View>
         )}
 
-        {/* ── Error ── */}
+        {/* ── Errore ── */}
         {!loading && error && (
           <View style={[styles.stateBox, styles.errorBox]}>
             <Text style={styles.stateIcon}>⚠️</Text>
@@ -315,7 +313,7 @@ export default function Informations() {
           </View>
         )}
 
-        {/* ── Empty after search ── */}
+        {/* ── Nessun risultato dopo la ricerca ── */}
         {!loading && searched && !error && !product && (
           <View style={styles.stateBox}>
             <Text style={styles.stateIcon}>🔍</Text>
@@ -323,11 +321,11 @@ export default function Informations() {
           </View>
         )}
 
-        {/* ── Results ── */}
+        {/* ── Risultati ── */}
         {!loading && product && (
           <View style={styles.results}>
 
-            {/* Product identity card */}
+            {/* Card identità prodotto */}
             <View style={styles.card}>
               <View style={styles.productHeader}>
                 {product.image_front_small_url ? (
@@ -369,7 +367,7 @@ export default function Informations() {
               ) : null}
             </View>
 
-            {/* Eco-score card */}
+            {/* Card Eco-score */}
             {ecoscoreInfo ? (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Eco-Score</Text>
@@ -382,7 +380,7 @@ export default function Informations() {
               </View>
             ) : null}
 
-            {/* Packaging card */}
+            {/* Card packaging */}
             {product.packaging ? (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Imballaggio</Text>
@@ -390,7 +388,7 @@ export default function Informations() {
               </View>
             ) : null}
 
-            {/* Disposal card */}
+            {/* Card smaltimento */}
             <View style={[styles.card, styles.disposalCard]}>
               <Text style={styles.cardTitle}>Come Smaltire ♻️</Text>
               <Text style={styles.disposalSubtitle}>
@@ -413,7 +411,7 @@ export default function Informations() {
         <View style={styles.bottomPad} />
       </ScrollView>
 
-      {/* ── Camera Scanner Modal — native only ── */}
+      {/* ── Modale scanner camera, solo nativo ── */}
       {Platform.OS !== 'web' && (
         <Modal
           visible={showScanner}
@@ -493,7 +491,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 26, fontWeight: '800', color: '#1a1a1a', marginBottom: 8 },
   heroSubtitle: { fontSize: 15, color: '#555', lineHeight: 22 },
 
-  // Search card
+  // Card ricerca
   searchCard: {
     backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
@@ -525,7 +523,7 @@ const styles = StyleSheet.create({
   scanBtnText: { color: '#009933', fontSize: 15, fontWeight: '700' },
   hint: { marginTop: 12, fontSize: 13, color: '#888' },
 
-  // State boxes
+  // Box di stato
   stateBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
   stateIcon: { fontSize: 40 },
   stateText: { fontSize: 16, color: '#666' },
@@ -535,7 +533,7 @@ const styles = StyleSheet.create({
   },
   errorText: { fontSize: 15, color: '#c62828', textAlign: 'center', lineHeight: 22 },
 
-  // Results
+  // Risultati
   results: { gap: 14 },
   card: {
     backgroundColor: '#fff', borderRadius: 16, padding: 18,
@@ -547,7 +545,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14,
   },
 
-  // Product identity
+  // Identità prodotto
   productHeader: { flexDirection: 'row', gap: 14, marginBottom: 14 },
   productImage: { width: 80, height: 80, borderRadius: 12, resizeMode: 'contain', backgroundColor: '#f5f5f5' },
   productImagePlaceholder: {
@@ -570,7 +568,7 @@ const styles = StyleSheet.create({
   infoKey: { fontSize: 13, color: '#888', fontWeight: '500', flexShrink: 0 },
   infoValue: { fontSize: 13, color: '#333', fontWeight: '500', textAlign: 'right', flex: 1 },
 
-  // Ecoscore
+  // Eco-score
   ecoscoreRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   ecoscoreBadge: { width: 52, height: 52, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   ecoscoreLetter: { color: '#fff', fontSize: 26, fontWeight: '800' },
@@ -579,7 +577,7 @@ const styles = StyleSheet.create({
   // Packaging
   packagingText: { fontSize: 14, color: '#444', lineHeight: 21 },
 
-  // Disposal
+  // Smaltimento
   disposalCard: { borderWidth: 1.5, borderColor: '#c8e6c9' },
   disposalSubtitle: { fontSize: 13, color: '#666', marginBottom: 14, marginTop: -8, lineHeight: 19 },
   disposalItem: {
@@ -593,7 +591,7 @@ const styles = StyleSheet.create({
   disposalLabel: { fontSize: 16, fontWeight: '700' },
   disposalBin: { fontSize: 13, color: '#555' },
 
-  // Camera scanner
+  // Scanner camera
   scannerContainer: { flex: 1, backgroundColor: '#000' },
   camera: { flex: 1 },
   scannerOverlay: {

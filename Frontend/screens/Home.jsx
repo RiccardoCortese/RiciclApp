@@ -12,7 +12,7 @@ import Info from '../src/assets/Info_rifiuti.png';
 import UserDefault from '../src/assets/Profile_image/User_image.png';
 import axios from 'axios';
 
-const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 }; // Trento, Italy
+const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 }; // Trento, Italia
 const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
@@ -25,14 +25,14 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const markersRef = useRef([]);
 
   useEffect(() => {
-    // Load MapLibre CSS from CDN (Metro bundler doesn't handle CSS imports)
+    // Carica il CSS di MapLibre da CDN, perché Metro non gestisce import CSS
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = 'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css';
     document.head.appendChild(link);
 
     let map;
-    // Dynamic import keeps maplibre-gl out of the native bundle
+    // Import dinamico per evitare di includere maplibre-gl nel bundle nativo
     import('maplibre-gl').then((mod) => {
       if (!containerRef.current) return;
       const maplibregl = mod.default ?? mod;
@@ -67,11 +67,11 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
 
     const map = mapRef.current;
 
-    // rimuove marker precedenti
+    // Rimuove i marker precedenti
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
 
-    // marker dei centri
+    // Marker dei centri
     centers.forEach(center => {
       if (!center.coordinates) return;
 
@@ -86,7 +86,7 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
         ])
         .addTo(map);
 
-      //per ogni marker, creo un popup con le info del centro e un link per vedere i bidoni 
+      // Per ogni marker crea un popup con le informazioni del centro e il link ai bidoni
       const popupHtml = `
           <div style="font-family: Arial, sans-serif; padding: 5px; cursor: pointer;" id="popup-click-${center._id}">
             <h3 style="color: #009933; margin: 0 0 4px 0; text-decoration: underline;">${center.name}</h3>
@@ -100,7 +100,7 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
           const container = document.getElementById(`popup-click-${center._id}`);
           if (container) {
             container.onclick = () => {
-              onCenterClick(center); // con questo una volta cliccato il link nel popup vado nella schermata dei bidoni del centro, 
+              onCenterClick(center); // Apre la schermata dei bidoni del centro selezionato 
             };
           }
         }, 50);
@@ -120,7 +120,7 @@ function WebMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   );
 }
 
-// ---- Native map: MapLibre GL JS in a WebView (requires development build) -----
+// ---- Native map: MapLibre GL JS in una WebView -----
 function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   const webViewRef = useRef(null);
   const [WebView, setWebView] = useState(null);
@@ -241,7 +241,8 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   return (
     <WebView
       ref={webViewRef}
-      // key serve a forzare il reload completo della WebView quando cambia la lista dei centri (così da aggiornare i marker), altrimenti aggiorna solo l'HTML interno ma non riesce a rimuovere i vecchi marker
+      // La key forza il reload completo della WebView quando cambia la lista dei centri,
+      // così i marker vengono aggiornati correttamente.
       key={`map-centers-${centers.length}`}
       source={{ html: mapHtml }}
       style={{ flex: 1 }}
@@ -254,7 +255,7 @@ function NativeMap({ targetCenter, styleUrl, centers, onCenterClick }) {
   );
 }
 
-// ------- Main screen (generic, non-logged-in view) -------
+// ------- Schermata principale per utenti non autenticati -------
 export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
