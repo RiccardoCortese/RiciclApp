@@ -113,7 +113,7 @@ paths:
         '500':
           description: Errore interno del server
   
-  /center/all:
+  /centers/all:
     get:
       tags:
         - Centers
@@ -126,7 +126,7 @@ paths:
         '500':
           description: Errore interno del server
 
-  /center/{id}:
+  /centers/{id}:
     get:
       tags:
         - Centers
@@ -304,6 +304,7 @@ paths:
           description: Timeout nella ricerca del prodotto
         '500':
           description: Errore generico durante il recupero dei dati
+          
   /report/create:
     post:
       summary: Crea un nuovo report
