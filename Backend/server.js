@@ -1,71 +1,18 @@
+// server.js
+// Punto di ingresso di PRODUZIONE: connette il database e avvia il server.
+// La costruzione dell'app (middleware + rotte) vive in app.js, così i test
+// possono importare l'app senza avviare una porta né connettersi a MongoDB.
+
 const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']); // Forza l'uso dei DNS pubblici di Google per evitare problemi di connessione a MongoDB Atlas
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Forza i DNS pubblici di Google per evitare problemi di connessione a MongoDB Atlas
 
-const express = require('express');
-const connectDB = require('./config/db');
 require('dotenv').config();
-const cors = require('cors'); // Middleware per abilitare CORS (Cross-Origin Resource Sharing) e permettere al frontend di comunicare con il backend senza problemi di CORS
+const connectDB = require('./config/db');
+const app = require('./app');
 
-const app = express();
-app.use(cors());
 // 1. Connessione al database MongoDB Atlas
 connectDB();
 
-// 2. Middleware per leggere i JSON (utile per la registrazione)
-app.use(express.json());
-
-
-// ---- ROTTE ----
-
-// Rotta per l'autenticazione (registrazione e login)
-app.use('/api/auth', require('./routes/auth')); // Tutte le rotte di autenticazione (registrazione e login) saranno accessibili tramite /api/auth/<register o login>
-
-// Rotte OpenStreetMap
-app.use('/api/osm', require('./routes/OSM_API'));
-
-// Rotte Open Food Facts
-app.use('/api/off', require('./routes/OFF_API'));
-
-// Rotte OpenFreeMap (configurazione mappa)
-app.use('/api/ofm', require('./routes/OFM_API'));
-
-// Rotta per il profilo utente
-app.use('/api/user', require('./routes/user'));
-
-// Rotte ZXing: scansione barcode, informazioni prodotto e categorie di smaltimento
-app.use('/api/zx', require('./routes/ZX_API'));
-
-// Rotta per i centri di raccolta
-app.use('/api/centers', require('./routes/center'));
-
-// Rotte admin (sola lettura — lista utenti per ruolo)
-app.use('/api/admin', require('./routes/admin'));
-
-// Rotta per le segnalazioni sui bidoni
-app.use('/api/report', require('./routes/report'));
-
-// Rotta per gli eventi di raccolta
-app.use('/api/events', require('./routes/event'));
-
-// Rotta lista premi e partner commerciali
-app.use('/api/rewards', require('./routes/reward'));
-
-// Rotta per generare il percorso ottimizzato per l'operatore
-app.use('/api/operator', require('./routes/operator'));
-
+// 2. Avvio del server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server in esecuzione sulla porta ${PORT}`));
-
-
-  // Stampa l'elenco reale delle rotte senza interrompere Node
-  if (app._router && app._router.stack) {
-    app._router.stack.forEach((r) => {
-      if (r.name === 'router' && r.handle && r.handle.stack) {
-        r.handle.stack.forEach((layer) => {
-          if (layer.route) {
-            console.log(`> Rotta caricata: ${r.regexp} esegue ${layer.route.path}`);
-          }
-        });
-      }
-    });
-  }
