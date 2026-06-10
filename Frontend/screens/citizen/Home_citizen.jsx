@@ -59,6 +59,26 @@ function eventsToFeatureCollection(events) {
 }
 
 
+// True when a center/bin marker visually covers the given screen point. Markers
+// are drawn above the event circles, so when one sits on the clicked spot it
+// wins the interaction (its own popup handles the click) and the event handler
+// stands down. When no marker is there, the click falls through to the event.
+function markerCoversPoint(map, items, point) {
+  if (!map || !point || !Array.isArray(items)) return false;
+  const HALF_W = 16, ABOVE = 42, BELOW = 4; // default maplibre pin, anchored at its tip
+  for (const it of items) {
+    const lat = Number(it?.coordinates?.lat);
+    const lng = Number(it?.coordinates?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    const p = map.project([lng, lat]);
+    if (point.x >= p.x - HALF_W && point.x <= p.x + HALF_W &&
+        point.y >= p.y - ABOVE && point.y <= p.y + BELOW) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ------- Web map -------
 function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCenterClick, onEventClick }) {
   const mapRef = useRef(null);
@@ -75,6 +95,13 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
   useEffect(() => { eventsRef.current = events; }, [events]);
   const onEventClickRef = useRef(onEventClick);
   useEffect(() => { onEventClickRef.current = onEventClick; }, [onEventClick]);
+
+  // Latest centers/bins, reachable from the once-only event click handler so it
+  // can yield to a bin/center marker sitting on top of the clicked spot.
+  const centersRef = useRef(centers);
+  useEffect(() => { centersRef.current = centers; }, [centers]);
+  const binsRef = useRef(bins);
+  useEffect(() => { binsRef.current = bins; }, [bins]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -112,6 +139,8 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], events = [], onCen
         // Click an event circle → open the characteristics modal (with join btn).
         map.on('click', 'events-fill', (e) => {
           if (!e.features.length) return;
+          // A bin/center marker on this spot is a level above the event → it wins.
+          if (markerCoversPoint(map, [...(centersRef.current || []), ...(binsRef.current || [])], e.point)) return;
           const ev = eventsRef.current.find(x => String(x._id) === String(e.features[0].properties.id));
           if (ev) onEventClickRef.current?.(ev);
         });
@@ -318,6 +347,22 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
       const p = (n) => String(n).padStart(2, '0');
       return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
     }
+    // A bin/center marker on the clicked spot is a level above the event circle,
+    // so it wins the interaction; only an empty spot falls through to the event.
+    function markerCoversPoint(point) {
+      const HALF_W = 16, ABOVE = 42, BELOW = 4;
+      const items = centers.concat(bins);
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (!it || !it.coordinates) continue;
+        const lat = Number(it.coordinates.lat), lng = Number(it.coordinates.lng);
+        if (!isFinite(lat) || !isFinite(lng)) continue;
+        const p = map.project([lng, lat]);
+        if (point.x >= p.x - HALF_W && point.x <= p.x + HALF_W &&
+            point.y >= p.y - ABOVE && point.y <= p.y + BELOW) return true;
+      }
+      return false;
+    }
 
     map.on('load', () => {
       // Recycling-event circles + centred name labels + click popups.
@@ -343,6 +388,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], events = [], on
       // "Partecipa" button). The webview cannot perform the authenticated join.
       map.on('click', 'events-fill', (ev) => {
         if (!ev.features.length) return;
+        if (markerCoversPoint(ev.point)) return; // a bin/center on top wins
         const id = String(ev.features[0].properties.id);
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'eventClicked', id: id }));

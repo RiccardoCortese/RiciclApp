@@ -363,6 +363,27 @@ function zoneForCoord(lat, lon) {
   return null;
 }
 
+// True when a center/bin marker visually covers the given screen point. Markers
+// are drawn above the event circles and the neighbourhood zones, so when one
+// sits on the clicked spot it should win the interaction (its own popup handles
+// the click) and the underlying event/zone handler must stand down. When no
+// marker is there, the click falls through to the event/zone as usual.
+function markerCoversPoint(map, items, point) {
+  if (!map || !point || !Array.isArray(items)) return false;
+  const HALF_W = 16, ABOVE = 42, BELOW = 4; // default maplibre pin, anchored at its tip
+  for (const it of items) {
+    const lat = Number(it?.coordinates?.lat);
+    const lng = Number(it?.coordinates?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    const p = map.project([lng, lat]);
+    if (point.x >= p.x - HALF_W && point.x <= p.x + HALF_W &&
+        point.y >= p.y - ABOVE && point.y <= p.y + BELOW) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // ── Web map (admin is web-only so we only need this variant) ─────────────────
 function WebMap({
   targetCenter, styleUrl, centers, onCenterClick, onZoneClick,
@@ -379,6 +400,14 @@ function WebMap({
   // Keep the latest zone-click callback reachable from the once-only map setup
   const onZoneClickRef = useRef(onZoneClick);
   useEffect(() => { onZoneClickRef.current = onZoneClick; }, [onZoneClick]);
+
+  // Latest centers/bins, reachable from the once-only fill click handlers so they
+  // can yield to a bin/center marker sitting on top of the clicked spot.
+  const centersRef = useRef(centers);
+  useEffect(() => { centersRef.current = centers; }, [centers]);
+  const adminBinsRef = useRef(adminBins);
+  useEffect(() => { adminBinsRef.current = adminBins; }, [adminBins]);
+  const markedItems = () => [...(centersRef.current || []), ...(adminBinsRef.current || [])];
 
   // Keep placing-phase state/callbacks reachable from once-only event handlers
   const placingModeRef  = useRef(placingMode);
@@ -495,6 +524,8 @@ function WebMap({
         map.on('contextmenu', 'circ-fill', (e) => {
           if (!e.features.length) return;
           if (placingModeRef.current || eventPlacingRef.current) return;
+          // A bin/center marker on this spot is a level above the zone → it wins.
+          if (markerCoversPoint(map, markedItems(), e.point)) return;
           const evHit = map.queryRenderedFeatures(e.point, { layers: ['events-fill'] });
           if (evHit.length) return;            // an event is here → show the event, not the zone
           onZoneClickRef.current?.(e.features[0].properties.name);
@@ -525,6 +556,8 @@ function WebMap({
         map.on('contextmenu', 'events-fill', (e) => {
           if (!e.features.length) return;
           if (placingModeRef.current || eventPlacingRef.current) return;
+          // A bin/center marker on this spot is a level above the event → it wins.
+          if (markerCoversPoint(map, markedItems(), e.point)) return;
           e.preventDefault?.();
           e.originalEvent?.preventDefault?.();
           onEventRightClickRef.current?.(e.features[0].properties.id);
@@ -533,6 +566,8 @@ function WebMap({
         map.on('click', 'events-fill', (e) => {
           if (!e.features.length) return;
           if (placingModeRef.current || eventPlacingRef.current) return; // placing takes priority
+          // A bin/center marker on this spot is a level above the event → it wins.
+          if (markerCoversPoint(map, markedItems(), e.point)) return;
           onEventClickRef.current?.(e.features[0].properties.id);
         });
         map.on('mouseenter', 'events-fill', () => {
