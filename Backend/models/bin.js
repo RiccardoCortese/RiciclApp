@@ -26,7 +26,7 @@ const binSchema = new mongoose.Schema(
     },
     // Nuovo: un bidone può accettare più tipi di rifiuto. Il primo elemento è
     // il tipo principale. I valori provengono dalle categorie di smaltimento
-    // dei prodotti scansionabili (vedi PACKAGING_DISPOSAL in routes/ZX_API.js).
+    // dei prodotti scansionabili (vedi DISPOSAL_CATEGORIES in routes/ZX_API.js).
     wasteTypes: {
       type: [String],
       default: [],

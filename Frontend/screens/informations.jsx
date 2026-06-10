@@ -12,24 +12,57 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ---- Disposal logic (used as fallback when ZX_API is unreachable) -----
 
-const PACKAGING_DISPOSAL = {
-  plastic:     { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  pet:         { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  'pet-1':     { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  hdpe:        { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  ldpe:        { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  pp:          { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  ps:          { label: 'Plastica',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '♻️' },
-  glass:       { label: 'Vetro',           bin: 'Campana Verde (Vetro)',             color: '#2E7D32', icon: '🫙' },
-  cardboard:   { label: 'Carta / Cartone', bin: 'Bidone Blu (Carta/Cartone)',        color: '#1565C0', icon: '📦' },
-  paper:       { label: 'Carta',           bin: 'Bidone Blu (Carta/Cartone)',        color: '#1565C0', icon: '📄' },
-  metal:       { label: 'Metallo',         bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥫' },
-  aluminium:   { label: 'Alluminio',       bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥫' },
-  steel:       { label: 'Acciaio',         bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🔩' },
-  wood:        { label: 'Legno',           bin: 'Centro di Raccolta',               color: '#6D4C41', icon: '🪵' },
-  tetra:       { label: 'Tetrapak',        bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '🥛' },
-  polystyrene: { label: 'Polistirolo',     bin: 'Bidone Giallo (Plastica/Metallo)',  color: '#F9A825', icon: '📦' },
-};
+// Ordered disposal categories. A scanned product is matched against every
+// packaging signal Open Food Facts exposes, so localized terms (e.g. the Italian
+// "plastica") and resin codes (pet, hdpe, ldpe, pp, ps…) all map to the right
+// bin. Categories are listed by priority: for a given bin the first matching
+// category wins, so "Indifferenziato" is only used when nothing matches at all.
+const DISPOSAL_CATEGORIES = [
+  {
+    info: { label: 'Plastica', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '♻️' },
+    keywords: [
+      'plastic', 'plastica', 'plastik', 'plastique', 'plastico', 'cellophane',
+      'pet', 'pet-1', 'pet1', 'rpet', 'hdpe', 'pe-hd', 'pehd', 'ldpe', 'pe-ld', 'peld',
+      'pp', 'ps', 'pvc', 'o7', 'polyethylene', 'polypropylene', 'polietilene', 'polipropilene',
+    ],
+  },
+  {
+    info: { label: 'Vetro', bin: 'Campana Verde (Vetro)', color: '#2E7D32', icon: '🫙' },
+    keywords: ['glass', 'vetro', 'glas', 'verre', 'vidrio'],
+  },
+  {
+    info: { label: 'Carta / Cartone', bin: 'Bidone Blu (Carta/Cartone)', color: '#1565C0', icon: '📦' },
+    keywords: ['cardboard', 'carton', 'cartone', 'cartoncino', 'paperboard', 'corrugated', 'karton'],
+  },
+  {
+    info: { label: 'Carta', bin: 'Bidone Blu (Carta/Cartone)', color: '#1565C0', icon: '📄' },
+    keywords: ['paper', 'carta', 'papier', 'papel', 'kraft'],
+  },
+  {
+    info: { label: 'Metallo', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '🥫' },
+    keywords: ['metal', 'metallo', 'metallic', 'metaal', 'tin', 'tinplate', 'latta', 'banda-stagnata'],
+  },
+  {
+    info: { label: 'Alluminio', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '🥫' },
+    keywords: ['aluminium', 'aluminum', 'alluminio'],
+  },
+  {
+    info: { label: 'Acciaio', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '🔩' },
+    keywords: ['steel', 'acciaio', 'inox'],
+  },
+  {
+    info: { label: 'Legno', bin: 'Centro di Raccolta', color: '#6D4C41', icon: '🪵' },
+    keywords: ['wood', 'legno', 'bois', 'holz', 'madera'],
+  },
+  {
+    info: { label: 'Tetrapak', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '🥛' },
+    keywords: ['tetra', 'tetrapak', 'tetra-pak', 'tetra-brik', 'brick', 'brik', 'beverage-carton'],
+  },
+  {
+    info: { label: 'Polistirolo', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '📦' },
+    keywords: ['polystyrene', 'polistirolo', 'polistirene', 'styrofoam', 'eps'],
+  },
+];
 
 const FALLBACK_DISPOSAL = {
   label: 'Indifferenziato',
@@ -38,23 +71,57 @@ const FALLBACK_DISPOSAL = {
   icon: '🗑️',
 };
 
+// Whole-word (token) match: anything that is not a letter or digit counts as a
+// boundary, so "plastic" matches "en:plastic" and "pet" matches "pet-1" while
+// short resin codes like "pp"/"ps" never leak into unrelated words.
+function matchesKeyword(text, keyword) {
+  const escaped = keyword.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`).test(text);
+}
+
+// Collects every packaging signal Open Food Facts exposes — the tag lists, the
+// free-text fields and the structured "packagings" array — into one lowercase
+// string. Reading all of them (not just packaging/packaging_tags) is what stops
+// products whose material lives only in packaging_materials_tags / packagings
+// from wrongly falling back to "Indifferenziato".
+function collectPackagingText(product) {
+  const parts = [];
+  const addTags = (arr) => { if (Array.isArray(arr)) parts.push(arr.join(' ')); };
+
+  addTags(product.packaging_tags);
+  addTags(product.packaging_materials_tags);
+  addTags(product.packagings_materials_tags);
+  if (product.packaging) parts.push(product.packaging);
+  if (product.packaging_text) parts.push(product.packaging_text);
+
+  if (Array.isArray(product.packagings)) {
+    for (const pk of product.packagings) {
+      if (!pk) continue;
+      if (typeof pk.material === 'string') parts.push(pk.material);
+      else if (pk.material && pk.material.id) parts.push(pk.material.id);
+      addTags(pk.material_tags);
+    }
+  }
+
+  return parts.join(' ').toLowerCase();
+}
+
 function resolveDisposal(product) {
   if (!product) return [FALLBACK_DISPOSAL];
-  const tags = (product.packaging_tags || []).join(' ').toLowerCase();
-  const text = (product.packaging || '').toLowerCase();
-  const combined = `${tags} ${text}`;
 
-  const matches = Object.entries(PACKAGING_DISPOSAL)
-    .filter(([key]) => combined.includes(key))
-    .map(([, info]) => info);
+  const combined = collectPackagingText(product);
+  if (!combined.trim()) return [FALLBACK_DISPOSAL];
 
-  const seen = new Set();
-  const unique = matches.filter(({ bin }) => {
-    if (seen.has(bin)) return false;
-    seen.add(bin);
-    return true;
-  });
-  return unique.length > 0 ? unique : [FALLBACK_DISPOSAL];
+  const seenBin = new Set();
+  const result = [];
+  for (const cat of DISPOSAL_CATEGORIES) {
+    if (!cat.keywords.some((kw) => matchesKeyword(combined, kw))) continue;
+    if (seenBin.has(cat.info.bin)) continue;
+    seenBin.add(cat.info.bin);
+    result.push(cat.info);
+  }
+
+  return result.length > 0 ? result : [FALLBACK_DISPOSAL];
 }
 
 // ---- Ecoscore display info -----

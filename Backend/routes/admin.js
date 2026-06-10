@@ -8,7 +8,7 @@ const Center         = require('../models/collection_center');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // Tipi di rifiuto selezionabili. Coincidono con le categorie di smaltimento
-// dei prodotti scansionabili tramite Open Food Facts (vedi PACKAGING_DISPOSAL
+// dei prodotti scansionabili tramite Open Food Facts (vedi DISPOSAL_CATEGORIES
 // in routes/ZX_API.js), deduplicate per etichetta. Questo definisce anche il
 // numero massimo di tipi che un singolo bidone può accettare.
 const WASTE_TYPES = [
