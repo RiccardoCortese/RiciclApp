@@ -603,19 +603,18 @@ function WebMap({
       const marker = new maplibreInstance.Marker({ color: PRIMARY })
         .setLngLat([Number(center.coordinates.lng), Number(center.coordinates.lat)])
         .addTo(mapRef.current);
-      const popupHtml = `
-        <div style="font-family:Arial,sans-serif;padding:5px;cursor:pointer;" id="popup-click-${center._id}">
+      // Build the popup body as a real DOM node and bind the click listener
+      // straight onto it. maplibre reuses this same node across open/close, so
+      // the link stays clickable no matter how many times the popup is reopened
+      // or the centers list refetches (e.g. after placing a bin/center).
+      const popupNode = document.createElement('div');
+      popupNode.style.cssText = 'font-family:Arial,sans-serif;padding:5px;cursor:pointer;';
+      popupNode.innerHTML = `
           <h3 style="color:${PRIMARY};margin:0 0 4px 0;text-decoration:underline;">${center.name}</h3>
           <p style="margin:0;font-size:12px;color:#666;">${center.address || ''}</p>
-          <p style="margin:4px 0 0 0;font-size:11px;color:${PRIMARY};font-weight:bold;">👉 Clicca per ottenere maggiori informazioni</p>
-        </div>`;
-      const popup = new maplibreInstance.Popup({ offset: 25 }).setHTML(popupHtml);
-      popup.once('open', () => {
-        setTimeout(() => {
-          const el = document.getElementById(`popup-click-${center._id}`);
-          if (el) el.onclick = () => onCenterClick(center);
-        }, 50);
-      });
+          <p style="margin:4px 0 0 0;font-size:11px;color:${PRIMARY};font-weight:bold;">👉 Clicca per ottenere maggiori informazioni</p>`;
+      popupNode.addEventListener('click', () => onCenterClick(center));
+      const popup = new maplibreInstance.Popup({ offset: 25 }).setDOMContent(popupNode);
       marker.setPopup(popup);
       markersRef.current.push(marker);
     });
