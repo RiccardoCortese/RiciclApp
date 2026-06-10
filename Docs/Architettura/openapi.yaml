@@ -849,7 +849,7 @@ paths:
         '500':
           description: Errore interno del server
 
-    /centers/bins/{binId}/fill-level:
+  /centers/bins/{binId}/fill-level:
     get:
       tags:
         - Centers
