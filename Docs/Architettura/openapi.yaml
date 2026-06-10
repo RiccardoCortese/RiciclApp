@@ -56,6 +56,48 @@ paths:
         '500':
           description: Errore interno del server
          
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login utente
+      description: Autentica un utente e restituisce token JWT e dati dell'utente, inclusivo del ruolo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "admin@example.com"
+                password:
+                  type: string
+                  example: "adminpassword"
+      responses:
+        '200':
+          description: Login effettuato con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "jwt-token"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Credenziali mancanti o non valide
+        '401':
+          description: Email o password errati
+        '500':
+          description: Errore interno del server
   
   /auth/verify-email:
     post:
@@ -112,45 +154,290 @@ paths:
 
         '500':
           description: Errore interno del server
-  
-  /centers/all:
+
+  /admin/users:
     get:
       tags:
-        - Centers
-      summary: Recupera tutti i centri di raccolta
-      description: Restituisce la lista completa dei centri di raccolta presenti nel database.
+        - Admin
+      summary: Recupera utenti filtrati per ruolo
+      description: Restituisce la lista degli utenti filtrata per ruolo, usata dall'admin per visualizzare operatori e cittadini.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          required: true
+          description: Ruolo da filtrare. Il valore user indica i cittadini registrati.
+          schema:
+            type: string
+            enum:
+              - operator
+              - user
+            example: operator
       responses:
         '200':
-          description: Lista dei centri recuperata con successo
-
+          description: Lista utenti recuperata con successo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '400':
+          description: Parametro role mancante
         '500':
-          description: Errore interno del server
+          description: Errore del server
 
-  /centers/{id}:
+  /admin/waste-types:
     get:
       tags:
-        - Centers
-      summary: Recupera un centro di raccolta con i suoi bidoni
-      description: Restituisce i dettagli di un centro di raccolta specifico insieme ai bidoni associati.
+        - Admin
+      summary: Recupera i tipi di rifiuto selezionabili
+      description: Restituisce le categorie di rifiuto che l'admin può associare a un bidone.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista tipi di rifiuto recuperata con successo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example:
+                  - "Plastica"
+                  - "Vetro"
+                  - "Carta"
+                  - "Metallo"
+        '500':
+          description: Errore del server
+
+  /admin/bins:
+    get:
+      tags:
+        - Admin
+      summary: Recupera i bidoni gestiti dall'admin
+      description: Restituisce i bidoni posizionati sulla mappa con coordinate valide.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista bidoni recuperata con successo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bin'
+        '500':
+          description: Errore del server
+
+    post:
+      tags:
+        - Admin
+      summary: Crea un nuovo bidone
+      description: >
+        Crea un nuovo bidone sulla mappa. Se non viene indicato un centro di raccolta,
+        il bidone viene creato come orfano e può assumere stato GUASTO.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - address
+                - coordinates
+                - wasteTypes
+              properties:
+                name:
+                  type: string
+                  example: "Bidone Piazza Duomo"
+                address:
+                  type: string
+                  example: "Piazza Duomo, Trento"
+                coordinates:
+                  type: object
+                  required:
+                    - lat
+                    - lng
+                  properties:
+                    lat:
+                      type: number
+                      format: double
+                      example: 46.0679
+                    lng:
+                      type: number
+                      format: double
+                      example: 11.1211
+                wasteTypes:
+                  type: array
+                  items:
+                    type: string
+                  example:
+                    - "Plastica"
+                    - "Metallo"
+                centerId:
+                  type: string
+                  nullable: true
+                  example: "665b8f5d2f9f6c0012345678"
+                area:
+                  type: string
+                  example: "Centro"
+                status:
+                  type: string
+                  enum:
+                    - OK
+                    - GUASTO
+                    - MANUTENZIONE
+                  example: OK
+      responses:
+        '201':
+          description: Bidone creato con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bin'
+        '400':
+          description: Dati mancanti o non validi
+        '500':
+          description: Errore del server
+
+  /admin/bins/{id}/status:
+    patch:
+      tags:
+        - Admin
+      summary: Aggiorna lo stato di un bidone
+      description: Aggiorna lo stato operativo di un bidone gestito dall'admin.
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          description: ID del centro di raccolta
+          description: ID del bidone
           schema:
             type: string
+            example: "665b90ad2f9f6c0012349999"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - OK
+                    - GUASTO
+                    - MANUTENZIONE
+                  example: GUASTO
       responses:
         '200':
-          description: Centro di raccolta recuperato con successo
-
+          description: Stato del bidone aggiornato con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bin'
         '400':
-          description: ID del centro non valido
-
+          description: Stato o ID non valido
         '404':
-          description: Centro di raccolta non trovato
-
+          description: Bidone non trovato
         '500':
-          description: Errore interno del server
+          description: Errore del server
+
+  /admin/bins/{id}:
+    delete:
+      tags:
+        - Admin
+      summary: Elimina un bidone
+      description: Elimina definitivamente un bidone dal database.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del bidone da eliminare
+          schema:
+            type: string
+            example: "665b90ad2f9f6c0012349999"
+      responses:
+        '200':
+          description: Bidone eliminato con successo
+        '400':
+          description: ID del bidone non valido
+        '404':
+          description: Bidone non trovato
+        '500':
+          description: Errore del server
+
+  /admin/centers:
+    post:
+      tags:
+        - Admin
+      summary: Crea un nuovo centro di raccolta
+      description: >
+        Crea un centro di raccolta sulla mappa. Se è il primo centro della zona,
+        può assegnare automaticamente i bidoni orfani della stessa area.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - address
+                - area
+                - coordinates
+              properties:
+                name:
+                  type: string
+                  example: "Centro Raccolta Centro"
+                address:
+                  type: string
+                  example: "Via Roma 10, Trento"
+                area:
+                  type: string
+                  example: "Centro"
+                coordinates:
+                  type: object
+                  required:
+                    - lat
+                    - lng
+                  properties:
+                    lat:
+                      type: number
+                      format: double
+                      example: 46.0679
+                    lng:
+                      type: number
+                      format: double
+                      example: 11.1211
+                openingHours:
+                  type: string
+                  example: "08:00-18:00"
+      responses:
+        '201':
+          description: Centro di raccolta creato con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Center'
+        '400':
+          description: Dati mancanti o non validi
+        '500':
+          description: Errore del server
 
   /off/product/{barcode}:
     get:
@@ -505,6 +792,45 @@ paths:
         '500':
           description: Errore server
 
+  /centers/all:
+    get:
+      tags:
+        - Centers
+      summary: Recupera tutti i centri di raccolta
+      description: Restituisce la lista completa dei centri di raccolta presenti nel database.
+      responses:
+        '200':
+          description: Lista dei centri recuperata con successo
+
+        '500':
+          description: Errore interno del server
+
+  /centers/{id}:
+    get:
+      tags:
+        - Centers
+      summary: Recupera un centro di raccolta con i suoi bidoni
+      description: Restituisce i dettagli di un centro di raccolta specifico insieme ai bidoni associati.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del centro di raccolta
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Centro di raccolta recuperato con successo
+
+        '400':
+          description: ID del centro non valido
+
+        '404':
+          description: Centro di raccolta non trovato
+
+        '500':
+          description: Errore interno del server
+
   /centers/bins:
     get:
       tags:
@@ -605,6 +931,192 @@ paths:
                       $ref: '#/components/schemas/RouteStop'
         '500':
           description: Errore nel generare il percorso ottimizzato
+
+  /events/all:
+    get:
+      tags:
+        - Events
+      summary: Recupera tutti gli eventi di raccolta
+      description: Restituisce tutti gli eventi di raccolta visibili su mappa da admin e cittadini.
+      responses:
+        '200':
+          description: Lista eventi recuperata con successo
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '500':
+          description: Errore del server
+
+  /events:
+    post:
+      tags:
+        - Events
+      summary: Crea un evento di raccolta
+      description: Crea un nuovo evento di raccolta con area, raggio, categorie di rifiuto potenziate, boost e date.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventInput'
+      responses:
+        '201':
+          description: Evento creato con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          description: Dati evento non validi
+        '500':
+          description: Errore del server
+
+  /events/{id}:
+    patch:
+      tags:
+        - Events
+      summary: Modifica un evento di raccolta
+      description: Modifica i dati di un evento di raccolta esistente.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID dell'evento
+          schema:
+            type: string
+            example: "665b90ad2f9f6c0012348888"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventInput'
+      responses:
+        '200':
+          description: Evento modificato con successo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          description: Dati evento o ID non validi
+        '404':
+          description: Evento non trovato
+        '500':
+          description: Errore del server
+
+    delete:
+      tags:
+        - Events
+      summary: Elimina un evento di raccolta
+      description: Elimina definitivamente un evento di raccolta.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID dell'evento
+          schema:
+            type: string
+            example: "665b90ad2f9f6c0012348888"
+      responses:
+        '200':
+          description: Evento eliminato con successo
+        '400':
+          description: ID evento non valido
+        '404':
+          description: Evento non trovato
+        '500':
+          description: Errore del server
+
+  /events/settle:
+    post:
+      tags:
+        - Events
+      summary: Liquida gli eventi conclusi dell'utente
+      description: >
+        Assegna i punti di partecipazione agli eventi conclusi a cui l'utente ha partecipato
+        e per cui non ha ancora ricevuto la ricompensa.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Eventi liquidati con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  settled:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          example: "665b90ad2f9f6c0012348888"
+                        name:
+                          type: string
+                          example: "Evento raccolta plastica"
+                  pointsPerEvent:
+                    type: number
+                    example: 10
+                  pointsAwarded:
+                    type: number
+                    example: 20
+                  totalPoints:
+                    type: number
+                    example: 150
+        '401':
+          description: Utente non autenticato
+        '500':
+          description: Errore del server
+
+  /events/{id}/join:
+    post:
+      tags:
+        - Events
+      summary: Iscrive l'utente a un evento
+      description: Iscrive l'utente autenticato a un evento di raccolta.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID dell'evento
+          schema:
+            type: string
+            example: "665b90ad2f9f6c0012348888"
+      responses:
+        '200':
+          description: Iscrizione effettuata con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Iscrizione effettuata"
+                  event:
+                    $ref: '#/components/schemas/Event'
+        '400':
+          description: ID evento non valido
+        '401':
+          description: Utente non autenticato
+        '404':
+          description: Evento non trovato
+        '500':
+          description: Errore del server
 
 components:
 
@@ -984,3 +1496,92 @@ components:
               type: number
               format: double
               example: 11.1211
+
+    EventInput:
+      type: object
+      required:
+        - name
+        - coordinates
+        - radius
+        - wasteTypes
+        - boost
+        - startDate
+        - endDate
+      properties:
+        name:
+          type: string
+          example: "Evento raccolta plastica"
+        coordinates:
+          type: object
+          required:
+            - lat
+            - lng
+          properties:
+            lat:
+              type: number
+              format: double
+              example: 46.0679
+            lng:
+              type: number
+              format: double
+              example: 11.1211
+        radius:
+          type: number
+          example: 500
+          description: Raggio dell'evento in metri
+        wasteTypes:
+          type: array
+          items:
+            type: string
+          example:
+            - "Plastica"
+            - "Metallo"
+        boost:
+          type: number
+          enum:
+            - 2
+            - 3
+            - 5
+            - 10
+          example: 2
+          description: Moltiplicatore dei punti scansione durante l'evento
+        startDate:
+          type: string
+          format: date-time
+          example: "2026-06-10T09:00:00.000Z"
+        endDate:
+          type: string
+          format: date-time
+          example: "2026-06-10T18:00:00.000Z"
+        area:
+          type: string
+          example: "Centro"
+
+    Event:
+      allOf:
+        - $ref: '#/components/schemas/EventInput'
+        - type: object
+          properties:
+            _id:
+              type: string
+              example: "665b90ad2f9f6c0012348888"
+            participants:
+              type: array
+              items:
+                type: string
+              example:
+                - "665b90ad2f9f6c0012341111"
+            rewardedParticipants:
+              type: array
+              items:
+                type: string
+              example:
+                - "665b90ad2f9f6c0012341111"
+            createdAt:
+              type: string
+              format: date-time
+              example: "2026-06-10T08:30:00.000Z"
+            updatedAt:
+              type: string
+              format: date-time
+              example: "2026-06-10T08:45:00.000Z"
