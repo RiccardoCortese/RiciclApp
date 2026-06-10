@@ -23,7 +23,7 @@ export default function RewardsScreen() {
     fetchRewards();
   }, []);
 
-  // Recupera da MongoDB la lista dei premi e attività commerciali
+  // Recupera da MongoDB la lista dei premi e delle attività commerciali
   const fetchRewards = async () => {
     try {
       setLoading(true);

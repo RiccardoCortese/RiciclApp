@@ -7,11 +7,11 @@ import { API_URL } from "../../src/config";
 
 export default function RoutePlannerScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false); // Stato per gestire il caricamento durante la generazione del percorso
-  const [tappe, setTappe] = useState([]); // Stato per memorizzare le tappe del percorso ottimizzato ricevuto dal server
-  const [percorsoGenerato, setPercorsoGenerato] = useState(false); // Stato booleano per indicare se un percorso è stato generato o meno, usato per il rendering condizionale della sezione delle tappe
+  const [loading, setLoading] = useState(false); // Stato che gestisce il caricamento durante la generazione del percorso.
+  const [tappe, setTappe] = useState([]); // Stato che memorizza le tappe del percorso ottimizzato ricevuto dal server.
+  const [percorsoGenerato, setPercorsoGenerato] = useState(false); // Stato che indica se un percorso è stato generato, usato per il rendering condizionale della sezione delle tappe.
 
-  // Effetto per caricare un percorso esistente da AsyncStorage quando il componente viene montato, in modo da mostrare subito il percorso attivo se l'operatore ha già generato uno in precedenza e non lo ha cancellato.
+  // Carica da AsyncStorage un percorso esistente quando il componente viene montato.
   useEffect(() => {
     const caricaPercorsoEsistente = async () => {
       try {
@@ -30,7 +30,7 @@ export default function RoutePlannerScreen() {
   const generaPercorsoMigliore = async () => {
     setLoading(true);
     try {
-      // Recupera l'ID dell'operatore loggato
+      // Recupera l'ID dell'operatore loggato.
       const userString = await AsyncStorage.getItem("user");
 
       if (!userString) {
@@ -41,7 +41,7 @@ export default function RoutePlannerScreen() {
       const loggedInUser = JSON.parse(userString);
       const currentIdOperatore = loggedInUser.id;
 
-      // Effettua la richiesta al server per ottenere il percorso ottimizzato, passando l'ID dell'operatore per filtrare le segnalazioni e i bidoni rilevanti per quel profilo.
+      // Richiede al server il percorso ottimizzato, passando l'ID dell'operatore per filtrare segnalazioni e bidoni rilevanti.
       const response = await axios.get(`${API_URL}/operator/optimized-route/${currentIdOperatore}`);
 
       if (response.data && response.data.success) {
@@ -56,7 +56,7 @@ export default function RoutePlannerScreen() {
           return;
         }
         
-        //metto in AsyncStorage il percorso generato per poterlo visualizzare sulla mappa home
+        // Salva in AsyncStorage il percorso generato per visualizzarlo sulla mappa della home.
         await AsyncStorage.setItem("active_operator_route", JSON.stringify(tappeInEvidenza));
 
         setTappe(tappeInEvidenza);
@@ -95,13 +95,13 @@ export default function RoutePlannerScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Banner Informativo */}
+        {/* Banner informativo */}
         <View style={styles.infoBanner}>
           <Text style={styles.bannerTitle}>Pianificatore Itinerario</Text>
           <Text style={styles.bannerSubtitle}>Ottimizza i tuoi spostamenti. Genera la rotta passando per le tue segnalazioni attive e i bidoni saturi della città.</Text>
         </View>
 
-        {/* Bottone Principale di Azione */}
+        {/* Bottone principale di azione */}
         <TouchableOpacity
           style={[styles.mainButton, loading && styles.disabledButton]}
           onPress={generaPercorsoMigliore}
@@ -115,7 +115,7 @@ export default function RoutePlannerScreen() {
           )}
         </TouchableOpacity>
 
-        {/* LISTA DELLE TAPPE GENERATE */}
+        {/* Lista delle tappe generate */}
         {percorsoGenerato && (
           <View style={styles.routeSection}>
             <View style={styles.sectionHeader}>
@@ -129,12 +129,12 @@ export default function RoutePlannerScreen() {
               const isIntervento = tappa.type === "INTERVENTO";
               return (
                 <View key={tappa.id || idx} style={styles.tappaCard}>
-                  {/* Badge Numerico a Sinistra */}
+                  {/* Badge numerico a sinistra */}
                   <View style={[styles.numberBadge, isIntervento ? styles.badgeIntervento : styles.badgeSvuotamento]}>
                     <Text style={styles.numberText}>{idx + 1}</Text>
                   </View>
 
-                  {/* Testo Centrale */}
+                  {/* Testo centrale */}
                   <View style={styles.tappaInfo}>
                     <View style={styles.tagRow}>
                       <Text style={[styles.typeTag, isIntervento ? styles.tagIntervento : styles.tagSvuotamento]}>
@@ -148,7 +148,7 @@ export default function RoutePlannerScreen() {
               );
             })}
 
-            {/* Pulsante di Rinvio alla Mappa Home */}
+            {/* Pulsante di ritorno alla mappa home */}
             <TouchableOpacity
               style={styles.mapLinkButton}
               onPress={() => router.replace("/")}

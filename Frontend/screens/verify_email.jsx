@@ -6,7 +6,7 @@ import { API_URL } from "../src/config";
 
 export default function VerifyScreen() {
     const router = useRouter();
-    const { email } = useLocalSearchParams(); // email passata dalla registrazione
+    const { email } = useLocalSearchParams(); // Email passata dalla registrazione
     const [code, setCode] = useState("");
 
     const handleVerify = async () => {
@@ -22,7 +22,7 @@ export default function VerifyScreen() {
             });
 
             alert(response.data.message);
-            router.replace("/auth/login"); // Vai al login
+            router.replace("/auth/login"); // Torna alla schermata di login
         } catch (error) {
             if (axios.isAxiosError(error) && error.response?.status === 400) {
                 const error_msg = error.response?.data?.message;

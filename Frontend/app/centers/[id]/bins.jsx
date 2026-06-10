@@ -5,9 +5,9 @@ import BinScreenComponent from '../../../screens/bins';
 
 export default function Page() {
     const router = useRouter();
-    const { id } = useLocalSearchParams(); // Prende il <center_id> dall'URL
+    const { id } = useLocalSearchParams(); // Recupera l'ID del centro dall'URL
 
-    // Se l'id non è ancora arrivato o è la stringa "undefined"
+    // Se l'ID non è ancora arrivato o è la stringa "undefined"
     if (!id || id === 'undefined') {
         return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>

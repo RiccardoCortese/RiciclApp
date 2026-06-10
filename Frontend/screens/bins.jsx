@@ -60,7 +60,7 @@ export default function BinScreen({ centerId, onBack }) {
       catch { setUserRole(null); }
     };
 
-    // Carichiamo l'utente all'avvio
+    // Carica l'utente all'avvio
     fetchUser();
     const unsubscribe = navigation.addListener('focus', () => { fetchUser(); });
     return unsubscribe;
@@ -100,7 +100,7 @@ export default function BinScreen({ centerId, onBack }) {
       // Se la segnalazione è stata accettata
       if (response.status === 200 || response.status === 201 || response.data.success) {
         
-        // Svuotalre il campo di descrizione per la prossima segnalazione
+        // Svuota il campo di descrizione per la prossima segnalazione
         setDescription('');
 
         // Aggiornamento immediato dello stato del bidone in UI (solo lato client, per feedback istantaneo)
@@ -109,7 +109,7 @@ export default function BinScreen({ centerId, onBack }) {
             b._id === selectedBin._id ? { ...b, status: 'SEGNALATO' } : b 
           );
           
-          // Spread operator per creare un oggetto totalmente nuovo, forzando React Web a ridisegnare la pagina
+          // Crea un nuovo oggetto per forzare React Web a ridisegnare la pagina
           setCenter({ ...center, bins: updatedBins });
         }
 
@@ -145,7 +145,7 @@ export default function BinScreen({ centerId, onBack }) {
   };
 
   const isAdmin = userRole === 'admin';
-  const isOperator = userRole === 'operator'; // operatore: sola lettura, nessuna modifica
+  const isOperator = userRole === 'operator'; // Operatore: sola lettura, nessuna modifica
 
   // Stati selezionabili dall'admin (etichetta mostrata ↔ valore salvato nel DB)
   const ADMIN_STATUS_OPTIONS = [
@@ -288,7 +288,7 @@ export default function BinScreen({ centerId, onBack }) {
 
   const binsList = center.bins || [];
 
-  // Visualizzazione bidoni;
+  // Visualizzazione dei bidoni;
   // Per ogni bidone, mostriamo il tipo di rifiuto, la percentuale di riempimento, e un pulsante per segnalare eventuali problemi (disabilitato se è già in manutenzione)
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -684,7 +684,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555'
   },
-  // ── Admin per-bin controls ──
+  // ── Controlli admin per singolo bidone ──
   adminControls: {
     marginTop: 4
   },

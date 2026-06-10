@@ -12,14 +12,14 @@ import WorkImg from '../../src/assets/Work_in_progess.png';
 import calcoloPercorsoImg from '../../src/assets/calcolo_percorso.png';
 import UserDefault from '../../src/assets/Profile_image/User_image.png';
 
-// ── Brand color ──────────────────────────────────────────────────────────────
+// ── Colore principale ────────────────────────────────────────────────────────
 const PRIMARY = '#0097A7';
 
 const DEFAULT_CENTER = { lat: 46.0667, lon: 11.1333 };
 const DEFAULT_ZOOM = 14;
 const OFM_STYLE_FALLBACK = 'https://tiles.openfreemap.org/styles/liberty';
 
-// Grey colour used for the bin markers shown on the map.
+// Colore grigio usato per i marker dei bidoni mostrati sulla mappa.
 const BIN_GREY = '#9E9E9E';
 
 // ── Web map ───────────────────────────────────────────────────────────────────
@@ -27,12 +27,12 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const style = styleUrl || OFM_STYLE_FALLBACK;
-  const markersRef = useRef([]); // Riferimento ai marker dei centri, per poterli rimuovere/aggiornare quando la lista dei centri cambia
-  const binMarkersRef = useRef([]); // Riferimento ai marker dei bidoni, per poterli rimuovere/aggiornare quando la lista dei bidoni cambia
-  const [isMapReady, setIsMapReady] = useState(false); // Stato per tracciare quando la mappa è pronta
+  const markersRef = useRef([]); // Riferimento ai marker dei centri, usato per rimuoverli o aggiornarli quando cambia la lista dei centri.
+  const binMarkersRef = useRef([]); // Riferimento ai marker dei bidoni, usato per rimuoverli o aggiornarli quando cambia la lista dei bidoni.
+  const [isMapReady, setIsMapReady] = useState(false); // Stato che indica quando la mappa è pronta.
   const [maplibreInstance, setMaplibreInstance] = useState(null);
   
-  // Effetto per inizializzare la mappa MapLibre GL JS quando il componente viene montato.
+  // Inizializza la mappa MapLibre GL JS quando il componente viene montato.
   useEffect(() => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -49,9 +49,9 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
         center: [DEFAULT_CENTER.lon, DEFAULT_CENTER.lat],
         zoom: DEFAULT_ZOOM,
         attributionControl: true,
-      }); map.on('load', () => { //quando la mappa è completamente caricata, aggiorna lo stato per indicare che è pronta
+      }); map.on('load', () => { // Quando la mappa è completamente caricata, aggiorna lo stato per indicare che è pronta.
         mapRef.current = map; 
-        setIsMapReady(true); //in questo modo possiamo essere sicuri che la mappa è pronta prima di tentare di aggiungere marker calcolo del percorso
+        setIsMapReady(true); // In questo modo la mappa è pronta prima di aggiungere marker o calcolare il percorso.
       });
     });
 
@@ -62,27 +62,27 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
     };
   }, [style]);
 
-  // Effetto per centrare la mappa sulla posizione target ogni volta che targetCenter cambia.
+  // Centra la mappa sulla posizione target ogni volta che targetCenter cambia.
   useEffect(() => {
     if (!targetCenter || !mapRef.current) return; 
     mapRef.current.flyTo({ center: [targetCenter[1], targetCenter[0]], zoom: 15 });
   }, [targetCenter]);
 
-  // Effetto per calcolare e disegnare il percorso attivo sulla mappa ogni volta che activeRoute cambia.
+  // Calcola e disegna il percorso attivo sulla mappa ogni volta che activeRoute cambia.
   useEffect(() => {
 
-    if (!isMapReady || !mapRef.current) return; // assicuro che la mappa sia pronta prima di procedere con il calcolo del percorso e l'aggiunta dei layer
+    if (!isMapReady || !mapRef.current) return; // Verifica che la mappa sia pronta prima di calcolare il percorso e aggiungere i layer.
 
     const map = mapRef.current;
 
-    if (!mapRef.current || !activeRoute || activeRoute.length < 2) { // se non ci sono abbastanza punti per formare un percorso, rimuovo eventuali layer esistenti e esco
+    if (!mapRef.current || !activeRoute || activeRoute.length < 2) { // Se non ci sono abbastanza punti per formare un percorso, rimuove eventuali layer esistenti ed esce.
       if (mapRef.current?.getLayer('route-line')) mapRef.current.removeLayer('route-line');
       if (mapRef.current?.getSource('route-source')) mapRef.current.removeSource('route-source');
       return;
     }
 
     const coordinatesString = activeRoute 
-      .map(t => { // estraggo le coordinate in un formato compatto "lng,lat" 
+      .map(t => { // Estrae le coordinate nel formato compatto "lng,lat".
         const coords = t.coordinate || t;
         const lat = coords.lat ?? coords.latitude;
         const lng = coords.lng ?? coords.lon ?? coords.longitude;
@@ -93,7 +93,7 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
 
     if (!coordinatesString) return;
 
-    // Chiamo OSRM per ottenere la geometria stradale del percorso da disegnare sulla mappa
+    // Chiama OSRM per ottenere la geometria stradale del percorso da disegnare sulla mappa.
     fetch(`https://router.project-osrm.org/route/v1/driving/${coordinatesString}?overview=full&geometries=geojson`)
       .then(response => response.json())
       .then(data => {
@@ -123,15 +123,15 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
       .catch(err => console.error("Errore nel calcolo del percorso stradale OSRM:", err));
   }, [activeRoute, isMapReady]);
 
-  // Effetto per aggiornare i marker dei centri sulla mappa ogni volta che la lista dei centri cambia
+  // Aggiorna i marker dei centri sulla mappa ogni volta che cambia la lista dei centri.
   useEffect(() => {
-    if (!isMapReady || !mapRef.current || !maplibreInstance) return; // assicuro che la mappa sia pronta e che l'istanza di MapLibre sia disponibile prima di procedere
+    if (!isMapReady || !mapRef.current || !maplibreInstance) return; // Verifica che la mappa sia pronta e che l'istanza di MapLibre sia disponibile prima di procedere.
 
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // Per ogni centro, estraggo latitudine e longitudine, creo un marker colorato e un popup con le informazioni del centro. 
-    // Aggiungo un listener al popup per gestire i click e invocare onCenterClick quando l'utente clicca sul popup.
+    // Per ogni centro, estrae latitudine e longitudine, crea un marker colorato e un popup con le informazioni del centro.
+    // Aggiunge un listener al popup per gestire i click e invocare onCenterClick quando l'utente lo seleziona.
     centers.forEach(center => {
       const lat = center?.coordinates?.lat;
       const lng = center?.coordinates?.lng ?? center?.coordinates?.lon;
@@ -158,14 +158,14 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
     });
   }, [centers, maplibreInstance, isMapReady]);
 
-  // Effetto per aggiornare i marker dei bidoni sulla mappa ogni volta che la lista dei bidoni o dei centri cambia
+  // Aggiorna i marker dei bidoni sulla mappa ogni volta che cambia la lista dei bidoni o dei centri.
   useEffect(() => {
     if (!isMapReady || !mapRef.current || !maplibreInstance) return;
 
     binMarkersRef.current.forEach(m => m.remove());
     binMarkersRef.current = [];
     
-    // Creo un dizionario per mappare gli ID dei centri ai loro nomi, in modo da poter mostrare il nome del centro collegato a ciascun bidone nel popup.
+    // Crea un dizionario che associa gli ID dei centri ai loro nomi, così da mostrare nel popup il centro collegato a ciascun bidone.
     const centersById = {};
     (centers || []).forEach(c => { if (c?._id) centersById[String(c._id)] = c.name; });
     (bins || []).forEach(bin => {
@@ -195,15 +195,6 @@ function WebMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, act
       style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', zIndex: 0 }}
     />
   );
-
-  map.on('styleimagemissing', (e) => { 
-    const id = e.id;
-    // Crea un pixel trasparente 1x1 da dare a MapLibre in caso di immagini mancanti, in modo da evitare errori di rendering.
-    const placeholder = new Uint8Array([0, 0, 0, 0]);
-    if (!map.hasImage(id)) {
-      map.addImage(id, { width: 1, height: 1, data: placeholder });
-    }
-  });
 }
 
 // ── Native map (WebView) ──────────────────────────────────────────────────────
@@ -212,9 +203,9 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
   const [WebView, setWebView] = useState(null);
   const mapStyle = styleUrl || OFM_STYLE_FALLBACK;
 
-  // Effetto per importare dinamicamente il componente WebView di react-native-webview, in modo da evitare problemi di compatibilità su piattaforme dove non è supportato (es. Android).
-  useEffect(() => {
-    try {
+// Importa dinamicamente il componente WebView di react-native-webview, evitando problemi di compatibilità sulle piattaforme dove non è supportato.
+ useEffect(() => {    
+  try {
       const mod = require('react-native-webview');
       setWebView(() => mod.WebView ?? mod.default?.WebView ?? mod.default);
     } catch {
@@ -222,7 +213,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
     }
   }, []);
 
-  // Effetto per inviare un messaggio alla WebView ogni volta che targetCenter cambia, in modo da centrare la mappa sulla posizione target.
+  // Invia un messaggio alla WebView ogni volta che targetCenter cambia, così da centrare la mappa sulla posizione target.
   useEffect(() => {
     if (!targetCenter || !webViewRef.current) return;
     webViewRef.current.postMessage(
@@ -230,7 +221,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
     );
   }, [targetCenter]);
 
-  // Effetto per inviare un messaggio alla WebView ogni volta che activeRoute cambia, in modo da disegnare il percorso attivo sulla mappa.
+  // Invia un messaggio alla WebView ogni volta che activeRoute cambia, così da disegnare il percorso attivo sulla mappa.
   useEffect(() => {
     if (!webViewRef.current) return;
     webViewRef.current.postMessage(
@@ -238,8 +229,8 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
     );
   }, [activeRoute]);
 
-  // Funzione per gestire i messaggi in arrivo dalla WebView, ad esempio quando l'utente clicca su un centro sulla mappa. 
-  // In questo caso, se il messaggio indica che è stato cliccato un centro, invochiamo onCenterClick con i dati del centro.
+  // Gestisce i messaggi in arrivo dalla WebView, ad esempio quando l'utente seleziona un centro sulla mappa.
+  // Se il messaggio indica che è stato selezionato un centro, invoca onCenterClick con i dati del centro.
   const handleOnMessage = (event) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -257,7 +248,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
     );
   }
 
-  // HTML da caricare nella WebView, che include l'inizializzazione di MapLibre GL JS, la gestione dei marker per i centri e i bidoni, e la logica per disegnare il percorso attivo sulla mappa.
+  // HTML caricato nella WebView, con inizializzazione di MapLibre GL JS, gestione dei marker e disegno del percorso attivo.
   const mapHtml = `
   <!DOCTYPE html>
   <html>
@@ -407,7 +398,7 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
   </body>
   </html>`;
 
-  // Renderizza la WebView con l'HTML della mappa, e imposta handleOnMessage per gestire i messaggi in arrivo dalla WebView.
+  // Renderizza la WebView con l'HTML della mappa e usa handleOnMessage per gestire i messaggi in arrivo.
   return (
     <WebView
       ref={webViewRef}
@@ -431,27 +422,27 @@ function NativeMap({ targetCenter, styleUrl, centers, bins = [], onCenterClick, 
   });
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
+// ── Schermata principale ──────────────────────────────────────────────────────
 export default function HomeOperatorScreen() {
   const router = useRouter();
 
-  const [searchQuery, setSearchQuery] = useState(''); // Testo attuale nella barra di ricerca
-  const [searchResults, setSearchResults] = useState([]); // Risultati filtrati in base alla query di ricerca
-  const [selectedCenter, setSelectedCenter] = useState(null); // Centro selezionato dalla ricerca, usato per centrare la mappa quando si conferma la ricerca
-  const [mapCenter, setMapCenter] = useState(null); // Coordinate [lat, lon] per centrare la mappa, aggiornate quando si seleziona un risultato di ricerca o si conferma la ricerca
-  const [searchError, setSearchError] = useState(false); // Stato per indicare se la ricerca ha fallito (es. nessun risultato trovato), usato per mostrare un feedback visivo all'utente
-  const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK); // URL dello stile della mappa, recuperato dalla configurazione del backend o impostato al fallback se non disponibile
-  const [centers, setCenters] = useState([]); // Lista dei centri di raccolta, recuperata dal backend all'avvio dello screen
-  const [bins, setBins] = useState([]); // Lista dei bidoni, recuperata dal backend all'avvio dello screen
-  const [avatarUri, setAvatarUri] = useState(null); // URI dell'immagine del profilo dell'operatore, recuperata da AsyncStorage all'avvio dello screen
+  const [searchQuery, setSearchQuery] = useState(''); // Testo corrente nella barra di ricerca.
+  const [searchResults, setSearchResults] = useState([]); // Risultati filtrati in base alla query di ricerca.
+  const [selectedCenter, setSelectedCenter] = useState(null); // Centro selezionato dalla ricerca, usato per centrare la mappa alla conferma.
+  const [mapCenter, setMapCenter] = useState(null); // Coordinate [lat, lon] per centrare la mappa, aggiornate alla selezione o alla conferma di un risultato.
+  const [searchError, setSearchError] = useState(false); // Stato che indica se la ricerca ha fallito, usato per mostrare un feedback visivo all'utente.
+  const [mapStyleUrl, setMapStyleUrl] = useState(OFM_STYLE_FALLBACK); // URL dello stile della mappa, recuperato dal backend o impostato al fallback se non disponibile.
+  const [centers, setCenters] = useState([]); // Lista dei centri di raccolta, recuperata dal backend all'avvio della schermata.
+  const [bins, setBins] = useState([]); // Lista dei bidoni, recuperata dal backend all'avvio della schermata.
+  const [avatarUri, setAvatarUri] = useState(null); // URI dell'immagine del profilo dell'operatore, recuperata da AsyncStorage all'avvio della schermata.
 
-  const [showInfoCard, setShowInfoCard] = useState(false); // Stato per controllare la visibilità della scheda informativa del centro, usato per chiudere la scheda quando si clicca sulla mappa
-  const [segnalazioniOpen, setSegnalazioniOpen] = useState(false); // Stato per controllare se la sezione delle segnalazioni è aperta o chiusa, usato per mostrare/nascondere la lista delle segnalazioni assegnate all'operatore
+  const [showInfoCard, setShowInfoCard] = useState(false); // Stato che controlla la visibilità della scheda informativa del centro.
+  const [segnalazioniOpen, setSegnalazioniOpen] = useState(false); // Stato che controlla l'apertura della sezione con le segnalazioni assegnate all'operatore.
 
-  const [segnalazioni, setSegnalazioni] = useState([]); // Lista delle segnalazioni assegnate all'operatore, recuperata dal backend all'avvio dello screen e ogni volta che lo screen viene focalizzato
-  const [activeRoute, setActiveRoute] = useState([]); // Rotta attiva dell'operatore, recuperata da AsyncStorage all'avvio dello screen e ogni volta che lo screen viene focalizzato, usata per disegnare il percorso sulla mappa
+  const [segnalazioni, setSegnalazioni] = useState([]); // Lista delle segnalazioni assegnate all'operatore, recuperata dal backend all'avvio della schermata e a ogni focus.
+  const [activeRoute, setActiveRoute] = useState([]); // Rotta attiva dell'operatore, recuperata da AsyncStorage all'avvio della schermata e a ogni focus.
 
-  // Effetto per recuperare la configurazione della mappa, i centri di raccolta e i bidoni dal backend quando lo screen viene montato.
+  // Recupera la configurazione della mappa, i centri di raccolta e i bidoni dal backend quando la schermata viene montata.
   useEffect(() => {
     axios.get(`${API_URL}/ofm/config`)
       .then(r => { if (r.data?.styleUrl) setMapStyleUrl(r.data.styleUrl); })
@@ -464,7 +455,7 @@ export default function HomeOperatorScreen() {
       .catch(() => setBins([]));
   }, []);
 
-  // Effetto per recuperare l'URI dell'immagine del profilo, la rotta attiva e le segnalazioni assegnate all'operatore ogni volta che lo screen viene focalizzato, in modo da avere sempre dati aggiornati quando l'operatore torna su questo screen.
+  // Recupera immagine del profilo, rotta attiva e segnalazioni assegnate ogni volta che la schermata viene focalizzata.
   useFocusEffect(
     useCallback(() => {
       AsyncStorage.getItem('profileAvatarUri').then(uri => setAvatarUri(uri || null));
@@ -480,7 +471,7 @@ export default function HomeOperatorScreen() {
         })
         .catch(err => console.error("Errore lettura percorso attivo:", err));
 
-      // Recupero le segnalazioni assegnate all'operatore filtrando tutte le segnalazioni per quelle con status "ASSIGNED" e assignedTo uguale all'ID dell'operatore loggato, che recupero da AsyncStorage.
+      // Recupera le segnalazioni assegnate all'operatore filtrando quelle con status "ASSIGNED" e assignedTo uguale all'ID dell'operatore loggato.
       AsyncStorage.getItem('user').then(userString => {
         if (!userString) {
           console.warn("Attenzione: nessun dato utente trovato in AsyncStorage");
@@ -490,7 +481,7 @@ export default function HomeOperatorScreen() {
         const loggedInUser = JSON.parse(userString);
         const currentIdOperatore = loggedInUser.id;
 
-        axios.get(`${API_URL}/report/all`) // recupero tutte le segnalazioni e poi filtro quelle assegnate all'operatore, in modo da avere sempre dati aggiornati anche se le assegnazioni cambiano lato backend mentre l'operatore è su questo screen
+        axios.get(`${API_URL}/report/all`) // Recupera tutte le segnalazioni e filtra quelle assegnate all'operatore, mantenendo i dati aggiornati se le assegnazioni cambiano lato backend.
           .then(r => {
             const allReports = Array.isArray(r.data?.reports) ? r.data.reports : [];
             const assignedReports = allReports.filter(s => {
@@ -510,8 +501,8 @@ export default function HomeOperatorScreen() {
     }, [])
   );
 
-  // Funzione per rimuovere la rotta attiva, ad esempio quando l'operatore completa un percorso o vuole cancellarlo. 
-  // Rimuove la rotta da AsyncStorage e aggiorna lo stato activeRoute a un array vuoto, il che farà scomparire il percorso dalla mappa.
+  // Rimuove la rotta attiva, ad esempio quando l'operatore completa un percorso o vuole cancellarlo.
+  // Rimuove la rotta da AsyncStorage e svuota activeRoute, facendo scomparire il percorso dalla mappa.
   const rimuoviItinerario = async () => {
     try {
       await AsyncStorage.removeItem('active_operator_route');
@@ -521,7 +512,7 @@ export default function HomeOperatorScreen() {
     }
   };
 
-  // Funzione per costruire la lista degli elementi da mostrare nei risultati di ricerca, combinando centri e bidoni in un unico array con le informazioni necessarie per il rendering dei risultati (nome, tipo, coordinate, ecc.).
+  // Costruisce la lista degli elementi di ricerca combinando centri e bidoni con le informazioni necessarie al rendering.
   const buildSearchItems = () => {
     const items = [];
     (centers || []).forEach((c) => {
@@ -594,7 +585,7 @@ export default function HomeOperatorScreen() {
         />
       )}
 
-      {/* ── Search bar ── */}
+      {/* ── Barra di ricerca ── */}
       <View style={[styles.searchBarWrapper, { zIndex: 10 }]} pointerEvents="box-none">
         <View style={styles.searchBar}>
           <TouchableOpacity onPress={handleSearch} activeOpacity={0.7}>
@@ -636,7 +627,7 @@ export default function HomeOperatorScreen() {
           </View>
         )}
 
-        {/* ── Segnalazioni dropdown ── */}
+        {/* ── Menu segnalazioni ── */}
         <View style={styles.segnalazioniPanel}>
           <TouchableOpacity
             style={styles.segnalazioniHeader}
@@ -683,14 +674,14 @@ export default function HomeOperatorScreen() {
         </View>
       </View>
 
-      {/* ── Floating Close Route Button ── */}
+      {/* ── Pulsante flottante per rimuovere la rotta ── */}
       {activeRoute.length > 0 && (
         <TouchableOpacity style={styles.floatingCloseButton} activeOpacity={0.85} onPress={rimuoviItinerario}>
           <Text style={styles.closeButtonText}>✕ Rimuovi Itinerario Verde</Text>
         </TouchableOpacity>
       )}
 
-      {/* ── Button bar ── */}
+      {/* ── Barra dei pulsanti ── */}
       <View style={[styles.buttonBar, { zIndex: 10 }]} pointerEvents="box-none">
         <View style={styles.buttonWrapper}>
           <TouchableOpacity

@@ -13,7 +13,7 @@ export default function EliminaAccountScreen() {
     if (loading) return; // Evita più click durante il caricamento
 
     try {
-        setLoading(true); // Imposta lo stato di caricamento, in questo modo il pulsante sarà disabilitato
+        setLoading(true); // Imposta il caricamento e disabilita il pulsante
         const token = await AsyncStorage.getItem("token");
         if (!token) {
             alert("Token non trovato. Effettua di nuovo il login.");
