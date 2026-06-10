@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import axios from "axios";
 import { API_URL } from "../src/config";
@@ -33,66 +33,132 @@ export default function VerifyScreen() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Verifica la tua Email</Text>
-            <Text style={styles.subtitle}>Inserisci il codice inviato a {email}</Text>
-            
-            <TextInput
-                style={styles.input}
-                placeholder="Esempio: 123456"
-                keyboardType="number-pad"
-                maxLength={6}
-                value={code}
-                onChangeText={setCode}
-            />
+            {/* ── Header ── */}
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Verifica Email</Text>
+            </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleVerify}>
-                <Text style={styles.buttonText}>Verifica</Text>
-            </TouchableOpacity>
+            {/* ── Form ── */}
+            <View style={styles.formWrapper}>
+                <View style={styles.card}>
+                    <Text style={styles.title}>Verifica la tua Email</Text>
+
+                    <Text style={styles.subtitle}>
+                        Inserisci il codice inviato a {email}
+                    </Text>
+
+                    <TextInput
+                        style={styles.input}
+                        placeholder="123456"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        value={code}
+                        onChangeText={setCode}
+                    />
+
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={handleVerify}
+                    >
+                        <Text style={styles.buttonText}>Verifica</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        justifyContent: "center", 
-        padding: 20, 
-        backgroundColor: "#fff" 
+    container: {
+        flex: 1,
+        backgroundColor: "#f5f5f5",
     },
-    
-    title: { 
-        fontSize: 24, 
-        fontWeight: "bold", 
-        textAlign: "center", 
-        color: "#2e7d32" 
+
+    header: {
+        backgroundColor: "#009933",
+        paddingTop: Platform.OS === "web" ? 20 : 50,
+        paddingBottom: 18,
+        paddingHorizontal: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 6,
     },
-    
-    subtitle: { 
-        textAlign: "center", 
-        marginBottom: 20, 
-        color: "#666" 
+
+    headerTitle: {
+        color: "#fff",
+        fontSize: 20,
+        fontWeight: "700",
+        letterSpacing: 0.3,
     },
-    
-    input: { 
-        borderWidth: 1, 
-        borderColor: "#ddd", 
-        padding: 15, 
-        borderRadius: 10, 
-        fontSize: 20, 
-        textAlign: "center", 
-        letterSpacing: 5 
+
+    formWrapper: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
     },
-    
+
+    card: {
+        width: "100%",
+        maxWidth: 450,
+        backgroundColor: "#fff",
+        padding: 30,
+        borderRadius: 18,
+
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+
+        elevation: 8,
+    },
+
+    title: {
+        fontSize: 26,
+        fontWeight: "700",
+        textAlign: "center",
+        color: "#222",
+        marginBottom: 10,
+    },
+
+    subtitle: {
+        textAlign: "center",
+        marginBottom: 25,
+        color: "#666",
+        lineHeight: 22,
+    },
+
+    input: {
+        backgroundColor: "#fafafa",
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#e0e0e0",
+        fontSize: 24,
+        textAlign: "center",
+        letterSpacing: 8,
+    },
+
     button: {
-        backgroundColor: "#2e7d32", 
-        padding: 15, 
-        borderRadius: 10, 
-        marginTop: 20 
+        backgroundColor: "#2e7d32",
+        paddingVertical: 15,
+        borderRadius: 12,
+        alignItems: "center",
+        marginTop: 20,
     },
-    
-    buttonText: { 
-        color: "#fff", 
-        textAlign: "center", 
-        fontWeight: "bold" 
-    }
+
+    buttonText: {
+        color: "#fff",
+        fontWeight: "700",
+        fontSize: 16,
+    },
 });

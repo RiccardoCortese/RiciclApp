@@ -52,45 +52,62 @@ export default function Register() {
     <View style={styles.container}>
       {/* ── Header ── */}
       <View style={styles.header}>
-      <Text style={styles.headerTitle}>Crea Account</Text>
-      <TouchableOpacity style={styles.closeButton} activeOpacity={0.8} onPress={() => router.push('/')}>
-        <Text style={styles.closeButtonText}>✕</Text>
-      </TouchableOpacity>
+        <Text style={styles.headerTitle}>Crea Account</Text>
+
+        <TouchableOpacity
+          style={styles.closeButton}
+          activeOpacity={0.8}
+          onPress={() => router.push('/')}
+        >
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
       </View>
+
       {/* ── Form ── */}
-      <View style={styles.content}>
-        <TextInput 
-          style={styles.input} 
-          placeholder="Username" 
-          value={username}
-          onChangeText={setUsername} 
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Email" 
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail} 
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Password" 
-          secureTextEntry 
-          value={password}
-          onChangeText={setPassword} 
-        />
+      <View style={styles.formWrapper}>
+        <View style={styles.card}>
+          <Text style={styles.formTitle}>Crea il tuo account</Text>
 
-        <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          <Text style={styles.buttonText}>Registrati</Text>
-        </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={username}
+            onChangeText={setUsername}
+          />
 
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+          />
 
-        <TouchableOpacity onPress={() => router.push('/auth/login')}>
-          <Text style={styles.linkText}> Hai già un account? Accedi</Text>
-        </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleRegister}
+          >
+            <Text style={styles.buttonText}>Registrati</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push('/auth/login')}
+          >
+            <Text style={styles.linkText}>
+              Hai già un account? Accedi
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-     
     </View>
   );
 }
@@ -116,12 +133,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 6,
   },
+
   headerTitle: {
     color: '#fff',
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
+
   closeButton: {
     position: 'absolute',
     right: 16,
@@ -133,6 +152,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  
   closeButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -141,33 +161,70 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
-    justifyContent: 'flex-start',
-    padding: 20,
   },
 
   input: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: '#fafafa',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#e0e0e0',
+    fontSize: 15,
   },
+
   button: {
     backgroundColor: '#2e7d32',
-    padding: 15,
-    borderRadius: 10,
+    paddingVertical: 15,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 10,
   },
+
   buttonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 16,
   },
+
   linkText: {
-    color: "#2e7d32",
-    textAlign: "center",
+    color: '#2e7d32',
+    textAlign: 'center',
     marginTop: 20,
+    fontWeight: '600',
+  },
+
+  formWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+
+  card: {
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: '#fff',
+    padding: 30,
+    borderRadius: 18,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+
+    elevation: 8,
+  },
+
+  formTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 25,
+    color: '#222',
   },
 });
