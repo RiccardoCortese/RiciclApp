@@ -99,16 +99,13 @@ router.put('/update/:reportId', async (req, res) => {
             await Bin.findByIdAndUpdate(report.binId, { status: 'OK' });
             await Report.findByIdAndDelete(reportId);
         } else if (status === 'IN_PROGRESS') {
-            console.log("Entrato nel blocco ACCEPT");
 
             await Bin.findByIdAndUpdate(report.binId, { status: 'MANUTENZIONE' });
-            console.log("Bidone aggiornato");
 
             if (previousStatus !== 'IN_PROGRESS') {
                 await User.findByIdAndUpdate(report.userId, {
                     $inc: { points: 10 }
                 });
-                console.log("Punti utente aggiornati");
             }
         }
 
