@@ -3,7 +3,7 @@ const router  = express.Router();
 
 const mongoose       = require('mongoose');
 const User           = require('../models/user');
-const Bin            = require('../models/Bin');
+const Bin            = require('../models/bin');
 const Center         = require('../models/collection_center');
 const authMiddleware = require('../middleware/authMiddleware');
 
