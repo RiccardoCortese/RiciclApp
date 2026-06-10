@@ -6,9 +6,9 @@ const User = require('../models/user'); // Importa il modello User
 const { sendVerificationEmail } = require('../services/email_verification'); // Importa la funzione per inviare email di verifica
 const user = require('../models/user');
 
-//Rotta per la registrazione: Uso POST per inviare i dati del nuovo utente
+//Rotta per la registrazione: usa POST per inviare i dati del nuovo utente
 router.post('/register', async (req, res) => {
-    const { username, email, password } = req.body; // Estaggo i dati dal corpo della richiesta
+    const { username, email, password } = req.body; // Estraggo i dati dal corpo della richiesta
     
     // --- CONTROLLO DEI DATI INSERITI ---
     if (!username || !email || !password) { // Controllo se tutti i campi sono presenti
@@ -23,14 +23,12 @@ router.post('/register', async (req, res) => {
 
     try {
         // Controllo se l'utente esiste già
-        const existingUser = await User.findOne({ email }); //controllo se esiste già un utente con la stessa email
+        const existingUser = await User.findOne({ email }); // Controllo se esiste già un utente con la stessa email
         if (existingUser) {
             return res.status(400).json({ message: 'Utente già registrato' }); 
         }
-
-        //ALTRIMENTI
         
-        // --- INVIO MAIL CON CODICE DI VERIFICA ---
+        // --- INVIO EMAIL CON CODICE DI VERIFICA ---
         // Invio l'email di verifica
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Genera un codice di verifica a 6 cifre
         const hashedVerificationCode = await bcrypt.hash(verificationCode, 10); // Hash del codice di verifica prima di salvarlo nel database
@@ -134,7 +132,7 @@ router.post('/verify-email', async (req, res) => {
     try {
         const { email, code } = req.body;
 
-        //Cerca l'utente nel database
+        // Cerca l'utente nel database
         const user = await User.findOne({ email });
 
         if (!user) {

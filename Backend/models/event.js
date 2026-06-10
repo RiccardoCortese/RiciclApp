@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-// ── Recycling event (Evento di Raccolta) ────────────────────────────────────
+// ── Evento di raccolta ──────────────────────────────────────────────────────
 // Un evento di raccolta è un'area circolare, attiva in una finestra temporale,
 // in cui gli utenti che scansionano un rifiuto di un tipo "potenziato" ricevono
 // i punti moltiplicati per il boost dell'evento. È creato e modificato solo

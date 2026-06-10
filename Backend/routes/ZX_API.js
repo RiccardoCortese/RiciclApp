@@ -30,11 +30,12 @@ async function eventBoostFor(userId, disposalLabels) {
 }
 
 // Rotta per la scansione del codice a barre tramite ZXing/expo-camera e recupero dati da Open Food Facts
-// Ordered disposal categories. A scanned product is matched against every
-// packaging signal Open Food Facts exposes, so localized terms (e.g. the Italian
-// "plastica") and resin codes (pet, hdpe, ldpe, pp, ps…) all map to the right
-// bin. Categories are listed by priority: for a given bin the first matching
-// category wins, so "Indifferenziato" is only used when nothing matches at all.
+// Categorie di smaltimento ordinate per priorità.
+// Un prodotto scansionato viene confrontato con tutti i segnali di packaging
+// forniti da Open Food Facts, così termini localizzati e codici dei materiali
+// come pet, hdpe, ldpe, pp e ps vengono associati al bidone corretto.
+// Per ogni bidone viene usata la prima categoria corrispondente; "Indifferenziato"
+// viene usato solo quando non viene trovata nessuna corrispondenza.
 const DISPOSAL_CATEGORIES = [
   {
     info: { label: 'Plastica', bin: 'Bidone Giallo (Plastica/Metallo)', color: '#F9A825', icon: '♻️' },
@@ -89,19 +90,20 @@ const FALLBACK_DISPOSAL = {
   icon: '🗑️',
 };
 
-// Whole-word (token) match: anything that is not a letter or digit counts as a
-// boundary, so "plastic" matches "en:plastic" and "pet" matches "pet-1" while
-// short resin codes like "pp"/"ps" never leak into unrelated words.
+// Corrispondenza per parola intera: qualsiasi carattere che non sia lettera o
+// numero viene considerato un separatore. Così "plastic" corrisponde a "en:plastic"
+// e "pet" corrisponde a "pet-1", mentre codici brevi come "pp" e "ps" non vengono
+// trovati dentro parole non correlate.
 function matchesKeyword(text, keyword) {
   const escaped = keyword.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
   return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`).test(text);
 }
 
-// Collects every packaging signal Open Food Facts exposes — the tag lists, the
-// free-text fields and the structured "packagings" array — into one lowercase
-// string. Reading all of them (not just packaging/packaging_tags) is what stops
-// products whose material lives only in packaging_materials_tags / packagings
-// from wrongly falling back to "Indifferenziato".
+// Raccoglie tutti i segnali di packaging forniti da Open Food Facts: liste di tag,
+// campi testuali liberi e array strutturato "packagings". Leggere tutti questi
+// campi, e non solo packaging/packaging_tags, evita che prodotti con materiale
+// indicato solo in packaging_materials_tags o packagings finiscano erroneamente
+// in "Indifferenziato".
 function collectPackagingText(product) {
   const parts = [];
   const addTags = (arr) => { if (Array.isArray(arr)) parts.push(arr.join(' ')); };
@@ -143,16 +145,16 @@ function resolveDisposal(product) {
 }
 
 // GET /api/zx/scan/:barcode
-// Receives a barcode scanned via ZXing/expo-camera on the client.
-// Fetches product data from Open Food Facts with a hard timeout and returns
-// a clean payload including pre-computed disposal categories.
+// Riceve un codice a barre scansionato dal client tramite ZXing/expo-camera.
+// Recupera i dati del prodotto da Open Food Facts con un timeout massimo e
+// restituisce un payload pulito con le categorie di smaltimento già calcolate.
 router.get('/scan/:barcode', async (req, res) => {
   const { barcode } = req.params;
   const { userId } = req.query;
   if (!barcode) return res.status(400).json({ error: 'Barcode obbligatorio' });
 
-  // Hard 8-second timeout on the upstream Open Food Facts call so that
-  // a slow external API cannot leave the frontend in an infinite loading state.
+  // Timeout massimo di 8 secondi sulla chiamata a Open Food Facts, così un'API
+// esterna lenta non lascia il frontend in caricamento infinito.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
 
