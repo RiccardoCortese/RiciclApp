@@ -849,28 +849,7 @@ paths:
         '500':
           description: Errore interno del server
 
-  /centers/bins/{binId}/fill-level:
-    get:
-      tags:
-        - Centers
-      summary: Recupera il livello di riempimento di un bidone
-      description: >
-        Restituisce il livello di riempimento aggiornato del bidone, calcola etichetta e colore
-        da mostrare nell'interfaccia e aggiorna lo stato del bidone a PIENO se il livello è almeno 80%,
-        altrimenti a OK.
-      parameters:
-        - name: binId
-          in: path
-          required: true
-          description: ID del bidone
-          schema:
-            type: string
-            example: "683a7e4f9b12c8a87654321"
-      responses:
-        '200':
-          description: Livello di riempimento recuperato con successo
-          content:
-            application/  /centers/bins/{binId}/fill-level:
+    /centers/bins/{binId}/fill-level:
     get:
       tags:
         - Centers
