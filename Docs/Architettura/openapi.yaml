@@ -267,7 +267,7 @@ paths:
         '500':
           description: Errore di rete o risposta non valida da Nominatim
 
-    /zx/scan/{barcode}:
+  /zx/scan/{barcode}:
     get:
       tags:
         - ZX
