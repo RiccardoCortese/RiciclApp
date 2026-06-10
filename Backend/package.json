@@ -14,12 +14,20 @@
   "author": "Binco Francesco, Cortese Riccardo, Giovagnetti Lorenzo",
   "type": "commonjs",
   "main": "index.js",
- "scripts": {
+  "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "cross-env NODE_ENV=test JWT_SECRET=test_secret jest --runInBand --detectOpenHandles",
+    "test:watch": "cross-env NODE_ENV=test JWT_SECRET=test_secret jest --runInBand --watch",
+    "test:coverage": "cross-env NODE_ENV=test JWT_SECRET=test_secret jest --runInBand --coverage",
     "seed": "node config/seed.js",
     "listener": "node iot/listener.js",
     "simulator": "node iot/simulator.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": ["./tests/setup.js"],
+    "testMatch": ["**/tests/**/*.test.js"],
+    "testTimeout": 20000
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -31,5 +39,11 @@
     "mongoose": "^9.6.1",
     "mqtt": "^5.0.0",
     "nodemailer": "^8.0.7"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "jest": "^30.4.2",
+    "mongodb-memory-server": "^11.2.0",
+    "supertest": "^7.2.2"
   }
 }

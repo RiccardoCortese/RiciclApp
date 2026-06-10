@@ -11,7 +11,22 @@
     "build:web": "expo export --platform web",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "setupFilesAfterEnv": [
+      "./jest.setup.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.{js,jsx}"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|react-native-webview|maplibre-gl))"
+    ]
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -51,12 +66,15 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@testing-library/react-native": "^13.3.3",
     "@types/react": "~19.1.0",
+    "babel-preset-expo": "~54.0.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "typescript": "~5.9.2",
-    "@babel/core": "^7.25.2",
-    "babel-preset-expo": "~13.0.0"
+    "jest-expo": "~54.0.0",
+    "react-test-renderer": "^19.1.0",
+    "typescript": "~5.9.2"
   },
   "private": true
 }
