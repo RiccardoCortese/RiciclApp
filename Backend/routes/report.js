@@ -4,7 +4,7 @@ const Report = require('../models/reports');
 const Bin = require('../models/bin');
 const User = require('../models/user');
 
-//POST per creare un nuovo report
+//POST per creare una nuova segnalazione
 router.post('/create', async (req, res) => {
     try {
         const { userId, binId, description } = req.body;
@@ -27,7 +27,7 @@ router.post('/create', async (req, res) => {
 
         await report.save();
         
-        //metto il bidone in manutenzione
+        // Imposta il bidone in manutenzione
         await Bin.findByIdAndUpdate(binId, { status: 'SEGNALATO' });
         res.status(201).json({ message: 'Report creato con successo', report });
     } catch (error) {
@@ -35,7 +35,7 @@ router.post('/create', async (req, res) => {
     }
 });
 
-//GET per recuperare tutte le segnalazioni (per admin)
+// GET per recuperare tutte le segnalazioni, usato dall'admin
 router.get('/all', async (req, res) => {
     try {
         try {
@@ -124,12 +124,12 @@ router.put('/assign/:reportId', async (req, res) => {
             return res.status(400).json({ success: false, message: "ID operatore mancante." });
         }
 
-        // Trova il report e aggiorna sia il campo dell'operatore sia lo status
+        // Trova la segnalazione e aggiorna sia l'operatore assegnato sia lo stato
         const updatedReport = await Report.findByIdAndUpdate(
             reportId,
             {
                 assignedTo: assignedTo,
-                status: 'ASSIGNED' // Cambiamo lo status in ASSIGNED
+                status: 'ASSIGNED' // Imposta lo stato su ASSIGNED
             },
             { new: true }
         );

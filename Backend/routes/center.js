@@ -4,7 +4,7 @@ const Center = require('../models/collection_center');
 const Bin = require('../models/Bin');
 const mongoose = require('mongoose'); 
 
-//Rotta per visualizzare tutti i centri di raccolta
+// Rotta per visualizzare tutti i centri di raccolta
 router.get('/all', async (req, res) => {
     try {
         const centers = await Center.find(); 
@@ -36,9 +36,10 @@ router.get('/unassigned', async (req, res) => {
     }
 });
 
-// Tutti i bidoni piazzati sulla mappa (con coordinate valide). Pubblico: serve
-// a mostrare i bidoni anche sulle mappe di cittadini e operatori, non solo admin.
-// Va dichiarata PRIMA di "/:id" per non essere oscurata dalla rotta dinamica.
+// Recupera tutti i bidoni piazzati sulla mappa con coordinate valide.
+// È una rotta pubblica e serve a mostrare i bidoni sulle mappe di cittadini,
+// operatori e admin. Va dichiarata PRIMA di "/:id" per non essere oscurata
+// dalla rotta dinamica.
 router.get('/bins', async (req, res) => {
     try {
         const bins = await Bin.find({
@@ -100,12 +101,12 @@ router.get('/bins/:binId/fill-level', async (req, res) => {
   }
 });
 
-//Rotta per il singolo centro + i suoi bidoni
+// Rotta per recuperare un singolo centro con i suoi bidoni
 router.get('/:id', async (req, res) => {
   try {
     const centerId = req.params.id;
 
-    // Cerca il centro su MongoDB usando l'ID e trasformo in oggetto JS modificabile 
+    // Cerca il centro su MongoDB usando l'ID e lo trasforma in oggetto JS modificabile 
     const center = await Center.findById(centerId).lean();
     
     if (!center) {
@@ -115,16 +116,17 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // array con condizioni per cercare i bidoni associati al centro, considerando sia l'ID come ObjectId che come stringa (per sicurezza)
+    // Array di condizioni per cercare i bidoni associati al centro,
+    // considerando sia l'ID come ObjectId sia come stringa.
     const queryCondizioni = [
       { centerId: centerId }, 
       { centerId: centerId.toString() } 
     ];
 
-    //Bidoni associati
+    // Bidoni associati
     const bins = await Bin.find({ $or: queryCondizioni });
 
-    //aggiungo i bidoni all'oggetto del centro prima di restituirlo al frontend
+    // Aggiungo i bidoni all'oggetto del centro prima di restituirlo al frontend
     center.bins = bins || [];
 
     // Restituisce l'oggetto completo al frontend 

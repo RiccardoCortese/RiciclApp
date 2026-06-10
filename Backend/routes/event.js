@@ -132,7 +132,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // ── POST /api/events/settle  (cittadino autenticato) ─────────────────────────
 // Liquida gli eventi conclusi a cui l'utente ha partecipato e per cui non ha
 // ancora ricevuto i punti di ringraziamento: assegna +10 una sola volta per
-// evento e restituisce gli eventi appena liquidati (per il popup di ringrazio).
+// evento e restituisce gli eventi appena liquidati (per il popup di ringraziamento).
 // Va dichiarata PRIMA di "/:id/join" per non essere oscurata da rotte dinamiche.
 router.post('/settle', authMiddleware, async (req, res) => {
   try {
@@ -186,7 +186,7 @@ router.post('/:id/join', authMiddleware, async (req, res) => {
 
     const event = await RecyclingEvent.findByIdAndUpdate(
       req.params.id,
-      { $addToSet: { participants: userId } }, // niente duplicati
+      { $addToSet: { participants: userId } }, // Evita duplicati
       { new: true }
     );
     if (!event) return res.status(404).json({ message: 'Evento non trovato' });

@@ -1,5 +1,5 @@
 const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']); // serve per forzare l'uso di DNS pubblici (Google) e risolvere problemi di connessione a MongoDB Atlas perchè alcuni ISP bloccano i DNS di default
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Forza l'uso dei DNS pubblici di Google per evitare problemi di connessione a MongoDB Atlas
 
 const express = require('express');
 const connectDB = require('./config/db');
@@ -8,7 +8,7 @@ const cors = require('cors'); // Middleware per abilitare CORS (Cross-Origin Res
 
 const app = express();
 app.use(cors());
-// 1. connessione al database MongoDB Atlas
+// 1. Connessione al database MongoDB Atlas
 connectDB();
 
 // 2. Middleware per leggere i JSON (utile per la registrazione)
@@ -17,7 +17,7 @@ app.use(express.json());
 
 // ---- ROTTE ----
 
-//rotta per l'autenticazione (registrazione e login)
+// Rotta per l'autenticazione (registrazione e login)
 app.use('/api/auth', require('./routes/auth')); // Tutte le rotte di autenticazione (registrazione e login) saranno accessibili tramite /api/auth/<register o login>
 
 // Rotte OpenStreetMap
@@ -29,10 +29,10 @@ app.use('/api/off', require('./routes/OFF_API'));
 // Rotte OpenFreeMap (configurazione mappa)
 app.use('/api/ofm', require('./routes/OFM_API'));
 
-// rotta per il profilo utente
+// Rotta per il profilo utente
 app.use('/api/user', require('./routes/user'));
 
-// Rotte ZXing — barcode scan → product info + disposal categories
+// Rotte ZXing: scansione barcode, informazioni prodotto e categorie di smaltimento
 app.use('/api/zx', require('./routes/ZX_API'));
 
 // Rotta per i centri di raccolta
@@ -44,7 +44,7 @@ app.use('/api/admin', require('./routes/admin'));
 // Rotta per le segnalazioni sui bidoni
 app.use('/api/report', require('./routes/report'));
 
-// Rotta per gli eventi di raccolta (Recycling event)
+// Rotta per gli eventi di raccolta
 app.use('/api/events', require('./routes/event'));
 
 // Rotta lista premi e partner commerciali
@@ -57,7 +57,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server in esecuzione sulla porta ${PORT}`));
 
 
-  // Questo stamperà l'elenco reale senza far crashare Node
+  // Stampa l'elenco reale delle rotte senza interrompere Node
   if (app._router && app._router.stack) {
     app._router.stack.forEach((r) => {
       if (r.name === 'router' && r.handle && r.handle.stack) {

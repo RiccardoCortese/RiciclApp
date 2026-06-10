@@ -4,12 +4,12 @@ const reportSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // Punta al tuo modello utenti
+      ref: 'User', // Riferimento all'utente che ha creato la segnalazione
       required: true
     },
     binId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Bin', // Punta al tuo modello bidoni
+      ref: 'Bin', // Riferimento al bidone segnalato
       required: true
     },
     description: {

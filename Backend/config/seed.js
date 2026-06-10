@@ -66,7 +66,7 @@ async function seed() {
     const reward1Id = new ObjectId();
     const partner1Id = new ObjectId();
 
-    // 4. Users
+    // 4. Utenti
     await users.insertMany([
       {
         _id: userMarioId,
@@ -224,7 +224,7 @@ async function seed() {
       }
     ]);
 
-    // 10. Partner
+    // 10. Partner commerciali
     await partners.insertMany([
       {
         _id: partner1Id,

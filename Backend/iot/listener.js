@@ -11,6 +11,8 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
+// Connessione al broker MQTT
+
 const mqttClient = mqtt.connect(MQTT_BROKER);
 const mongoClient = new MongoClient(MONGO_URI);
 
@@ -25,6 +27,7 @@ async function connectMongo() {
 
 mqttClient.on("connect", () => {
   console.log("Listener connesso al broker MQTT");
+  // Sottoscrizione ai topic dei sensori dei bidoni
   mqttClient.subscribe("bins/+/fill_level", (err) => {
     if (err) {
       console.error("Errore durante la sottoscrizione MQTT:", err);
@@ -33,6 +36,8 @@ mqttClient.on("connect", () => {
     }
   });
 });
+
+// Gestione dei messaggi ricevuti dai sensori
 
 mqttClient.on("message", async (topic, message) => {
   try {
@@ -57,6 +62,8 @@ mqttClient.on("message", async (topic, message) => {
     if (fillLevel >= 90) {
       status = "PIENO";
     }
+
+    // Aggiorna il livello di riempimento del bidone nel database
 
     await binsCollection.updateOne(
       { binCode: binCode },

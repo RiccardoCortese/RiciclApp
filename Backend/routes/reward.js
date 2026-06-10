@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-// Recupera lista premi con informazioni attività commerciale
+// Recupera la lista dei premi con le informazioni dell'attività commerciale associata
 router.get('/', async (req, res) => {
 
   try {

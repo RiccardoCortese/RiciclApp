@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Proxy Open Food Facts — avoids CORS issues on the frontend
+// Proxy per Open Food Facts: evita problemi CORS sul frontend
 router.get('/product/:barcode', async (req, res) => {
   const { barcode } = req.params;
   if (!barcode) return res.status(400).json({ error: 'Barcode obbligatorio' });
